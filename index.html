@@ -11,16 +11,16 @@
             --primary: #ea580c;
             --primary-hover: #c2410c;
             --primary-light: #fff7ed;
-            --bg-color: #fcf8f2; /* 溫和馬鈴薯暖白背景 */
+            --bg-color: #fcf8f2;
             
             /* 馬鈴薯專屬深淺色系 */
-            --card-potato-light: #fffdf9; /* 淺色：熱騰騰馬鈴薯泥 */
-            --card-potato-dark: #faf2e8;  /* 深色：帶皮香烤馬鈴薯 */
+            --card-potato-light: #fffdf9;
+            --card-potato-dark: #faf2e8;
             
             --text-main: #292524;
             --text-muted: #78716c;
             --border: #e7e5e4;
-            --border-potato: #fde68a;     /* 溫暖金黃邊框 */
+            --border-potato: #fde68a;
             --shadow: 0 4px 6px -1px rgba(120, 53, 15, 0.05), 0 2px 4px -2px rgba(120, 53, 15, 0.03);
             --shadow-hover: 0 10px 15px -3px rgba(234, 88, 12, 0.12), 0 4px 6px -4px rgba(234, 88, 12, 0.08);
         }
@@ -312,7 +312,7 @@
         }
 
         .item-card { 
-            background: var(--card-potato-light); /* 淺色：馬鈴薯泥 */
+            background: var(--card-potato-light); 
             border: 1px solid #fde68a; 
             padding: 18px; 
             border-radius: 14px; 
@@ -323,7 +323,7 @@
             transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
         }
         .item-card.zebra-alt {
-            background: var(--card-potato-dark); /* 深色：烤馬鈴薯熟成皮 */
+            background: var(--card-potato-dark); 
             border-color: #fcd34d;
         }
         .item-card:hover {
@@ -365,7 +365,7 @@
             border-color: #fecaca;
         }
 
-        /* 滾輪式日期選擇器彈窗 (Picker Modal) */
+        /* 滾輪式日期選擇器彈窗 (Picker Modal)修正 */
         .picker-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -395,17 +395,24 @@
             justify-content: space-between;
             gap: 8px;
             margin-bottom: 20px;
-            height: 160px;
+            height: 140px; /* 剛好容納 3 行高度 (45px * 3) */
             position: relative;
         }
+        /* 完美的置中聚焦框：透過绝对定位固定在容器正中央 */
         .picker-wheels-container::before {
             content: '';
             position: absolute;
-            top: 60px; left: 0; width: 100%; height: 40px;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 45px;
+            transform: translateY(-50%);
             border-top: 2px solid var(--primary);
             border-bottom: 2px solid var(--primary);
             background: rgba(234, 88, 12, 0.05);
             pointer-events: none;
+            box-sizing: border-box;
+            z-index: 2;
         }
         .wheel-column {
             flex: 1;
@@ -414,12 +421,14 @@
             scrollbar-width: none;
             -ms-overflow-style: none;
             scroll-snap-type: y mandatory;
-            padding: 60px 0;
+            padding: 47.5px 0; /* 上下留白剛好讓第一行與最後一行可以滾到正中央 */
             box-sizing: border-box;
+            position: relative;
+            z-index: 1;
         }
         .wheel-column::-webkit-scrollbar { display: none; }
         .wheel-item {
-            height: 40px;
+            height: 45px; /* 每一行的固定高度 */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -428,7 +437,8 @@
             color: #78716c;
             cursor: pointer;
             scroll-snap-align: center;
-            transition: color 0.2s;
+            transition: color 0.2s, font-size 0.2s;
+            box-sizing: border-box;
         }
         .wheel-item.selected {
             color: #c2410c;
@@ -1087,30 +1097,29 @@
         function populateWheelColumns(selYear, selMonth, selDay) {
             const yearCol = document.getElementById('wheel-year');
             const monthCol = document.getElementById('wheel-month');
-            const dayCol = document.getElementById('wheel-day');
 
-            let yearHtml = '<div style="height:60px;"></div>';
+            let yearHtml = '<div style="height:47.5px;"></div>';
             for (let y = 2024; y <= 2032; y++) {
                 yearHtml += `<div class="wheel-item" data-val="${y}">${y}年</div>`;
             }
-            yearHtml += '<div style="height:60px;"></div>';
+            yearHtml += '<div style="height:47.5px;"></div>';
             yearCol.innerHTML = yearHtml;
 
-            let monthHtml = '<div style="height:60px;"></div>';
+            let monthHtml = '<div style="height:47.5px;"></div>';
             for (let m = 1; m <= 12; m++) {
                 let mStr = m < 10 ? '0' + m : m;
                 monthHtml += `<div class="wheel-item" data-val="${m}">${mStr}月</div>`;
             }
-            monthHtml += '<div style="height:60px;"></div>';
+            monthHtml += '<div style="height:47.5px;"></div>';
             monthCol.innerHTML = monthHtml;
 
             updateDaysWheel(selYear, selMonth, selDay);
 
-            setTimeout(() => {
+            requestAnimationFrame(() => {
                 scrollToValue('year', selYear);
                 scrollToValue('month', selMonth);
                 scrollToValue('day', selDay);
-            }, 50);
+            });
         }
 
         function updateDaysWheel(year, month, selectedDay) {
@@ -1118,12 +1127,12 @@
             const daysInMonth = new Date(year, month, 0).getDate();
             if (selectedDay > daysInMonth) selectedDay = daysInMonth;
 
-            let dayHtml = '<div style="height:60px;"></div>';
+            let dayHtml = '<div style="height:47.5px;"></div>';
             for (let d = 1; d <= daysInMonth; d++) {
                 let dStr = d < 10 ? '0' + d : d;
                 dayHtml += `<div class="wheel-item" data-val="${d}">${dStr}日</div>`;
             }
-            dayHtml += '<div style="height:60px;"></div>';
+            dayHtml += '<div style="height:47.5px;"></div>';
             dayCol.innerHTML = dayHtml;
 
             scrollToValue('day', selectedDay);
@@ -1135,7 +1144,7 @@
             const items = col.querySelectorAll('.wheel-item');
             for (let item of items) {
                 if (parseInt(item.getAttribute('data-val')) === parseInt(val)) {
-                    col.scrollTop = item.offsetTop - 60;
+                    col.scrollTop = item.offsetTop - (col.clientHeight / 2) + (item.clientHeight / 2);
                     break;
                 }
             }
@@ -1157,15 +1166,14 @@
             const col = document.getElementById(`wheel-${type}`);
             if (!col) return;
             const items = col.querySelectorAll('.wheel-item');
-            const scrollTop = col.scrollTop;
             
-            let centerPos = scrollTop + 60;
+            let containerCenter = col.scrollTop + (col.clientHeight / 2);
             let closestItem = null;
             let minDiff = 9999;
 
             items.forEach(item => {
-                let itemMiddle = item.offsetTop + 20;
-                let diff = Math.abs(centerPos - itemMiddle);
+                let itemCenter = item.offsetTop + (item.clientHeight / 2);
+                let diff = Math.abs(containerCenter - itemCenter);
                 if (diff < minDiff) {
                     minDiff = diff;
                     closestItem = item;
