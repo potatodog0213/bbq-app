@@ -456,16 +456,19 @@
             displayProductsWithSort();
         }
 
-        // 渲染品項畫面
+        // 渲染品項畫面（預設排序改為：售價由低到高）
         function displayProductsWithSort() {
             const contentEl = document.getElementById('page-content');
-            const sortOrder = document.getElementById('sort-select') ? document.getElementById('sort-select').value : 'default';
+            const sortSelectEl = document.getElementById('sort-select');
+            const sortOrder = sortSelectEl ? sortSelectEl.value : 'price-asc'; // 預設為 price-asc
 
             let sortedData = [...globalProductsData];
             if (sortOrder === 'price-asc') {
                 sortedData.sort((a, b) => (a.price || 0) - (b.price || 0));
             } else if (sortOrder === 'price-desc') {
                 sortedData.sort((a, b) => (b.price || 0) - (a.price || 0));
+            } else if (sortOrder === 'default') {
+                sortedData.sort((a, b) => (b.id || 0) - (a.id || 0));
             }
 
             let html = `
@@ -474,9 +477,9 @@
                     <div>
                         <label style="margin-right: 6px; font-weight:600; color:var(--text-muted);">排序方式：</label>
                         <select id="sort-select" onchange="displayProductsWithSort()">
-                            <option value="default" ${sortOrder === 'default' ? 'selected' : ''}>預設排序 (最新)</option>
                             <option value="price-asc" ${sortOrder === 'price-asc' ? 'selected' : ''}>售價：由低到高 ↗</option>
                             <option value="price-desc" ${sortOrder === 'price-desc' ? 'selected' : ''}>售價：由高到低 ↘</option>
+                            <option value="default" ${sortOrder === 'default' ? 'selected' : ''}>預設排序 (最新)</option>
                         </select>
                     </div>
                 </div>
@@ -513,7 +516,7 @@
             contentEl.innerHTML = html;
         }
 
-        // 點擊刪除時，在卡片內切換為確認刪除狀態（不使用醜醜的 alert）
+        // 點擊刪除時，在卡片內切換為確認刪除狀態
         function showDeleteConfirm(id, name) {
             const cardEl = document.getElementById(`card-${id}`);
             const actionsEl = document.getElementById(`actions-${id}`);
