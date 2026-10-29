@@ -456,19 +456,28 @@
             displayProductsWithSort();
         }
 
-        // 渲染品項畫面（預設排序改為：售價由低到高）
+        // 計算單項成本率的輔助函式
+        function calculateCostRate(item) {
+            if (!item.price || item.price <= 0) return 0;
+            return (item.package_cost / item.price) * 100;
+        }
+
+        // 渲染品項畫面（支援 4 種排序方式）
         function displayProductsWithSort() {
             const contentEl = document.getElementById('page-content');
             const sortSelectEl = document.getElementById('sort-select');
-            const sortOrder = sortSelectEl ? sortSelectEl.value : 'price-asc'; // 預設為 price-asc
+            const sortOrder = sortSelectEl ? sortSelectEl.value : 'price-asc'; // 預設為售價低到高
 
             let sortedData = [...globalProductsData];
+            
             if (sortOrder === 'price-asc') {
                 sortedData.sort((a, b) => (a.price || 0) - (b.price || 0));
             } else if (sortOrder === 'price-desc') {
                 sortedData.sort((a, b) => (b.price || 0) - (a.price || 0));
-            } else if (sortOrder === 'default') {
-                sortedData.sort((a, b) => (b.id || 0) - (a.id || 0));
+            } else if (sortOrder === 'cost-rate-asc') {
+                sortedData.sort((a, b) => calculateCostRate(a) - calculateCostRate(b));
+            } else if (sortOrder === 'cost-rate-desc') {
+                sortedData.sort((a, b) => calculateCostRate(b) - calculateCostRate(a));
             }
 
             let html = `
@@ -479,7 +488,8 @@
                         <select id="sort-select" onchange="displayProductsWithSort()">
                             <option value="price-asc" ${sortOrder === 'price-asc' ? 'selected' : ''}>售價：由低到高 ↗</option>
                             <option value="price-desc" ${sortOrder === 'price-desc' ? 'selected' : ''}>售價：由高到低 ↘</option>
-                            <option value="default" ${sortOrder === 'default' ? 'selected' : ''}>預設排序 (最新)</option>
+                            <option value="cost-rate-asc" ${sortOrder === 'cost-rate-asc' ? 'selected' : ''}>成本率：由低到高 ↗</option>
+                            <option value="cost-rate-desc" ${sortOrder === 'cost-rate-desc' ? 'selected' : ''}>成本率：由高到低 ↘</option>
                         </select>
                     </div>
                 </div>
@@ -488,10 +498,7 @@
             if (sortedData.length > 0) {
                 html += '<div class="items-grid">';
                 sortedData.forEach(item => {
-                    let costRate = 0;
-                    if (item.price > 0) {
-                        costRate = ((item.package_cost / item.price) * 100).toFixed(1);
-                    }
+                    let costRate = calculateCostRate(item).toFixed(1);
 
                     html += `
                         <div class="item-card" id="card-${item.id}">
