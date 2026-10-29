@@ -359,6 +359,95 @@
             background: #fff5f5 !important;
             border-color: #fecaca;
         }
+
+        /* 滾輪式日期選擇器彈窗 (Picker Modal) */
+        .picker-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+        .picker-modal {
+            background: white;
+            padding: 24px;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            width: 320px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .picker-modal h4 {
+            margin: 0 0 16px 0;
+            color: #c2410c;
+            font-size: 17px;
+        }
+        .picker-wheels-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 20px;
+            height: 160px;
+            position: relative;
+        }
+        /* 聚焦選擇框線條 */
+        .picker-wheels-container::before {
+            content: '';
+            position: absolute;
+            top: 60px; left: 0; width: 100%; height: 40px;
+            border-top: 2px solid var(--primary);
+            border-bottom: 2px solid var(--primary);
+            background: rgba(249, 115, 22, 0.04);
+            pointer-events: none;
+        }
+        .wheel-column {
+            flex: 1;
+            height: 100%;
+            overflow-y: scroll;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
+            scroll-snap-type: y mandatory;
+            padding: 60px 0; /* 讓上下可以滾到中間 */
+            box-sizing: border-box;
+        }
+        .wheel-column::-webkit-scrollbar { display: none; }
+        .wheel-item {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            scroll-snap-align: center;
+            transition: color 0.2s;
+        }
+        .wheel-item.selected {
+            color: #ea580c;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .picker-btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .picker-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .picker-confirm { background: var(--primary); color: white; }
+        .picker-confirm:hover { background: var(--primary-hover); }
+        .picker-cancel { background: #e2e8f0; color: #334155; }
+        .picker-cancel:hover { background: #cbd5e1; }
     </style>
 </head>
 <body>
@@ -596,26 +685,11 @@
                 <div class="form-card-container">
                     <h3 class="form-header-title">✨ 建立新碳烤品項資料</h3>
                     <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group">
-                        <label>品項名稱</label>
-                        <input type="text" id="prod-name" placeholder="例如: 茄子、豆干">
-                    </div>
-                    <div class="form-group">
-                        <label>單價</label>
-                        <input type="number" step="0.01" id="prod-unit-price" placeholder="請輸入數字">
-                    </div>
-                    <div class="form-group">
-                        <label>總成本 (食材+包材)</label>
-                        <input type="number" step="0.01" id="prod-cost" placeholder="請輸入數字">
-                    </div>
-                    <div class="form-group">
-                        <label>售價</label>
-                        <input type="number" step="0.01" id="prod-price" placeholder="請輸入數字">
-                    </div>
-                    <div class="form-group">
-                        <label>備註</label>
-                        <input type="text" id="prod-note" placeholder="例如: 8吋竹籤">
-                    </div>
+                    <div class="form-group"><label>品項名稱</label><input type="text" id="prod-name" placeholder="例如: 茄子、豆干"></div>
+                    <div class="form-group"><label>單價</label><input type="number" step="0.01" id="prod-unit-price" placeholder="請輸入數字"></div>
+                    <div class="form-group"><label>總成本 (食材+包材)</label><input type="number" step="0.01" id="prod-cost" placeholder="請輸入數字"></div>
+                    <div class="form-group"><label>售價</label><input type="number" step="0.01" id="prod-price" placeholder="請輸入數字"></div>
+                    <div class="form-group"><label>備註</label><input type="text" id="prod-note" placeholder="例如: 8吋竹籤"></div>
                     <button id="submit-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addProduct()">確認儲存品項</button>
                 </div>
             `;
@@ -737,7 +811,7 @@
         }
 
 
-        // ==================== 店內支出記錄表邏輯 ====================
+        // ==================== 店內支出記錄表與滾輪日曆邏輯 ====================
         async function renderExpensesList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取支出資料中...</p>';
@@ -761,13 +835,12 @@
             const searchInputEl = document.getElementById('expense-search-input');
             const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
 
-            // 僅用日期做過濾搜尋
+            // 支援僅用日期做過濾搜尋
             let filteredData = globalExpensesData.filter(item => {
                 if (!searchQuery) return true;
                 return item.date && item.date.toLowerCase().includes(searchQuery);
             });
 
-            // 計算花費總金額加總
             let totalExpenseAmount = filteredData.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
 
             let html = `
@@ -777,7 +850,7 @@
                         <span>花費總金額：<b style="color:#dc2626;">$${totalExpenseAmount.toLocaleString()} 元</b></span>
                     </div>
                     <div class="search-sort-group">
-                        <input type="text" id="expense-search-input" class="search-input" placeholder="🔍 輸入日期 (例如 2026-10)..." value="${searchQuery}" oninput="displayExpensesList()">
+                        <input type="text" id="expense-search-input" class="search-input" placeholder="📅 點此選擇日期搜尋..." value="${searchQuery}" readonly onclick="openWheelPicker(setSearchDateQuery, '${searchQuery || new Date().toISOString().split('T')[0]}')" style="cursor: pointer; background: #fff;">
                     </div>
                 </div>
             `;
@@ -810,6 +883,14 @@
             contentEl.innerHTML = html;
         }
 
+        function setSearchDateQuery(selectedDate) {
+            const searchInput = document.getElementById('expense-search-input');
+            if (searchInput) {
+                searchInput.value = selectedDate;
+                displayExpensesList();
+            }
+        }
+
         function showDeleteConfirmExpense(id) {
             const cardEl = document.getElementById(`expense-card-${id}`);
             const actionsEl = document.getElementById(`expense-actions-${id}`);
@@ -835,7 +916,10 @@
                 <div class="form-card-container">
                     <h3 class="form-header-title">💸 紀錄新店內支出</h3>
                     <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group"><label>日期</label><input type="date" id="exp-date" value="${todayStr}"></div>
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="text" id="exp-date" value="${todayStr}" readonly onclick="openWheelPicker(setAddExpenseDate, document.getElementById('exp-date').value)" style="cursor: pointer; background: #fff;">
+                    </div>
                     <div class="form-group"><label>支出項目名稱</label><input type="text" id="exp-name" placeholder="例如: 瓦斯桶、竹籤"></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="exp-qty" value="1" placeholder="請輸入數量"></div>
                     <div class="form-group"><label>金額 (總金額)</label><input type="number" step="0.01" id="exp-amount" placeholder="請輸入總金額"></div>
@@ -843,6 +927,10 @@
                     <button id="submit-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addExpense()">確認儲存支出</button>
                 </div>
             `;
+        }
+
+        function setAddExpenseDate(dateStr) {
+            document.getElementById('exp-date').value = dateStr;
         }
 
         async function addExpense() {
@@ -895,7 +983,10 @@
                 <div class="form-card-container">
                     <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
                     <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group"><label>日期</label><input type="date" id="edit-exp-date" value="${item.date}"></div>
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="text" id="edit-exp-date" value="${item.date}" readonly onclick="openWheelPicker(setEditExpenseDate, document.getElementById('edit-exp-date').value)" style="cursor: pointer; background: #fff;">
+                    </div>
                     <div class="form-group"><label>支出項目名稱</label><input type="text" id="edit-exp-name" value="${item.name}"></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="edit-exp-qty" value="${item.quantity || 1}"></div>
                     <div class="form-group"><label>金額</label><input type="number" step="0.01" id="edit-exp-amount" value="${item.amount}"></div>
@@ -903,6 +994,10 @@
                     <button id="update-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateExpense(${item.id})">確認更新變更</button>
                 </div>
             `;
+        }
+
+        function setEditExpenseDate(dateStr) {
+            document.getElementById('edit-exp-date').value = dateStr;
         }
 
         async function updateExpense(id) {
@@ -944,6 +1039,174 @@
             const { error } = await _supabase.from('expenses').delete().eq('id', id);
             if (error) alert('刪除失敗：' + error.message);
             else renderExpensesList();
+        }
+
+
+        // ==================== 三段式滾輪日曆選擇器核心邏輯 ====================
+        let currentWheelCallback = null;
+
+        function openWheelPicker(callback, initialDateStr) {
+            currentWheelCallback = callback;
+            
+            let initDate = new Date();
+            if (initialDateStr && !isNaN(new Date(initialDateStr))) {
+                initDate = new Date(initialDateStr);
+            }
+            
+            let initYear = initDate.getFullYear();
+            let initMonth = initDate.getMonth() + 1;
+            let initDay = initDate.getDate();
+
+            // 建立彈窗 DOM
+            const overlay = document.createElement('div');
+            overlay.className = 'picker-overlay';
+            overlay.id = 'wheel-picker-overlay';
+
+            overlay.innerHTML = `
+                <div class="picker-modal">
+                    <h4>📅 選擇日期 (滾輪式)</h4>
+                    <div class="picker-wheels-container">
+                        <div class="wheel-column" id="wheel-year" onscroll="handleWheelScroll('year')"></div>
+                        <div class="wheel-column" id="wheel-month" onscroll="handleWheelScroll('month')"></div>
+                        <div class="wheel-column" id="wheel-day" onscroll="handleWheelScroll('day')"></div>
+                    </div>
+                    <div class="picker-btn-group">
+                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
+                        <button class="picker-btn picker-confirm" onclick="confirmWheelPicker()">確定選取</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            populateWheelColumns(initYear, initMonth, initDay);
+        }
+
+        function populateWheelColumns(selYear, selMonth, selDay) {
+            const yearCol = document.getElementById('wheel-year');
+            const monthCol = document.getElementById('wheel-month');
+            const dayCol = document.getElementById('wheel-day');
+
+            // 填入年份 (前後各 5 年，共 11 年：2021 ~ 2031)
+            let yearHtml = '<div style="height:60px;"></div>';
+            for (let y = 2024; y <= 2032; y++) {
+                yearHtml += `<div class="wheel-item" data-val="${y}">${y}年</div>`;
+            }
+            yearHtml += '<div style="height:60px;"></div>';
+            yearCol.innerHTML = yearHtml;
+
+            // 填入月份 (1 ~ 12)
+            let monthHtml = '<div style="height:60px;"></div>';
+            for (let m = 1; m <= 12; m++) {
+                let mStr = m < 10 ? '0' + m : m;
+                monthHtml += `<div class="wheel-item" data-val="${m}">${mStr}月</div>`;
+            }
+            monthHtml += '<div style="height:60px;"></div>';
+            monthCol.innerHTML = monthHtml;
+
+            updateDaysWheel(selYear, selMonth, selDay);
+
+            // 捲動到指定位置
+            setTimeout(() => {
+                scrollToValue('year', selYear);
+                scrollToValue('month', selMonth);
+                scrollToValue('day', selDay);
+            }, 50);
+        }
+
+        function updateDaysWheel(year, month, selectedDay) {
+            const dayCol = document.getElementById('wheel-day');
+            // 計算該月有幾天
+            const daysInMonth = new Date(year, month, 0).getDate();
+            if (selectedDay > daysInMonth) selectedDay = daysInMonth;
+
+            let dayHtml = '<div style="height:60px;"></div>';
+            for (let d = 1; d <= daysInMonth; d++) {
+                let dStr = d < 10 ? '0' + d : d;
+                dayHtml += `<div class="wheel-item" data-val="${d}">${dStr}日</div>`;
+            }
+            dayHtml += '<div style="height:60px;"></div>';
+            dayCol.innerHTML = dayHtml;
+
+            scrollToValue('day', selectedDay);
+        }
+
+        function scrollToValue(type, val) {
+            const col = document.getElementById(`wheel-${type}`);
+            if (!col) return;
+            const items = col.querySelectorAll('.wheel-item');
+            for (let item of items) {
+                if (parseInt(item.getAttribute('data-val')) === parseInt(val)) {
+                    col.scrollTop = item.offsetTop - 60; // 60px 為上方 padding 留白
+                    break;
+                }
+            }
+            highlightSelected(type);
+        }
+
+        function handleWheelScroll(type) {
+            highlightSelected(type);
+
+            // 如果滾動的是年份或月份，動態更新日期的天數（支援閏年與大小月）
+            if (type === 'year' || type === 'month') {
+                const y = getSelectedValue('year');
+                const m = getSelectedValue('month');
+                const currentDay = getSelectedValue('day');
+                updateDaysWheel(y, m, currentDay);
+            }
+        }
+
+        function highlightSelected(type) {
+            const col = document.getElementById(`wheel-${type}`);
+            if (!col) return;
+            const items = col.querySelectorAll('.wheel-item');
+            const scrollTop = col.scrollTop;
+            
+            // 找出最接近中心線 (scrollTop + 60px) 的項目
+            let centerPos = scrollTop + 60;
+            let closestItem = null;
+            let minDiff = 9999;
+
+            items.forEach(item => {
+                let itemMiddle = item.offsetTop + 20; // 40px 高度的一半
+                let diff = Math.abs(centerPos - itemMiddle);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestItem = item;
+                }
+            });
+
+            items.forEach(item => item.classList.remove('selected'));
+            if (closestItem) {
+                closestItem.classList.add('selected');
+            }
+        }
+
+        function getSelectedValue(type) {
+            const col = document.getElementById(`wheel-${type}`);
+            if (!col) return 1;
+            const selectedItem = col.querySelector('.wheel-item.selected');
+            return selectedItem ? parseInt(selectedItem.getAttribute('data-val')) : 1;
+        }
+
+        function confirmWheelPicker() {
+            const y = getSelectedValue('year');
+            const m = getSelectedValue('month');
+            const d = getSelectedValue('day');
+
+            const mStr = m < 10 ? '0' + m : m;
+            const dStr = d < 10 ? '0' + d : d;
+            const formattedDate = `${y}-${mStr}-${dStr}`;
+
+            if (currentWheelCallback) {
+                currentWheelCallback(formattedDate);
+            }
+            closeWheelPicker();
+        }
+
+        function closeWheelPicker() {
+            const overlay = document.getElementById('wheel-picker-overlay');
+            if (overlay) overlay.remove();
         }
     </script>
 </body>
