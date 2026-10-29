@@ -43,18 +43,6 @@
             border: 1px solid #fed7aa;
             box-shadow: var(--shadow);
         }
-        .header-badge {
-            display: inline-block;
-            background: #ff7f2a;
-            color: white;
-            font-size: 12px;
-            font-weight: 700;
-            padding: 4px 12px;
-            border-radius: 20px;
-            margin-bottom: 10px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
         .header h1 { 
             font-size: 30px; 
             margin: 0 0 8px 0; 
@@ -112,16 +100,6 @@
             background: var(--primary);
         }
         .menu-card:active { transform: scale(0.98); }
-
-        /* 主要核心功能卡片特別突顯 */
-        .menu-card.featured {
-            background: linear-gradient(to right, #ffffff, #fffbeb);
-            border: 1.5px solid #fed7aa;
-        }
-        .menu-card.featured::before {
-            background: var(--primary);
-            width: 6px;
-        }
 
         .menu-card-content h3 { 
             margin: 0 0 6px 0; 
@@ -340,13 +318,12 @@
         <!-- 首頁主選單 -->
         <div id="home-view">
             <div class="header">
-                <span class="header-badge">BBQ Operations Management</span>
                 <h1>🔥 馬鈴吉碳烤</h1>
                 <p>智慧營運管理與成本控制系統</p>
             </div>
 
             <div class="menu-grid">
-                <div class="menu-card featured" onclick="openPage('products')">
+                <div class="menu-card" onclick="openPage('products')">
                     <div class="menu-card-content">
                         <h3>販售品項成本表</h3>
                         <span>品項名稱、單價、成本、售價、成本率</span>
@@ -551,7 +528,7 @@
                     <div id="form-toast" class="toast-msg"></div>
                     <div class="form-group">
                         <label>品項名稱</label>
-                        <input type="text" id="prod-name" placeholder="例如: 烤茄子、豆干">
+                        <input type="text" id="prod-name" placeholder="例如: 茄子、豆干">
                     </div>
                     <div class="form-group">
                         <label>單價</label>
