@@ -112,15 +112,15 @@
 
     <script>
         const supabaseUrl = 'https://gyonwgjafukzlmnosykt.supabase.co';
-        const supabaseKey = 'sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
+        // 強制過濾掉任何可能引起 Headers 報錯的隱形或非標準字元
+        const rawKey = 'sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
+        const supabaseKey = rawKey.replace(/[^\x20-\x7E]/g, '').trim();
         
         let _supabase;
         try {
-            const cleanUrl = supabaseUrl.trim();
-            const cleanKey = supabaseKey.trim();
-            _supabase = supabase.createClient(cleanUrl, cleanKey);
+            _supabase = supabase.createClient(supabaseUrl.trim(), supabaseKey);
         } catch (e) {
-            alert('Supabase 初始化失敗，請檢查金鑰格式！');
+            alert('Supabase 初始化失敗：' + e.message);
         }
 
         function openPage(pageName) {
