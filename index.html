@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -112,7 +112,6 @@
 
     <script>
         const supabaseUrl = 'https://gyonwgjafukzlmnosykt.supabase.co';
-        // 強制過濾掉任何可能引起 Headers 報錯的隱形或非標準字元
         const rawKey = 'sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
         const supabaseKey = rawKey.replace(/[^\x20-\x7E]/g, '').trim();
         
@@ -147,7 +146,6 @@
             document.getElementById('home-view').style.display = 'block';
         }
 
-        // 讀取品項列表（如果資料庫是空的，自動幫你寫入第一筆豆干資料！）
         async function renderProductsList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:#7f8c8d;">讀取品項資料中...</p>';
@@ -162,7 +160,6 @@
                 return;
             }
 
-            // 如果資料庫目前完全沒有資料，自動幫你把第一筆「豆干」存進去！
             if (!data || data.length === 0) {
                 const defaultItem = {
                     name: '豆干',
@@ -203,7 +200,6 @@
             contentEl.innerHTML = html;
         }
 
-        // 顯示新增表單
         function renderAddProductForm() {
             const titleEl = document.getElementById('page-title');
             const contentEl = document.getElementById('page-content');
@@ -239,7 +235,6 @@
             `;
         }
 
-        // 新增品項送出
         async function addProduct() {
             const name = document.getElementById('prod-name').value;
             const ingredient_cost = parseFloat(document.getElementById('prod-unit-price').value) || 0;
