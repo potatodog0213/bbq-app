@@ -186,6 +186,24 @@
         .action-btn:hover { background: var(--primary-hover); }
         .action-btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
 
+        /* 清除搜尋按鈕樣式 */
+        .clear-search-btn {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13.5px;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .clear-search-btn:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
         /* 資訊面板與搜尋控制列 */
         .controls-bar {
             display: flex;
@@ -228,10 +246,10 @@
             color: var(--text-main);
             font-size: 13.5px;
             outline: none;
-            width: 150px;
+            width: 170px;
             transition: border-color 0.2s, width 0.2s;
         }
-        .search-input:focus { border-color: var(--primary); width: 190px; }
+        .search-input:focus { border-color: var(--primary); width: 210px; }
 
         .controls-bar select {
             padding: 8px 12px;
@@ -365,7 +383,7 @@
             border-color: #fecaca;
         }
 
-        /* 滾輪式日期選擇器彈窗 (Picker Modal)修正 */
+        /* 滾輪式日期選擇器彈窗 (Picker Modal) */
         .picker-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -395,10 +413,9 @@
             justify-content: space-between;
             gap: 8px;
             margin-bottom: 20px;
-            height: 140px; /* 剛好容納 3 行高度 (45px * 3) */
+            height: 140px;
             position: relative;
         }
-        /* 完美的置中聚焦框：透過绝对定位固定在容器正中央 */
         .picker-wheels-container::before {
             content: '';
             position: absolute;
@@ -421,14 +438,14 @@
             scrollbar-width: none;
             -ms-overflow-style: none;
             scroll-snap-type: y mandatory;
-            padding: 47.5px 0; /* 上下留白剛好讓第一行與最後一行可以滾到正中央 */
+            padding: 47.5px 0;
             box-sizing: border-box;
             position: relative;
             z-index: 1;
         }
         .wheel-column::-webkit-scrollbar { display: none; }
         .wheel-item {
-            height: 45px; /* 每一行的固定高度 */
+            height: 45px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -486,7 +503,7 @@
                 <div class="menu-card" onclick="openPage('materials')">
                     <div class="menu-card-content">
                         <h3>原物料與耗材價格表</h3>
-                        <span>規格、單價、廠商與最後更新</span>
+                        <span>品項名稱、規格、單價、廠商與最後更新</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
@@ -537,6 +554,7 @@
         
         let _supabase;
         let globalProductsData = [];
+        let globalMaterialsData = [];
         let globalExpensesData = [];
         let currentPage = '';
 
@@ -559,6 +577,10 @@
                 titleEl.innerText = '販售品項成本表';
                 actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddProductForm()">＋ 新增品項</button>`;
                 renderProductsList();
+            } else if (pageName === 'materials') {
+                titleEl.innerText = '原物料與耗材價格表';
+                actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddMaterialForm()">＋ 新增原物料</button>`;
+                renderMaterialsList();
             } else if (pageName === 'expenses') {
                 titleEl.innerText = '店內支出記錄表';
                 actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddExpenseForm()">＋ 新增支出</button>`;
@@ -825,6 +847,239 @@
         }
 
 
+        // ==================== 原物料與耗材價格表邏輯 ====================
+        async function renderMaterialsList() {
+            const contentEl = document.getElementById('page-content');
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取原物料資料中...</p>';
+
+            let { data, error } = await _supabase
+                .from('materials')
+                .select('*')
+                .order('updated_at', { ascending: false });
+
+            if (error) {
+                contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>';
+                return;
+            }
+
+            globalMaterialsData = data || [];
+            displayMaterialsList();
+        }
+
+        function displayMaterialsList() {
+            const contentEl = document.getElementById('page-content');
+            const searchInputEl = document.getElementById('material-search-input');
+            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
+
+            let filteredData = globalMaterialsData.filter(item => {
+                if (!searchQuery) return true;
+                const nameMatch = item.name && item.name.toLowerCase().includes(searchQuery);
+                const specMatch = item.spec && item.spec.toLowerCase().includes(searchQuery);
+                const vendorMatch = item.vendor && item.vendor.toLowerCase().includes(searchQuery);
+                return nameMatch || specMatch || vendorMatch;
+            });
+
+            let html = `
+                <div class="controls-bar">
+                    <div class="stats-info">
+                        <span>共 <b>${filteredData.length}</b> 筆原物料/耗材</span>
+                    </div>
+                    <div class="search-sort-group">
+                        <input type="text" id="material-search-input" class="search-input" placeholder="🔍 搜尋原物料、規格..." value="${searchQuery}" oninput="displayMaterialsList()">
+                    </div>
+                </div>
+            `;
+
+            if (filteredData.length > 0) {
+                html += '<div class="items-grid">';
+                filteredData.forEach((item, index) => {
+                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
+
+                    html += `
+                        <div class="item-card ${zebraClass}" id="material-card-${item.id}">
+                            <div class="card-main-info">
+                                <h4>${item.name} <span>$${item.unit_price} 元</span></h4>
+                                <p><b>規格/單位：</b>${item.spec || '無'}</p>
+                                <p><b>合作廠商：</b>${item.vendor || '未設定'}</p>
+                                <p><b>最後更新日期：</b>${item.updated_at || '無'}</p>
+                            </div>
+                            <div class="card-actions" id="material-actions-${item.id}">
+                                <button class="card-btn edit-btn" onclick="renderEditMaterialForm(${item.id})">✏️ 修改</button>
+                                <button class="card-btn delete-btn" onclick="showDeleteConfirmMaterial(${item.id})">🗑️ 刪除</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合的原物料紀錄。</p>';
+            }
+
+            contentEl.innerHTML = html;
+        }
+
+        function showDeleteConfirmMaterial(id) {
+            const cardEl = document.getElementById(`material-card-${id}`);
+            const actionsEl = document.getElementById(`material-actions-${id}`);
+            cardEl.classList.add('confirm-delete-state');
+            actionsEl.innerHTML = `
+                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
+                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deleteMaterial(${id})">確定</button>
+                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="displayMaterialsList()">取消</button>
+            `;
+        }
+
+        function renderAddMaterialForm() {
+            const titleEl = document.getElementById('page-title');
+            const contentEl = document.getElementById('page-content');
+            const actionContainer = document.getElementById('top-action-container');
+
+            titleEl.innerText = '新增原物料 / 耗材';
+            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('materials')">← 回列表</button>`;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            contentEl.innerHTML = `
+                <div class="form-card-container">
+                    <h3 class="form-header-title">📦 建立新原物料或耗材資料</h3>
+                    <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group"><label>品項名稱</label><input type="text" id="mat-name" placeholder="例如: 椒鹽粉、竹籤、紙袋"></div>
+                    <div class="form-group"><label>規格 / 單位</label><input type="text" id="mat-spec" placeholder="例如: 1kg/包、8吋 100支/包"></div>
+                    <div class="form-group"><label>單價 (進貨價格)</label><input type="number" step="0.01" id="mat-price" placeholder="請輸入單價"></div>
+                    <div class="form-group"><label>合作廠商</label><input type="text" id="mat-vendor" placeholder="例如: 台中食品材料行"></div>
+                    <div class="form-group">
+                        <label>最後更新日期</label>
+                        <input type="text" id="mat-updated-at" value="${todayStr}" readonly onclick="openWheelPicker(setMaterialDate, document.getElementById('mat-updated-at').value)" style="cursor: pointer; background: #fff;">
+                    </div>
+                    <button id="submit-mat-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addMaterial()">確認儲存原物料</button>
+                </div>
+            `;
+        }
+
+        function setMaterialDate(dateStr) {
+            const input = document.getElementById('mat-updated-at') || document.getElementById('edit-mat-updated-at');
+            if (input) input.value = dateStr;
+        }
+
+        async function addMaterial() {
+            const name = document.getElementById('mat-name').value.trim();
+            const spec = document.getElementById('mat-spec').value.trim();
+            const unit_price = parseFloat(document.getElementById('mat-price').value) || 0;
+            const vendor = document.getElementById('mat-vendor').value.trim();
+            const updated_at = document.getElementById('mat-updated-at').value;
+            const toast = document.getElementById('form-toast');
+            const submitBtn = document.getElementById('submit-mat-btn');
+
+            if (!name || unit_price <= 0) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '⚠️ 請填寫完整品項名稱與有效單價！';
+                toast.style.display = 'block';
+                return;
+            }
+
+            if (globalMaterialsData.some(item => item.name === name)) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = `⚠️ 已經有「${name}」這個原物料了！`;
+                toast.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = '儲存中...';
+
+            const { error } = await _supabase.from('materials').insert([{ name, spec, unit_price, vendor, updated_at }]);
+
+            if (error) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '❌ 儲存失敗：' + error.message;
+                toast.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.innerText = '確認儲存原物料';
+            } else {
+                toast.className = 'toast-msg toast-success';
+                toast.innerText = '✅ 新增成功！正在返回列表...';
+                toast.style.display = 'block';
+                setTimeout(() => openPage('materials'), 1000);
+            }
+        }
+
+        function renderEditMaterialForm(id) {
+            const item = globalMaterialsData.find(m => m.id === id);
+            if (!item) return;
+
+            const titleEl = document.getElementById('page-title');
+            const contentEl = document.getElementById('page-content');
+            const actionContainer = document.getElementById('top-action-container');
+
+            titleEl.innerText = '修改原物料資料';
+            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('materials')">← 回列表</button>`;
+
+            contentEl.innerHTML = `
+                <div class="form-card-container">
+                    <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
+                    <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group"><label>品項名稱</label><input type="text" id="edit-mat-name" value="${item.name}"></div>
+                    <div class="form-group"><label>規格 / 單位</label><input type="text" id="edit-mat-spec" value="${item.spec || ''}"></div>
+                    <div class="form-group"><label>單價 (進貨價格)</label><input type="number" step="0.01" id="edit-mat-price" value="${item.unit_price}"></div>
+                    <div class="form-group"><label>合作廠商</label><input type="text" id="edit-mat-vendor" value="${item.vendor || ''}"></div>
+                    <div class="form-group">
+                        <label>最後更新日期</label>
+                        <input type="text" id="edit-mat-updated-at" value="${item.updated_at || new Date().toISOString().split('T')[0]}" readonly onclick="openWheelPicker(setMaterialDate, document.getElementById('edit-mat-updated-at').value)" style="cursor: pointer; background: #fff;">
+                    </div>
+                    <button id="update-mat-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateMaterial(${item.id})">確認更新變更</button>
+                </div>
+            `;
+        }
+
+        async function updateMaterial(id) {
+            const name = document.getElementById('edit-mat-name').value.trim();
+            const spec = document.getElementById('edit-mat-spec').value.trim();
+            const unit_price = parseFloat(document.getElementById('edit-mat-price').value) || 0;
+            const vendor = document.getElementById('edit-mat-vendor').value.trim();
+            const updated_at = document.getElementById('edit-mat-updated-at').value;
+            const toast = document.getElementById('form-toast');
+            const updateBtn = document.getElementById('update-mat-btn');
+
+            if (!name || unit_price <= 0) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '⚠️ 請填寫完整品項名稱與有效單價！';
+                toast.style.display = 'block';
+                return;
+            }
+
+            if (globalMaterialsData.some(item => item.name === name && item.id !== id)) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = `⚠️ 已經有其他原物料叫「${name}」了！`;
+                toast.style.display = 'block';
+                return;
+            }
+
+            updateBtn.disabled = true;
+            updateBtn.innerText = '更新中...';
+
+            const { error } = await _supabase.from('materials').update({ name, spec, unit_price, vendor, updated_at }).eq('id', id);
+
+            if (error) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '❌ 更新失敗：' + error.message;
+                toast.style.display = 'block';
+                updateBtn.disabled = false;
+                updateBtn.innerText = '確認更新變更';
+            } else {
+                toast.className = 'toast-msg toast-success';
+                toast.innerText = '✅ 修改成功！正在返回列表...';
+                toast.style.display = 'block';
+                setTimeout(() => openPage('materials'), 1000);
+            }
+        }
+
+        async function deleteMaterial(id) {
+            const { error } = await _supabase.from('materials').delete().eq('id', id);
+            if (error) alert('刪除失敗：' + error.message);
+            else renderMaterialsList();
+        }
+
+
         // ==================== 店內支出記錄表與滾輪日曆邏輯 ====================
         async function renderExpensesList() {
             const contentEl = document.getElementById('page-content');
@@ -864,6 +1119,7 @@
                     </div>
                     <div class="search-sort-group">
                         <input type="text" id="expense-search-input" class="search-input" placeholder="📅 點此選擇日期搜尋..." value="${searchQuery}" readonly onclick="openWheelPicker(setSearchDateQuery, '${searchQuery || new Date().toISOString().split('T')[0]}')" style="cursor: pointer; background: #fff;">
+                        ${searchQuery ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除搜尋</button>` : ''}
                     </div>
                 </div>
             `;
@@ -900,6 +1156,14 @@
             const searchInput = document.getElementById('expense-search-input');
             if (searchInput) {
                 searchInput.value = selectedDate;
+                displayExpensesList();
+            }
+        }
+
+        function clearExpenseSearch() {
+            const searchInput = document.getElementById('expense-search-input');
+            if (searchInput) {
+                searchInput.value = '';
                 displayExpensesList();
             }
         }
