@@ -13,6 +13,7 @@
             --primary-light: #fff7ed;
             --bg-color: #f8fafc;
             --card-bg: #ffffff;
+            --card-bg-alt: #f1f5f9;
             --text-main: #1e293b;
             --text-muted: #64748b;
             --border: #e2e8f0;
@@ -128,31 +129,40 @@
         .page-view { 
             display: none; 
             background: var(--card-bg); 
-            padding: 28px; 
+            padding: 24px 20px; 
             border-radius: 20px; 
             box-shadow: 0 10px 25px rgba(0,0,0,0.04); 
             border: 1px solid var(--border);
         }
         
+        /* 頂部列 */
         .top-bar { 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
-            margin-bottom: 24px; 
-            flex-wrap: wrap;
+            margin-bottom: 20px; 
             gap: 12px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 16px;
+        }
+        .top-left-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .back-btn { 
             background: #64748b; 
             color: white; 
             border: none; 
-            padding: 10px 16px; 
-            border-radius: 10px; 
+            padding: 9px 14px; 
+            border-radius: 9px; 
             cursor: pointer; 
             font-weight: 600; 
-            font-size: 14px; 
+            font-size: 13.5px; 
             transition: background 0.2s;
+            white-space: nowrap;
         }
         .back-btn:hover { background: #475569; }
 
@@ -160,35 +170,72 @@
             background: var(--primary); 
             color: white; 
             border: none; 
-            padding: 10px 18px; 
-            border-radius: 10px; 
+            padding: 9px 16px; 
+            border-radius: 9px; 
             cursor: pointer; 
             font-weight: 600; 
-            font-size: 14px; 
+            font-size: 13.5px; 
             transition: background 0.2s;
             box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
+            white-space: nowrap;
         }
         .action-btn:hover { background: var(--primary-hover); }
+        .action-btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
 
-        /* 排序控制列 */
+        /* 資訊面板與搜尋控制列 */
         .controls-bar {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 12px;
             margin-bottom: 20px;
             background: #f8fafc;
-            padding: 14px 18px;
+            padding: 16px;
             border-radius: 12px;
             border: 1px solid var(--border);
-            font-size: 14px;
+            font-size: 13.5px;
         }
+        @media(min-width: 550px) {
+            .controls-bar {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
+        .stats-info {
+            display: flex;
+            gap: 14px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .stats-info b { color: var(--text-main); }
+
+        .search-sort-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .search-input {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text-main);
+            font-size: 13.5px;
+            outline: none;
+            width: 150px;
+            transition: border-color 0.2s, width 0.2s;
+        }
+        .search-input:focus { border-color: var(--primary); width: 190px; }
+
         .controls-bar select {
             padding: 8px 12px;
             border-radius: 8px;
             border: 1px solid var(--border);
             background: white;
             color: var(--text-main);
-            font-size: 14px;
+            font-size: 13.5px;
             cursor: pointer;
             outline: none;
             transition: border-color 0.2s;
@@ -198,7 +245,7 @@
         /* 質感表單容器 */
         .form-card-container {
             background: linear-gradient(to bottom, #ffffff, #fffaf5);
-            padding: 30px;
+            padding: 28px 20px;
             border-radius: 16px;
             border: 1px solid #fed7aa;
             box-shadow: 0 6px 16px rgba(249, 115, 22, 0.05);
@@ -250,7 +297,7 @@
         .toast-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* 品項卡片網格 */
+        /* 卡片網格與斑馬紋 */
         .items-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -261,9 +308,9 @@
         }
 
         .item-card { 
-            background: #ffffff; 
+            background: var(--card-bg); 
             border: 1px solid var(--border); 
-            padding: 20px; 
+            padding: 18px; 
             border-radius: 14px; 
             box-shadow: var(--shadow);
             display: flex;
@@ -271,22 +318,25 @@
             justify-content: space-between;
             transition: transform 0.2s, box-shadow 0.2s;
         }
+        .item-card.zebra-alt {
+            background: var(--card-bg-alt);
+        }
         .item-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 16px rgba(0,0,0,0.06);
             border-color: #cbd5e1;
         }
-        .item-card h4 { margin: 0 0 10px 0; color: #1e293b; font-size: 17.5px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+        .item-card h4 { margin: 0 0 8px 0; color: #1e293b; font-size: 17px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
         .item-card h4 span { color: #ea580c; font-weight: 700; }
-        .item-card p { margin: 5px 0; font-size: 13.5px; color: var(--text-muted); }
-        .cost-rate { color: #dc2626; font-weight: 700; }
+        .item-card p { margin: 4px 0; font-size: 13.5px; color: var(--text-muted); }
+        .cost-rate, .total-amount-tag { color: #dc2626; font-weight: 700; }
         
         /* 卡片底部操作按鈕 */
         .card-actions {
             display: flex;
             gap: 10px;
-            margin-top: 14px;
-            padding-top: 12px;
+            margin-top: 12px;
+            padding-top: 10px;
             border-top: 1px solid var(--border);
         }
         .card-btn {
@@ -305,9 +355,8 @@
         .delete-btn { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
         .delete-btn:hover { background: #fee2e2; }
 
-        /* 確認刪除警告狀態的卡片外觀 */
         .item-card.confirm-delete-state {
-            background: #fff5f5;
+            background: #fff5f5 !important;
             border-color: #fecaca;
         }
     </style>
@@ -350,7 +399,7 @@
                 <div class="menu-card" onclick="openPage('expenses')">
                     <div class="menu-card-content">
                         <h3>店內支出記錄表</h3>
-                        <span>日期、類別、金額與相關廠商</span>
+                        <span>日期、項目、數量、金額與相關廠商</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
@@ -368,8 +417,10 @@
         <!-- 子頁面容器 -->
         <div id="sub-view" class="page-view">
             <div class="top-bar">
-                <button class="back-btn" onclick="goHome()">← 返回主選單</button>
-                <h2 id="page-title" style="margin:0; font-size: 20px; color:var(--text-main);"></h2>
+                <div class="top-left-group">
+                    <button class="back-btn" onclick="goHome()">← 返回主選單</button>
+                    <h2 id="page-title" style="margin:0; font-size: 18px; color:var(--text-main);"></h2>
+                </div>
                 <div id="top-action-container"></div>
             </div>
             <div id="page-content">載入中...</div>
@@ -383,6 +434,8 @@
         
         let _supabase;
         let globalProductsData = [];
+        let globalExpensesData = [];
+        let currentPage = '';
 
         try {
             _supabase = supabase.createClient(supabaseUrl.trim(), supabaseKey);
@@ -391,11 +444,11 @@
         }
 
         function openPage(pageName) {
+            currentPage = pageName;
             document.getElementById('home-view').style.display = 'none';
             document.getElementById('sub-view').style.display = 'block';
             
             const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
             const actionContainer = document.getElementById('top-action-container');
             actionContainer.innerHTML = ''; 
 
@@ -403,9 +456,13 @@
                 titleEl.innerText = '販售品項成本表';
                 actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddProductForm()">＋ 新增品項</button>`;
                 renderProductsList();
+            } else if (pageName === 'expenses') {
+                titleEl.innerText = '店內支出記錄表';
+                actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddExpenseForm()">＋ 新增支出</button>`;
+                renderExpensesList();
             } else {
                 titleEl.innerText = '功能開發中';
-                contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">此模組即將推出，敬請期待...</p>';
+                document.getElementById('page-content').innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">此模組即將推出，敬請期待...</p>';
             }
         }
 
@@ -414,7 +471,7 @@
             document.getElementById('home-view').style.display = 'block';
         }
 
-        // 讀取品項列表
+        // ==================== 販售品項邏輯 ====================
         async function renderProductsList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取品項資料中...</p>';
@@ -433,35 +490,50 @@
             displayProductsWithSort();
         }
 
-        // 計算單項成本率的輔助函式
         function calculateCostRate(item) {
             if (!item.price || item.price <= 0) return 0;
             return (item.package_cost / item.price) * 100;
         }
 
-        // 渲染品項畫面（支援 4 種排序方式）
         function displayProductsWithSort() {
             const contentEl = document.getElementById('page-content');
             const sortSelectEl = document.getElementById('sort-select');
-            const sortOrder = sortSelectEl ? sortSelectEl.value : 'price-asc'; // 預設為售價低到高
-
-            let sortedData = [...globalProductsData];
+            const searchInputEl = document.getElementById('search-input');
             
+            const sortOrder = sortSelectEl ? sortSelectEl.value : 'price-asc';
+            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
+
+            let filteredData = globalProductsData.filter(item => {
+                if (!searchQuery) return true;
+                const nameMatch = item.name && item.name.toLowerCase().includes(searchQuery);
+                const noteMatch = item.note && item.note.toLowerCase().includes(searchQuery);
+                return nameMatch || noteMatch;
+            });
+
             if (sortOrder === 'price-asc') {
-                sortedData.sort((a, b) => (a.price || 0) - (b.price || 0));
+                filteredData.sort((a, b) => (a.price || 0) - (b.price || 0));
             } else if (sortOrder === 'price-desc') {
-                sortedData.sort((a, b) => (b.price || 0) - (a.price || 0));
+                filteredData.sort((a, b) => (b.price || 0) - (a.price || 0));
             } else if (sortOrder === 'cost-rate-asc') {
-                sortedData.sort((a, b) => calculateCostRate(a) - calculateCostRate(b));
+                filteredData.sort((a, b) => calculateCostRate(a) - calculateCostRate(b));
             } else if (sortOrder === 'cost-rate-desc') {
-                sortedData.sort((a, b) => calculateCostRate(b) - calculateCostRate(a));
+                filteredData.sort((a, b) => calculateCostRate(b) - calculateCostRate(a));
+            }
+
+            let totalCostRate = 0;
+            if (filteredData.length > 0) {
+                const sumRates = filteredData.reduce((acc, item) => acc + calculateCostRate(item), 0);
+                totalCostRate = (sumRates / filteredData.length).toFixed(1);
             }
 
             let html = `
                 <div class="controls-bar">
-                    <span>共 <b>${sortedData.length}</b> 個品項</span>
-                    <div>
-                        <label style="margin-right: 6px; font-weight:600; color:var(--text-muted);">排序方式：</label>
+                    <div class="stats-info">
+                        <span>共 <b>${filteredData.length}</b> 項</span>
+                        <span>平均成本率：<b>${totalCostRate}%</b></span>
+                    </div>
+                    <div class="search-sort-group">
+                        <input type="text" id="search-input" class="search-input" placeholder="🔍 搜尋商品..." value="${searchQuery}" oninput="displayProductsWithSort()">
                         <select id="sort-select" onchange="displayProductsWithSort()">
                             <option value="price-asc" ${sortOrder === 'price-asc' ? 'selected' : ''}>售價：由低到高 ↗</option>
                             <option value="price-desc" ${sortOrder === 'price-desc' ? 'selected' : ''}>售價：由高到低 ↘</option>
@@ -472,13 +544,14 @@
                 </div>
             `;
 
-            if (sortedData.length > 0) {
+            if (filteredData.length > 0) {
                 html += '<div class="items-grid">';
-                sortedData.forEach(item => {
+                filteredData.forEach((item, index) => {
                     let costRate = calculateCostRate(item).toFixed(1);
+                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
 
                     html += `
-                        <div class="item-card" id="card-${item.id}">
+                        <div class="item-card ${zebraClass}" id="card-${item.id}">
                             <div class="card-main-info">
                                 <h4>${item.name} <span>$${item.price} 元</span></h4>
                                 <p><b>食材單價：</b>$${item.ingredient_cost}</p>
@@ -487,24 +560,22 @@
                             </div>
                             <div class="card-actions" id="actions-${item.id}">
                                 <button class="card-btn edit-btn" onclick="renderEditProductForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirm(${item.id}, '${item.name}')">🗑️ 刪除</button>
+                                <button class="card-btn delete-btn" onclick="showDeleteConfirmProduct(${item.id})">🗑️ 刪除</button>
                             </div>
                         </div>
                     `;
                 });
                 html += '</div>';
             } else {
-                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">目前尚無任何品項紀錄。</p>';
+                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合條件的品項紀錄。</p>';
             }
 
             contentEl.innerHTML = html;
         }
 
-        // 點擊刪除時，在卡片內切換為確認刪除狀態
-        function showDeleteConfirm(id, name) {
+        function showDeleteConfirmProduct(id) {
             const cardEl = document.getElementById(`card-${id}`);
             const actionsEl = document.getElementById(`actions-${id}`);
-            
             cardEl.classList.add('confirm-delete-state');
             actionsEl.innerHTML = `
                 <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
@@ -513,7 +584,6 @@
             `;
         }
 
-        // 顯示新增表單
         function renderAddProductForm() {
             const titleEl = document.getElementById('page-title');
             const contentEl = document.getElementById('page-content');
@@ -546,19 +616,19 @@
                         <label>備註</label>
                         <input type="text" id="prod-note" placeholder="例如: 8吋竹籤">
                     </div>
-                    <button class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addProduct()">確認儲存品項</button>
+                    <button id="submit-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addProduct()">確認儲存品項</button>
                 </div>
             `;
         }
 
-        // 新增品項送出
         async function addProduct() {
-            const name = document.getElementById('prod-name').value;
+            const name = document.getElementById('prod-name').value.trim();
             const ingredient_cost = parseFloat(document.getElementById('prod-unit-price').value) || 0;
             const package_cost = parseFloat(document.getElementById('prod-cost').value) || 0;
             const price = parseFloat(document.getElementById('prod-price').value) || 0;
             const note = document.getElementById('prod-note').value;
             const toast = document.getElementById('form-toast');
+            const submitBtn = document.getElementById('submit-btn');
 
             if (!name) {
                 toast.className = 'toast-msg toast-error';
@@ -567,20 +637,24 @@
                 return;
             }
 
-            const { error } = await _supabase
-                .from('products')
-                .insert([{ 
-                    name: name, 
-                    ingredient_cost: ingredient_cost, 
-                    package_cost: package_cost, 
-                    price: price, 
-                    note: note 
-                }]);
+            if (globalProductsData.some(item => item.name === name)) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = `⚠️ 已經有「${name}」這個品項了！`;
+                toast.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = '儲存中...';
+
+            const { error } = await _supabase.from('products').insert([{ name, ingredient_cost, package_cost, price, note }]);
 
             if (error) {
                 toast.className = 'toast-msg toast-error';
                 toast.innerText = '❌ 儲存失敗：' + error.message;
                 toast.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.innerText = '確認儲存品項';
             } else {
                 toast.className = 'toast-msg toast-success';
                 toast.innerText = '✅ 新增成功！正在返回列表...';
@@ -589,7 +663,6 @@
             }
         }
 
-        // 顯示修改表單
         function renderEditProductForm(id) {
             const item = globalProductsData.find(p => p.id === id);
             if (!item) return;
@@ -605,39 +678,24 @@
                 <div class="form-card-container">
                     <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
                     <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group">
-                        <label>品項名稱</label>
-                        <input type="text" id="edit-name" value="${item.name}">
-                    </div>
-                    <div class="form-group">
-                        <label>單價</label>
-                        <input type="number" step="0.01" id="edit-unit-price" value="${item.ingredient_cost}">
-                    </div>
-                    <div class="form-group">
-                        <label>總成本 (食材+包材)</label>
-                        <input type="number" step="0.01" id="edit-cost" value="${item.package_cost}">
-                    </div>
-                    <div class="form-group">
-                        <label>售價</label>
-                        <input type="number" step="0.01" id="edit-price" value="${item.price}">
-                    </div>
-                    <div class="form-group">
-                        <label>備註</label>
-                        <input type="text" id="edit-note" value="${item.note || ''}">
-                    </div>
-                    <button class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateProduct(${item.id})">確認更新變更</button>
+                    <div class="form-group"><label>品項名稱</label><input type="text" id="edit-name" value="${item.name}"></div>
+                    <div class="form-group"><label>單價</label><input type="number" step="0.01" id="edit-unit-price" value="${item.ingredient_cost}"></div>
+                    <div class="form-group"><label>總成本 (食材+包材)</label><input type="number" step="0.01" id="edit-cost" value="${item.package_cost}"></div>
+                    <div class="form-group"><label>售價</label><input type="number" step="0.01" id="edit-price" value="${item.price}"></div>
+                    <div class="form-group"><label>備註</label><input type="text" id="edit-note" value="${item.note || ''}"></div>
+                    <button id="update-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateProduct(${item.id})">確認更新變更</button>
                 </div>
             `;
         }
 
-        // 送出修改更新到資料庫
         async function updateProduct(id) {
-            const name = document.getElementById('edit-name').value;
+            const name = document.getElementById('edit-name').value.trim();
             const ingredient_cost = parseFloat(document.getElementById('edit-unit-price').value) || 0;
             const package_cost = parseFloat(document.getElementById('edit-cost').value) || 0;
             const price = parseFloat(document.getElementById('edit-price').value) || 0;
             const note = document.getElementById('edit-note').value;
             const toast = document.getElementById('form-toast');
+            const updateBtn = document.getElementById('update-btn');
 
             if (!name) {
                 toast.className = 'toast-msg toast-error';
@@ -646,21 +704,24 @@
                 return;
             }
 
-            const { error } = await _supabase
-                .from('products')
-                .update({ 
-                    name: name, 
-                    ingredient_cost: ingredient_cost, 
-                    package_cost: package_cost, 
-                    price: price, 
-                    note: note 
-                })
-                .eq('id', id);
+            if (globalProductsData.some(item => item.name === name && item.id !== id)) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = `⚠️ 已經有其他品項叫「${name}」了！`;
+                toast.style.display = 'block';
+                return;
+            }
+
+            updateBtn.disabled = true;
+            updateBtn.innerText = '更新中...';
+
+            const { error } = await _supabase.from('products').update({ name, ingredient_cost, package_cost, price, note }).eq('id', id);
 
             if (error) {
                 toast.className = 'toast-msg toast-error';
                 toast.innerText = '❌ 更新失敗：' + error.message;
                 toast.style.display = 'block';
+                updateBtn.disabled = false;
+                updateBtn.innerText = '確認更新變更';
             } else {
                 toast.className = 'toast-msg toast-success';
                 toast.innerText = '✅ 修改成功！正在返回列表...';
@@ -669,18 +730,220 @@
             }
         }
 
-        // 確認刪除品項
         async function deleteProduct(id) {
-            const { error } = await _supabase
-                .from('products')
-                .delete()
-                .eq('id', id);
+            const { error } = await _supabase.from('products').delete().eq('id', id);
+            if (error) alert('刪除失敗：' + error.message);
+            else renderProductsList();
+        }
+
+
+        // ==================== 店內支出記錄表邏輯 ====================
+        async function renderExpensesList() {
+            const contentEl = document.getElementById('page-content');
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取支出資料中...</p>';
+
+            let { data, error } = await _supabase
+                .from('expenses')
+                .select('*')
+                .order('date', { ascending: false });
 
             if (error) {
-                alert('刪除失敗：' + error.message);
-            } else {
-                renderProductsList();
+                contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>';
+                return;
             }
+
+            globalExpensesData = data || [];
+            displayExpensesList();
+        }
+
+        function displayExpensesList() {
+            const contentEl = document.getElementById('page-content');
+            const searchInputEl = document.getElementById('expense-search-input');
+            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
+
+            // 僅用日期做過濾搜尋
+            let filteredData = globalExpensesData.filter(item => {
+                if (!searchQuery) return true;
+                return item.date && item.date.toLowerCase().includes(searchQuery);
+            });
+
+            // 計算花費總金額加總
+            let totalExpenseAmount = filteredData.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
+
+            let html = `
+                <div class="controls-bar">
+                    <div class="stats-info">
+                        <span>共 <b>${filteredData.length}</b> 筆</span>
+                        <span>花費總金額：<b style="color:#dc2626;">$${totalExpenseAmount.toLocaleString()} 元</b></span>
+                    </div>
+                    <div class="search-sort-group">
+                        <input type="text" id="expense-search-input" class="search-input" placeholder="🔍 輸入日期 (例如 2026-10)..." value="${searchQuery}" oninput="displayExpensesList()">
+                    </div>
+                </div>
+            `;
+
+            if (filteredData.length > 0) {
+                html += '<div class="items-grid">';
+                filteredData.forEach((item, index) => {
+                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
+
+                    html += `
+                        <div class="item-card ${zebraClass}" id="expense-card-${item.id}">
+                            <div class="card-main-info">
+                                <h4>${item.name} <span class="total-amount-tag">$${item.amount} 元</span></h4>
+                                <p><b>日期：</b>${item.date}</p>
+                                <p><b>數量：</b>${item.quantity || 1}</p>
+                                <p><b>相關廠商：</b>${item.vendor || '無'}</p>
+                            </div>
+                            <div class="card-actions" id="expense-actions-${item.id}">
+                                <button class="card-btn edit-btn" onclick="renderEditExpenseForm(${item.id})">✏️ 修改</button>
+                                <button class="card-btn delete-btn" onclick="showDeleteConfirmExpense(${item.id})">🗑️ 刪除</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合該日期的支出紀錄。</p>';
+            }
+
+            contentEl.innerHTML = html;
+        }
+
+        function showDeleteConfirmExpense(id) {
+            const cardEl = document.getElementById(`expense-card-${id}`);
+            const actionsEl = document.getElementById(`expense-actions-${id}`);
+            cardEl.classList.add('confirm-delete-state');
+            actionsEl.innerHTML = `
+                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
+                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deleteExpense(${id})">確定</button>
+                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="displayExpensesList()">取消</button>
+            `;
+        }
+
+        function renderAddExpenseForm() {
+            const titleEl = document.getElementById('page-title');
+            const contentEl = document.getElementById('page-content');
+            const actionContainer = document.getElementById('top-action-container');
+
+            titleEl.innerText = '新增店內支出';
+            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('expenses')">← 回列表</button>`;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            contentEl.innerHTML = `
+                <div class="form-card-container">
+                    <h3 class="form-header-title">💸 紀錄新店內支出</h3>
+                    <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group"><label>日期</label><input type="date" id="exp-date" value="${todayStr}"></div>
+                    <div class="form-group"><label>支出項目名稱</label><input type="text" id="exp-name" placeholder="例如: 瓦斯桶、竹籤"></div>
+                    <div class="form-group"><label>數量</label><input type="number" step="1" id="exp-qty" value="1" placeholder="請輸入數量"></div>
+                    <div class="form-group"><label>金額 (總金額)</label><input type="number" step="0.01" id="exp-amount" placeholder="請輸入總金額"></div>
+                    <div class="form-group"><label>相關廠商</label><input type="text" id="exp-vendor" placeholder="例如: 欣欣瓦斯行"></div>
+                    <button id="submit-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addExpense()">確認儲存支出</button>
+                </div>
+            `;
+        }
+
+        async function addExpense() {
+            const date = document.getElementById('exp-date').value;
+            const name = document.getElementById('exp-name').value.trim();
+            const quantity = parseFloat(document.getElementById('exp-qty').value) || 1;
+            const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
+            const vendor = document.getElementById('exp-vendor').value.trim();
+            const toast = document.getElementById('form-toast');
+            const submitBtn = document.getElementById('submit-exp-btn');
+
+            if (!date || !name || amount <= 0) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '⚠️ 請填寫完整日期、項目名稱與有效金額！';
+                toast.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = '儲存中...';
+
+            const { error } = await _supabase.from('expenses').insert([{ date, name, quantity, amount, vendor }]);
+
+            if (error) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '❌ 儲存失敗：' + error.message;
+                toast.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.innerText = '確認儲存支出';
+            } else {
+                toast.className = 'toast-msg toast-success';
+                toast.innerText = '✅ 新增成功！正在返回列表...';
+                toast.style.display = 'block';
+                setTimeout(() => openPage('expenses'), 1000);
+            }
+        }
+
+        function renderEditExpenseForm(id) {
+            const item = globalExpensesData.find(e => e.id === id);
+            if (!item) return;
+
+            const titleEl = document.getElementById('page-title');
+            const contentEl = document.getElementById('page-content');
+            const actionContainer = document.getElementById('top-action-container');
+
+            titleEl.innerText = '修改支出紀錄';
+            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('expenses')">← 回列表</button>`;
+
+            contentEl.innerHTML = `
+                <div class="form-card-container">
+                    <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
+                    <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group"><label>日期</label><input type="date" id="edit-exp-date" value="${item.date}"></div>
+                    <div class="form-group"><label>支出項目名稱</label><input type="text" id="edit-exp-name" value="${item.name}"></div>
+                    <div class="form-group"><label>數量</label><input type="number" step="1" id="edit-exp-qty" value="${item.quantity || 1}"></div>
+                    <div class="form-group"><label>金額</label><input type="number" step="0.01" id="edit-exp-amount" value="${item.amount}"></div>
+                    <div class="form-group"><label>相關廠商</label><input type="text" id="edit-exp-vendor" value="${item.vendor || ''}"></div>
+                    <button id="update-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateExpense(${item.id})">確認更新變更</button>
+                </div>
+            `;
+        }
+
+        async function updateExpense(id) {
+            const date = document.getElementById('edit-exp-date').value;
+            const name = document.getElementById('edit-exp-name').value.trim();
+            const quantity = parseFloat(document.getElementById('edit-exp-qty').value) || 1;
+            const amount = parseFloat(document.getElementById('edit-exp-amount').value) || 0;
+            const vendor = document.getElementById('edit-exp-vendor').value.trim();
+            const toast = document.getElementById('form-toast');
+            const updateBtn = document.getElementById('update-exp-btn');
+
+            if (!date || !name || amount <= 0) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '⚠️ 請填寫完整日期、名稱與金額！';
+                toast.style.display = 'block';
+                return;
+            }
+
+            updateBtn.disabled = true;
+            updateBtn.innerText = '更新中...';
+
+            const { error } = await _supabase.from('expenses').update({ date, name, quantity, amount, vendor }).eq('id', id);
+
+            if (error) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '❌ 更新失敗：' + error.message;
+                toast.style.display = 'block';
+                updateBtn.disabled = false;
+                updateBtn.innerText = '確認更新變更';
+            } else {
+                toast.className = 'toast-msg toast-success';
+                toast.innerText = '✅ 修改成功！正在返回列表...';
+                toast.style.display = 'block';
+                setTimeout(() => openPage('expenses'), 1000);
+            }
+        }
+
+        async function deleteExpense(id) {
+            const { error } = await _supabase.from('expenses').delete().eq('id', id);
+            if (error) alert('刪除失敗：' + error.message);
+            else renderExpensesList();
         }
     </script>
 </body>
