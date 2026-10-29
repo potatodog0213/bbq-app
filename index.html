@@ -7,43 +7,331 @@
     <!-- 引入 Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 15px; color: #333; }
-        .container { max-width: 500px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 25px; }
-        .header h1 { font-size: 24px; margin-bottom: 5px; color: #2c3e50; }
-        .header p { color: #7f8c8d; font-size: 14px; margin: 0; }
+        :root {
+            --primary: #f97316;
+            --primary-hover: #ea580c;
+            --primary-light: #fff7ed;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            --shadow-hover: 0 10px 15px -3px rgba(249, 115, 22, 0.1), 0 4px 6px -4px rgba(249, 115, 22, 0.1);
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            background: var(--bg-color); 
+            margin: 0; 
+            padding: 24px 16px; 
+            color: var(--text-main); 
+        }
+
+        .container { 
+            max-width: 700px; 
+            margin: 0 auto; 
+        }
+
+        /* 質感主視覺 Header */
+        .header { 
+            text-align: center; 
+            margin-bottom: 36px; 
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+            padding: 32px 20px;
+            border-radius: 20px;
+            border: 1px solid #fed7aa;
+            box-shadow: var(--shadow);
+        }
+        .header-badge {
+            display: inline-block;
+            background: #ff7f2a;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .header h1 { 
+            font-size: 30px; 
+            margin: 0 0 8px 0; 
+            color: #9a3412; 
+            letter-spacing: 0.5px;
+        }
+        .header p { 
+            color: #c2410c; 
+            font-size: 14.5px; 
+            margin: 0; 
+            font-weight: 500;
+        }
         
-        .menu-grid { display: flex; flex-direction: column; gap: 12px; }
+        /* 主選單格線 (RWD 自動排版) */
+        .menu-grid { 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 16px; 
+        }
+        @media (min-width: 600px) {
+            .menu-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* 現代儀表板卡片設計 */
         .menu-card {
-            background: white;
-            padding: 18px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            background: var(--card-bg);
+            padding: 22px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-left: 6px solid #e67e22;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        .menu-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 5px;
+            background: #cbd5e1;
+            transition: background 0.2s;
+        }
+        .menu-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+            border-color: #fdba74;
+        }
+        .menu-card:hover::before {
+            background: var(--primary);
         }
         .menu-card:active { transform: scale(0.98); }
-        .menu-card h3 { margin: 0 0 4px 0; font-size: 17px; color: #2c3e50; }
-        .menu-card span { font-size: 12px; color: #95a5a6; }
-        .arrow { font-size: 20px; color: #bdc3c7; }
 
-        .page-view { display: none; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .back-btn { background: #7f8c8d; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
-        .action-btn { background: #e67e22; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
-        .action-btn:hover { background: #d35400; }
+        /* 主要核心功能卡片特別突顯 */
+        .menu-card.featured {
+            background: linear-gradient(to right, #ffffff, #fffbeb);
+            border: 1.5px solid #fed7aa;
+        }
+        .menu-card.featured::before {
+            background: var(--primary);
+            width: 6px;
+        }
 
-        .form-group { margin-bottom: 12px; }
-        .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #34495e; }
-        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #dcdde1; border-radius: 6px; font-size: 14px; }
+        .menu-card-content h3 { 
+            margin: 0 0 6px 0; 
+            font-size: 17px; 
+            color: var(--text-main); 
+            font-weight: 700;
+        }
+        .menu-card-content span { 
+            font-size: 13px; 
+            color: var(--text-muted); 
+            line-height: 1.4; 
+            display: block; 
+        }
+        .arrow { 
+            font-size: 20px; 
+            color: #94a3b8; 
+            font-weight: bold; 
+            transition: transform 0.2s;
+        }
+        .menu-card:hover .arrow {
+            transform: translateX(4px);
+            color: var(--primary);
+        }
+
+        /* 子頁面容器 */
+        .page-view { 
+            display: none; 
+            background: var(--card-bg); 
+            padding: 28px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.04); 
+            border: 1px solid var(--border);
+        }
         
-        .item-card { background: #fdfbf7; border: 1px solid #fae5d3; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
-        .item-card h4 { margin: 0 0 6px 0; color: #d35400; font-size: 16px; }
-        .item-card p { margin: 3px 0; font-size: 13px; color: #555; }
+        .top-bar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 24px; 
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .back-btn { 
+            background: #64748b; 
+            color: white; 
+            border: none; 
+            padding: 10px 16px; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 14px; 
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: #475569; }
+
+        .action-btn { 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            padding: 10px 18px; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 14px; 
+            transition: background 0.2s;
+            box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
+        }
+        .action-btn:hover { background: var(--primary-hover); }
+
+        /* 排序控制列 */
+        .controls-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: #f8fafc;
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .controls-bar select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text-main);
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .controls-bar select:focus { border-color: var(--primary); }
+
+        /* 質感表單容器 */
+        .form-card-container {
+            background: linear-gradient(to bottom, #ffffff, #fffaf5);
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid #fed7aa;
+            box-shadow: 0 6px 16px rgba(249, 115, 22, 0.05);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .form-header-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #c2410c;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px dashed #fed7aa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 6px; color: #334155; }
+        .form-group input { 
+            width: 100%; 
+            padding: 12px 14px; 
+            box-sizing: border-box; 
+            border: 1px solid var(--border); 
+            border-radius: 10px; 
+            font-size: 15px; 
+            outline: none; 
+            background: #ffffff;
+            transition: all 0.2s ease; 
+        }
+        .form-group input:focus { 
+            border-color: var(--primary); 
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12); 
+        }
+
+        /* 內嵌提示訊息條 */
+        .toast-msg {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .toast-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .toast-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 品項卡片網格 */
+        .items-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        @media (min-width: 600px) {
+            .items-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .item-card { 
+            background: #ffffff; 
+            border: 1px solid var(--border); 
+            padding: 20px; 
+            border-radius: 14px; 
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .item-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+            border-color: #cbd5e1;
+        }
+        .item-card h4 { margin: 0 0 10px 0; color: #1e293b; font-size: 17.5px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+        .item-card h4 span { color: #ea580c; font-weight: 700; }
+        .item-card p { margin: 5px 0; font-size: 13.5px; color: var(--text-muted); }
+        .cost-rate { color: #dc2626; font-weight: 700; }
+        
+        /* 卡片底部操作按鈕 */
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+        .card-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .edit-btn { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+        .edit-btn:hover { background: #dbeafe; }
+        .delete-btn { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .delete-btn:hover { background: #fee2e2; }
+
+        /* 確認刪除警告狀態的卡片外觀 */
+        .item-card.confirm-delete-state {
+            background: #fff5f5;
+            border-color: #fecaca;
+        }
     </style>
 </head>
 <body>
@@ -52,47 +340,48 @@
         <!-- 首頁主選單 -->
         <div id="home-view">
             <div class="header">
+                <span class="header-badge">BBQ Operations Management</span>
                 <h1>🔥 馬鈴吉碳烤</h1>
-                <p>營運管理與記帳系統</p>
+                <p>智慧營運管理與成本控制系統</p>
             </div>
 
             <div class="menu-grid">
-                <div class="menu-card" onclick="openPage('products')">
-                    <div>
-                        <h3>【 販售品項成本表 】</h3>
-                        <span>品項名稱、單價、成本、售價、成本率、備註</span>
+                <div class="menu-card featured" onclick="openPage('products')">
+                    <div class="menu-card-content">
+                        <h3>販售品項成本表</h3>
+                        <span>品項名稱、單價、成本、售價、成本率</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
 
                 <div class="menu-card" onclick="openPage('materials')">
-                    <div>
-                        <h3>【 原物料與耗材價格表 】</h3>
-                        <span>品項名稱, 規格, 單價, 廠商, 最後更新日期</span>
+                    <div class="menu-card-content">
+                        <h3>原物料與耗材價格表</h3>
+                        <span>規格、單價、廠商與最後更新</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
 
                 <div class="menu-card" onclick="openPage('purchases')">
-                    <div>
-                        <h3>【 每日叫貨記錄表 】</h3>
-                        <span>日期, 叫貨廠商, 品項名稱, 實際到貨量, 金額</span>
+                    <div class="menu-card-content">
+                        <h3>每日叫貨記錄表</h3>
+                        <span>日期、廠商、品項與實際到貨量</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
 
                 <div class="menu-card" onclick="openPage('expenses')">
-                    <div>
-                        <h3>【 店內支出記錄表 】</h3>
-                        <span>日期, 類別, 品項名稱, 金額, 廠商</span>
+                    <div class="menu-card-content">
+                        <h3>店內支出記錄表</h3>
+                        <span>日期、類別、金額與相關廠商</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
 
-                <div class="menu-card" onclick="openPage('profit')">
-                    <div>
-                        <h3>【 每月損益表 】</h3>
-                        <span>營業額、進貨總額、店內支出、本月淨利自動結算</span>
+                <div class="menu-card" onclick="openPage('profit')" style="grid-column: 1 / -1;">
+                    <div class="menu-card-content">
+                        <h3>每月損益總表</h3>
+                        <span>營業額、進貨總額、店內支出與淨利自動結算</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
@@ -103,9 +392,9 @@
         <div id="sub-view" class="page-view">
             <div class="top-bar">
                 <button class="back-btn" onclick="goHome()">← 返回主選單</button>
+                <h2 id="page-title" style="margin:0; font-size: 20px; color:var(--text-main);"></h2>
                 <div id="top-action-container"></div>
             </div>
-            <h2 id="page-title" style="margin-top:0; color:#2c3e50;"></h2>
             <div id="page-content">載入中...</div>
         </div>
     </div>
@@ -116,6 +405,8 @@
         const supabaseKey = rawKey.replace(/[^\x20-\x7E]/g, '').trim();
         
         let _supabase;
+        let globalProductsData = [];
+
         try {
             _supabase = supabase.createClient(supabaseUrl.trim(), supabaseKey);
         } catch (e) {
@@ -137,7 +428,7 @@
                 renderProductsList();
             } else {
                 titleEl.innerText = '功能開發中';
-                contentEl.innerHTML = '<p style="color:#7f8c8d;">此功能即將推出...</p>';
+                contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">此模組即將推出，敬請期待...</p>';
             }
         }
 
@@ -146,9 +437,10 @@
             document.getElementById('home-view').style.display = 'block';
         }
 
+        // 讀取品項列表
         async function renderProductsList() {
             const contentEl = document.getElementById('page-content');
-            contentEl.innerHTML = '<p style="color:#7f8c8d;">讀取品項資料中...</p>';
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取品項資料中...</p>';
 
             let { data, error } = await _supabase
                 .from('products')
@@ -156,50 +448,85 @@
                 .order('id', { ascending: false });
 
             if (error) {
-                contentEl.innerHTML = '<p style="color:red;">載入失敗：' + error.message + '</p>';
+                contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>';
                 return;
             }
 
-            if (!data || data.length === 0) {
-                const defaultItem = {
-                    name: '豆干',
-                    ingredient_cost: 4.71,
-                    package_cost: 5.63,
-                    price: 15,
-                    note: '8吋（0.2元）'
-                };
+            globalProductsData = data || [];
+            displayProductsWithSort();
+        }
 
-                const { error: insertError } = await _supabase.from('products').insert([defaultItem]);
-                if (!insertError) {
-                    const reload = await _supabase.from('products').select('*').order('id', { ascending: false });
-                    data = reload.data;
-                }
+        // 渲染品項畫面
+        function displayProductsWithSort() {
+            const contentEl = document.getElementById('page-content');
+            const sortOrder = document.getElementById('sort-select') ? document.getElementById('sort-select').value : 'default';
+
+            let sortedData = [...globalProductsData];
+            if (sortOrder === 'price-asc') {
+                sortedData.sort((a, b) => (a.price || 0) - (b.price || 0));
+            } else if (sortOrder === 'price-desc') {
+                sortedData.sort((a, b) => (b.price || 0) - (a.price || 0));
             }
 
-            let html = '';
-            if (data && data.length > 0) {
-                data.forEach(item => {
+            let html = `
+                <div class="controls-bar">
+                    <span>共 <b>${sortedData.length}</b> 個品項</span>
+                    <div>
+                        <label style="margin-right: 6px; font-weight:600; color:var(--text-muted);">排序方式：</label>
+                        <select id="sort-select" onchange="displayProductsWithSort()">
+                            <option value="default" ${sortOrder === 'default' ? 'selected' : ''}>預設排序 (最新)</option>
+                            <option value="price-asc" ${sortOrder === 'price-asc' ? 'selected' : ''}>售價：由低到高 ↗</option>
+                            <option value="price-desc" ${sortOrder === 'price-desc' ? 'selected' : ''}>售價：由高到低 ↘</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+
+            if (sortedData.length > 0) {
+                html += '<div class="items-grid">';
+                sortedData.forEach(item => {
                     let costRate = 0;
                     if (item.price > 0) {
                         costRate = ((item.package_cost / item.price) * 100).toFixed(1);
                     }
 
                     html += `
-                        <div class="item-card">
-                            <h4>🔥 ${item.name}</h4>
-                            <p><b>單價：</b>$${item.ingredient_cost} 元 &nbsp;&nbsp;|&nbsp;&nbsp; <b>成本：</b>$${item.package_cost} 元</p>
-                            <p><b>售價：</b>$${item.price} 元 &nbsp;&nbsp;|&nbsp;&nbsp; <b style="color: #c0392b;">成本率：${costRate}%</b></p>
-                            <p><b>備註：</b>${item.note || '無'}</p>
+                        <div class="item-card" id="card-${item.id}">
+                            <div class="card-main-info">
+                                <h4>${item.name} <span>$${item.price} 元</span></h4>
+                                <p><b>食材單價：</b>$${item.ingredient_cost}</p>
+                                <p><b>總成本：</b>$${item.package_cost} &nbsp;|&nbsp; <span class="cost-rate">成本率：${costRate}%</span></p>
+                                <p><b>備註：</b>${item.note || '無'}</p>
+                            </div>
+                            <div class="card-actions" id="actions-${item.id}">
+                                <button class="card-btn edit-btn" onclick="renderEditProductForm(${item.id})">✏️ 修改</button>
+                                <button class="card-btn delete-btn" onclick="showDeleteConfirm(${item.id}, '${item.name}')">🗑️ 刪除</button>
+                            </div>
                         </div>
                     `;
                 });
+                html += '</div>';
             } else {
-                html = '<p style="color:#7f8c8d;">目前尚無任何品項紀錄。</p>';
+                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">目前尚無任何品項紀錄。</p>';
             }
 
             contentEl.innerHTML = html;
         }
 
+        // 點擊刪除時，在卡片內切換為確認刪除狀態（不使用醜醜的 alert）
+        function showDeleteConfirm(id, name) {
+            const cardEl = document.getElementById(`card-${id}`);
+            const actionsEl = document.getElementById(`actions-${id}`);
+            
+            cardEl.classList.add('confirm-delete-state');
+            actionsEl.innerHTML = `
+                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
+                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deleteProduct(${id})">確定</button>
+                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="displayProductsWithSort()">取消</button>
+            `;
+        }
+
+        // 顯示新增表單
         function renderAddProductForm() {
             const titleEl = document.getElementById('page-title');
             const contentEl = document.getElementById('page-content');
@@ -209,10 +536,12 @@
             actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('products')">← 回列表</button>`;
 
             contentEl.innerHTML = `
-                <div style="background: #fdfbf7; padding: 15px; border-radius: 8px; border: 1px solid #fae5d3;">
+                <div class="form-card-container">
+                    <h3 class="form-header-title">✨ 建立新碳烤品項資料</h3>
+                    <div id="form-toast" class="toast-msg"></div>
                     <div class="form-group">
                         <label>品項名稱</label>
-                        <input type="text" id="prod-name" placeholder="例如: 豬血糕">
+                        <input type="text" id="prod-name" placeholder="例如: 烤茄子、豆干">
                     </div>
                     <div class="form-group">
                         <label>單價</label>
@@ -228,22 +557,26 @@
                     </div>
                     <div class="form-group">
                         <label>備註</label>
-                        <input type="text" id="prod-note" placeholder="例如: 備註說明">
+                        <input type="text" id="prod-note" placeholder="例如: 8吋竹籤">
                     </div>
-                    <button class="action-btn" style="width:100%; padding:12px; margin-top:10px;" onclick="addProduct()">確認儲存品項</button>
+                    <button class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addProduct()">確認儲存品項</button>
                 </div>
             `;
         }
 
+        // 新增品項送出
         async function addProduct() {
             const name = document.getElementById('prod-name').value;
             const ingredient_cost = parseFloat(document.getElementById('prod-unit-price').value) || 0;
             const package_cost = parseFloat(document.getElementById('prod-cost').value) || 0;
             const price = parseFloat(document.getElementById('prod-price').value) || 0;
             const note = document.getElementById('prod-note').value;
+            const toast = document.getElementById('form-toast');
 
             if (!name) {
-                alert('請輸入品項名稱！');
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '⚠️ 請輸入品項名稱！';
+                toast.style.display = 'block';
                 return;
             }
 
@@ -258,10 +591,108 @@
                 }]);
 
             if (error) {
-                alert('儲存失敗：' + error.message);
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '❌ 儲存失敗：' + error.message;
+                toast.style.display = 'block';
             } else {
-                alert('新增成功！');
-                openPage('products');
+                toast.className = 'toast-msg toast-success';
+                toast.innerText = '✅ 新增成功！正在返回列表...';
+                toast.style.display = 'block';
+                setTimeout(() => openPage('products'), 1000);
+            }
+        }
+
+        // 顯示修改表單
+        function renderEditProductForm(id) {
+            const item = globalProductsData.find(p => p.id === id);
+            if (!item) return;
+
+            const titleEl = document.getElementById('page-title');
+            const contentEl = document.getElementById('page-content');
+            const actionContainer = document.getElementById('top-action-container');
+
+            titleEl.innerText = '修改品項資料';
+            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('products')">← 回列表</button>`;
+
+            contentEl.innerHTML = `
+                <div class="form-card-container">
+                    <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
+                    <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group">
+                        <label>品項名稱</label>
+                        <input type="text" id="edit-name" value="${item.name}">
+                    </div>
+                    <div class="form-group">
+                        <label>單價</label>
+                        <input type="number" step="0.01" id="edit-unit-price" value="${item.ingredient_cost}">
+                    </div>
+                    <div class="form-group">
+                        <label>總成本 (食材+包材)</label>
+                        <input type="number" step="0.01" id="edit-cost" value="${item.package_cost}">
+                    </div>
+                    <div class="form-group">
+                        <label>售價</label>
+                        <input type="number" step="0.01" id="edit-price" value="${item.price}">
+                    </div>
+                    <div class="form-group">
+                        <label>備註</label>
+                        <input type="text" id="edit-note" value="${item.note || ''}">
+                    </div>
+                    <button class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateProduct(${item.id})">確認更新變更</button>
+                </div>
+            `;
+        }
+
+        // 送出修改更新到資料庫
+        async function updateProduct(id) {
+            const name = document.getElementById('edit-name').value;
+            const ingredient_cost = parseFloat(document.getElementById('edit-unit-price').value) || 0;
+            const package_cost = parseFloat(document.getElementById('edit-cost').value) || 0;
+            const price = parseFloat(document.getElementById('edit-price').value) || 0;
+            const note = document.getElementById('edit-note').value;
+            const toast = document.getElementById('form-toast');
+
+            if (!name) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '⚠️ 請輸入品項名稱！';
+                toast.style.display = 'block';
+                return;
+            }
+
+            const { error } = await _supabase
+                .from('products')
+                .update({ 
+                    name: name, 
+                    ingredient_cost: ingredient_cost, 
+                    package_cost: package_cost, 
+                    price: price, 
+                    note: note 
+                })
+                .eq('id', id);
+
+            if (error) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '❌ 更新失敗：' + error.message;
+                toast.style.display = 'block';
+            } else {
+                toast.className = 'toast-msg toast-success';
+                toast.innerText = '✅ 修改成功！正在返回列表...';
+                toast.style.display = 'block';
+                setTimeout(() => openPage('products'), 1000);
+            }
+        }
+
+        // 確認刪除品項
+        async function deleteProduct(id) {
+            const { error } = await _supabase
+                .from('products')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert('刪除失敗：' + error.message);
+            } else {
+                renderProductsList();
             }
         }
     </script>
