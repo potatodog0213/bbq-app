@@ -1528,6 +1528,8 @@
 
 
         // ==================== 店內支出記錄表邏輯 ====================
+        let expenseSearchVendorVal = '';
+
         async function renderExpensesList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取支出資料中...</p>';
@@ -1542,9 +1544,16 @@
             const searchInputEl = document.getElementById('expense-search-input');
             const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
 
-            let filteredData = globalExpensesData.filter(item => {
+            let vendorDisplayStr = expenseSearchVendorVal ? `廠商：${expenseSearchVendorVal}` : '全部廠商';
+
+            let dateFilteredData = globalExpensesData.filter(item => {
                 if (!searchQuery) return true;
                 return item.date && item.date.toLowerCase().includes(searchQuery);
+            });
+
+            let filteredData = dateFilteredData.filter(item => {
+                if (!expenseSearchVendorVal) return true;
+                return item.vendor && item.vendor === expenseSearchVendorVal;
             });
 
             let totalExpenseAmount = filteredData.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
@@ -1556,8 +1565,9 @@
                         <span>花費總金額：<b style="color:#dc2626;">$${totalExpenseAmount.toLocaleString()} 元</b></span>
                     </div>
                     <div class="search-sort-group">
-                        <input type="text" id="expense-search-input" class="search-input" placeholder="📅 點此選擇日期搜尋..." value="${searchQuery}" readonly onclick="openDatePicker(setSearchDateQuery, '${searchQuery || new Date().toISOString().split('T')[0]}')" style="cursor: pointer; background: #fff;">
-                        ${searchQuery ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除搜尋</button>` : ''}
+                        <input type="text" id="expense-vendor-filter-input" class="search-input" value="${vendorDisplayStr}" readonly onclick="openExpenseVendorPicker()" style="cursor: pointer; background: #fff; width: 130px;" title="點擊選擇廠商篩選">
+                        <input type="text" id="expense-search-input" class="search-input" placeholder="📅 點此選擇日期..." value="${searchQuery}" readonly onclick="openDatePicker(setSearchDateQuery, '${searchQuery || new Date().toISOString().split('T')[0]}')" style="cursor: pointer; background: #fff; width: 130px;">
+                        ${(searchQuery || expenseSearchVendorVal) ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
                     </div>
                 </div>
             `;
@@ -1583,9 +1593,62 @@
                 });
                 html += '</div>';
             } else {
-                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合該日期的支出紀錄。</p>';
+                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合條件的支出紀錄。</p>';
             }
             contentEl.innerHTML = html;
+        }
+
+        function openExpenseVendorPicker() {
+            let vendors = ['全部廠商'];
+            globalExpensesData.forEach(item => { if (item.vendor && !vendors.includes(item.vendor)) vendors.push(item.vendor); });
+            let currentSel = expenseSearchVendorVal || '全部廠商';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'picker-overlay';
+            overlay.id = 'wheel-picker-overlay';
+            overlay.innerHTML = `
+                <div class="picker-modal">
+                    <h4>🏢 選擇相關廠商篩選</h4>
+                    <div class="picker-wheels-container" style="height: 120px;">
+                        <div class="wheel-column" id="wheel-expense-vendor" onscroll="handleWheelScroll('expense-vendor')" style="padding: 37.5px 0;"></div>
+                    </div>
+                    <div class="picker-btn-group">
+                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
+                        <button class="picker-btn picker-confirm" onclick="confirmExpenseVendorPicker()">確定選取</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            const col = document.getElementById('wheel-expense-vendor');
+            let html = '<div style="height:37.5px;"></div>';
+            vendors.forEach(v => { html += `<div class="wheel-item" data-val="${v}">${v}</div>`; });
+            html += '<div style="height:37.5px;"></div>';
+            col.innerHTML = html;
+
+            requestAnimationFrame(() => {
+                const items = col.querySelectorAll('.wheel-item');
+                for (let item of items) {
+                    if (item.getAttribute('data-val') === currentSel) {
+                        col.scrollTop = item.offsetTop - (col.clientHeight / 2) + (item.clientHeight / 2);
+                        break;
+                    }
+                }
+                highlightSelected('expense-vendor');
+            });
+        }
+
+        function confirmExpenseVendorPicker() {
+            const col = document.getElementById('wheel-expense-vendor');
+            if (col) {
+                const selItem = col.querySelector('.wheel-item.selected');
+                if (selItem) {
+                    let val = selItem.getAttribute('data-val');
+                    expenseSearchVendorVal = (val === 'ALL' || val === '全部廠商') ? '' : val;
+                    displayExpensesList();
+                }
+            }
+            closeWheelPicker();
         }
 
         function setSearchDateQuery(selectedDate) {
@@ -1594,8 +1657,10 @@
         }
 
         function clearExpenseSearch() {
+            expenseSearchVendorVal = '';
             const searchInput = document.getElementById('expense-search-input');
-            if (searchInput) { searchInput.value = ''; displayExpensesList(); }
+            if (searchInput) searchInput.value = '';
+            displayExpensesList();
         }
 
         function showDeleteConfirmExpense(id) {
@@ -1981,9 +2046,7 @@
                 foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0
             };
             
-            // 儲存為該月份專屬設定
             localStorage.setItem(`fixed_settings_${currentProfitMonth}`, JSON.stringify(fixedSettings));
-            // 同時儲存為最新範本，提供給未設定的新月份使用
             localStorage.setItem('fixed_settings_latest', JSON.stringify(fixedSettings));
 
             document.getElementById('settings-modal-overlay').remove();
