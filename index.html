@@ -1720,7 +1720,7 @@
             const expenses = expensesRes.data || [];
             globalRevenuesData = revenuesRes.data || [];
 
-            // 嚴格依照該月份儲存設定，若無則使用預設值（不自動跨月覆蓋）
+            // 嚴格讀取該月份各自儲存的設定；若該月份完全沒有儲存過，才提供預設初始值
             let fixedSettings = JSON.parse(localStorage.getItem(`fixed_settings_${currentProfitMonth}`)) || {
                 workingDays: 26,
                 rent: 25000,
@@ -1979,7 +1979,7 @@
         }
 
 
-        // ==================== 滾輪選擇器核心邏輯 (支援日期與年月) ====================
+        // ==================== 滾輪選擇器核心邏輯 (支援 ±50 年寬廣範圍) ====================
         let currentWheelCallback = null;
         let isYearMonthOnlyMode = false;
 
@@ -2017,12 +2017,13 @@
         function openYearMonthPicker(callback, initialYmStr) {
             isYearMonthOnlyMode = true;
             currentWheelCallback = callback;
-            let initYear = 2026;
-            let initMonth = 10;
+            let nowY = new Date().getFullYear();
+            let initYear = nowY;
+            let initMonth = new Date().getMonth() + 1;
             if (initialYmStr && initialYmStr.includes('-')) {
                 let parts = initialYmStr.split('-');
-                initYear = parseInt(parts[0], 10) || 2026;
-                initMonth = parseInt(parts[1], 10) || 10;
+                initYear = parseInt(parts[0], 10) || nowY;
+                initMonth = parseInt(parts[1], 10) || 1;
             }
 
             const overlay = document.createElement('div');
@@ -2049,8 +2050,14 @@
             const yearCol = document.getElementById('wheel-year');
             const monthCol = document.getElementById('wheel-month');
 
+            let currentActualYear = new Date().getFullYear();
+            let startYear = currentActualYear - 50;
+            let endYear = currentActualYear + 50;
+
             let yearHtml = '<div style="height:47.5px;"></div>';
-            for (let y = 2024; y <= 2032; y++) yearHtml += `<div class="wheel-item" data-val="${y}">${y}年</div>`;
+            for (let y = startYear; y <= endYear; y++) {
+                yearHtml += `<div class="wheel-item" data-val="${y}">${y}年</div>`;
+            }
             yearHtml += '<div style="height:47.5px;"></div>';
             yearCol.innerHTML = yearHtml;
 
