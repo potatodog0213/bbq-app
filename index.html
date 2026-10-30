@@ -1706,6 +1706,27 @@
         // ==================== 每月損益總表與營運回本試算邏輯 ====================
         let currentProfitMonth = getCurrentYearMonth();
 
+        function getMonthSettings(monthStr) {
+            let monthSaved = localStorage.getItem(`fixed_settings_${monthStr}`);
+            if (monthSaved) return JSON.parse(monthSaved);
+
+            let latestSaved = localStorage.getItem('fixed_settings_latest');
+            if (latestSaved) return JSON.parse(latestSaved);
+
+            return {
+                workingDays: 26,
+                rent: 0,
+                utilities: 0,
+                fullTimeStaff: 0,
+                partTimeStaff: 0,
+                gas: 0,
+                oil: 0,
+                charcoal: 0,
+                ubereatsAdDaily: 0,
+                foodpandaAdMonthly: 0
+            };
+        }
+
         async function renderProfitView() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算損益與回本目標中...</p>';
@@ -1720,19 +1741,7 @@
             const expenses = expensesRes.data || [];
             globalRevenuesData = revenuesRes.data || [];
 
-            // 嚴格讀取該月份各自儲存的設定；若該月份完全沒有儲存過，才提供預設初始值
-            let fixedSettings = JSON.parse(localStorage.getItem(`fixed_settings_${currentProfitMonth}`)) || {
-                workingDays: 26,
-                rent: 25000,
-                utilities: 4000,
-                fullTimeStaff: 75000,
-                partTimeStaff: 20000,
-                gas: 4500,
-                oil: 3000,
-                charcoal: 3500,
-                ubereatsAdDaily: 200,      
-                foodpandaAdMonthly: 5000   
-            };
+            let fixedSettings = getMonthSettings(currentProfitMonth);
 
             let avgCostRate = 40;
             if (products.length > 0) {
@@ -1743,10 +1752,10 @@
             let totalUbereatsAd = (parseFloat(fixedSettings.ubereatsAdDaily) || 0) * (parseFloat(fixedSettings.workingDays) || 26);
             let totalFoodpandaAd = parseFloat(fixedSettings.foodpandaAdMonthly) || 0;
 
-            let totalFixedCost = parseFloat(fixedSettings.rent) + parseFloat(fixedSettings.utilities) + 
-                                 parseFloat(fixedSettings.fullTimeStaff) + parseFloat(fixedSettings.partTimeStaff) + 
-                                 parseFloat(fixedSettings.gas) + parseFloat(fixedSettings.oil) + 
-                                 parseFloat(fixedSettings.charcoal) + totalUbereatsAd + totalFoodpandaAd;
+            let totalFixedCost = (parseFloat(fixedSettings.rent) || 0) + (parseFloat(fixedSettings.utilities) || 0) + 
+                                 (parseFloat(fixedSettings.fullTimeStaff) || 0) + (parseFloat(fixedSettings.partTimeStaff) || 0) + 
+                                 (parseFloat(fixedSettings.gas) || 0) + (parseFloat(fixedSettings.oil) || 0) + 
+                                 (parseFloat(fixedSettings.charcoal) || 0) + totalUbereatsAd + totalFoodpandaAd;
 
             let monthExpenses = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth));
             let totalOtherExpenses = monthExpenses.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
@@ -1784,13 +1793,13 @@
                     <div class="profit-grid-settings">
                         <div>營業天數：<b>${fixedSettings.workingDays} 天</b></div>
                         <div>平均成本率：<b>${avgCostRate.toFixed(1)}%</b></div>
-                        <div>房租：<b>$${fixedSettings.rent.toLocaleString()} 元</b></div>
-                        <div>水電費：<b>$${fixedSettings.utilities.toLocaleString()} 元</b></div>
-                        <div>正職薪水：<b>$${fixedSettings.fullTimeStaff.toLocaleString()} 元</b></div>
-                        <div>工讀生薪水：<b>$${fixedSettings.partTimeStaff.toLocaleString()} 元</b></div>
-                        <div>瓦斯費：<b>$${fixedSettings.gas.toLocaleString()} 元</b></div>
-                        <div>炸油費：<b>$${fixedSettings.oil.toLocaleString()} 元</b></div>
-                        <div>木碳費：<b>$${fixedSettings.charcoal.toLocaleString()} 元</b></div>
+                        <div>房租：<b>$${(fixedSettings.rent || 0).toLocaleString()} 元</b></div>
+                        <div>水電費：<b>$${(fixedSettings.utilities || 0).toLocaleString()} 元</b></div>
+                        <div>正職薪水：<b>$${(fixedSettings.fullTimeStaff || 0).toLocaleString()} 元</b></div>
+                        <div>工讀生薪水：<b>$${(fixedSettings.partTimeStaff || 0).toLocaleString()} 元</b></div>
+                        <div>瓦斯費：<b>$${(fixedSettings.gas || 0).toLocaleString()} 元</b></div>
+                        <div>炸油費：<b>$${(fixedSettings.oil || 0).toLocaleString()} 元</b></div>
+                        <div>木碳費：<b>$${(fixedSettings.charcoal || 0).toLocaleString()} 元</b></div>
                         <div>UberEats 廣告費（每日）：<b>$${fixedSettings.ubereatsAdDaily || 0} /天</b></div>
                         <div>Foodpanda 廣告費（每月）：<b>$${fixedSettings.foodpandaAdMonthly || 0} /月</b></div>
                         <div>每月固定總支出：<b>$${grandTotalCost.toLocaleString()} 元</b></div>
@@ -1931,9 +1940,7 @@
         }
 
         function openFixedSettingsModal() {
-            let fixedSettings = JSON.parse(localStorage.getItem(`fixed_settings_${currentProfitMonth}`)) || {
-                workingDays: 26, rent: 25000, utilities: 4000, fullTimeStaff: 75000, partTimeStaff: 20000, gas: 4500, oil: 3000, charcoal: 3500, ubereatsAdDaily: 200, foodpandaAdMonthly: 5000
-            };
+            let fixedSettings = getMonthSettings(currentProfitMonth);
 
             const overlay = document.createElement('div');
             overlay.className = 'picker-overlay';
@@ -1973,7 +1980,12 @@
                 ubereatsAdDaily: parseFloat(document.getElementById('set-ubereats-daily').value) || 0,
                 foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0
             };
+            
+            // 儲存為該月份專屬設定
             localStorage.setItem(`fixed_settings_${currentProfitMonth}`, JSON.stringify(fixedSettings));
+            // 同時儲存為最新範本，提供給未設定的新月份使用
+            localStorage.setItem('fixed_settings_latest', JSON.stringify(fixedSettings));
+
             document.getElementById('settings-modal-overlay').remove();
             renderProfitView();
         }
