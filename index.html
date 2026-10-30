@@ -119,6 +119,13 @@
         }
         .menu-card:active { transform: scale(0.98); }
 
+        .menu-card.capital-card::before {
+            background: linear-gradient(to bottom, #b91c1c, #991b1b);
+        }
+        .menu-card.capital-card:hover {
+            border-color: #dc2626;
+        }
+
         .menu-card-content h3 { 
             margin: 0 0 6px 0; 
             font-size: 18px; 
@@ -590,10 +597,18 @@
                     <div class="arrow">›</div>
                 </div>
 
-                <div class="menu-card" onclick="openPage('profit')" style="grid-column: 1 / -1;">
+                <div class="menu-card" onclick="openPage('profit')">
                     <div class="menu-card-content">
                         <h3>📈 每月損益總表與回本試算</h3>
                         <span>固定支出、營業額、每日回本目標與淨利結算</span>
+                    </div>
+                    <div class="arrow">›</div>
+                </div>
+
+                <div class="menu-card capital-card" onclick="openPage('capital')" style="grid-column: 1 / -1;">
+                    <div class="menu-card-content">
+                        <h3>💎 全店創業資本與回本追蹤</h3>
+                        <span>設定初始資本額、追蹤全店累積淨利與本金回本進度</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
@@ -666,6 +681,9 @@
             } else if (pageName === 'profit') {
                 titleEl.innerText = '每月損益總表與回本試算';
                 renderProfitView();
+            } else if (pageName === 'capital') {
+                titleEl.innerText = '全店創業資本與回本追蹤';
+                renderCapitalView();
             } else {
                 titleEl.innerText = '功能開發中';
                 document.getElementById('page-content').innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">此模組即將推出，敬請期待...</p>';
@@ -1802,12 +1820,10 @@
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算損益與回本目標中...</p>';
 
-            let [productsRes, expensesRes, revenuesRes, allRevenuesRes, allExpensesRes] = await Promise.all([
+            let [productsRes, expensesRes, revenuesRes] = await Promise.all([
                 _supabase.from('products').select('*'),
                 _supabase.from('expenses').select('*'),
-                _supabase.from('revenues').select('*'),
-                _supabase.from('revenues').select('*'),
-                _supabase.from('expenses').select('*')
+                _supabase.from('revenues').select('*')
             ]);
 
             const products = productsRes.data || [];
@@ -1815,37 +1831,12 @@
             globalRevenuesData = revenuesRes.data || [];
 
             let fixedSettings = await getMonthSettings(currentProfitMonth);
-            let initialCapital = parseFloat(fixedSettings.initialCapital) || 2000000;
 
             let avgCostRate = 40;
             if (products.length > 0) {
                 let totalRate = products.reduce((acc, p) => acc + calculateCostRate(p), 0);
                 avgCostRate = totalRate / products.length;
             }
-            let grossMarginRate = 1 - (avgCostRate / 100);
-
-            let allRevList = allRevenuesRes.data || [];
-            let allExpList = allExpensesRes.data || [];
-            
-            let monthSet = new Set();
-            allRevList.forEach(r => { if(r.date) monthSet.add(r.date.substring(0, 7)); });
-            allExpList.forEach(e => { if(e.date) monthSet.add(e.date.substring(0, 7)); });
-
-            let grandLifetimeNetProfit = 0;
-            for (let ym of monthSet) {
-                let mSettings = await getMonthSettings(ym);
-                let mDays = parseFloat(mSettings.workingDays) || 26;
-                let mFix = (parseFloat(mSettings.rent)||0) + (parseFloat(mSettings.utilities)||0) + (parseFloat(mSettings.fullTimeStaff)||0) + (parseFloat(mSettings.partTimeStaff)||0) + (parseFloat(mSettings.gas)||0) + (parseFloat(mSettings.oil)||0) + (parseFloat(mSettings.charcoal)||0) + ((parseFloat(mSettings.ubereatsAdDaily)||0)*mDays) + (parseFloat(mSettings.foodpandaAdMonthly)||0);
-                
-                let mExp = allExpList.filter(e => e.date && e.date.startsWith(ym)).reduce((acc, e) => acc + (parseFloat(e.amount)||0), 0);
-                let mRev = allRevList.filter(r => r.date && r.date.startsWith(ym)).reduce((acc, r) => acc + (parseFloat(r.onsite)||0) + ((parseFloat(r.ubereats)||0)*0.65) + ((parseFloat(r.foodpanda)||0)*0.67), 0);
-                
-                let mNet = (mRev * grossMarginRate) - (mFix + mExp);
-                grandLifetimeNetProfit += mNet;
-            }
-
-            let currentRemainingCapital = initialCapital + grandLifetimeNetProfit;
-            let capitalReturnRate = initialCapital > 0 ? (grandLifetimeNetProfit / initialCapital) * 100 : 0;
 
             let totalUbereatsAd = (parseFloat(fixedSettings.ubereatsAdDaily) || 0) * (parseFloat(fixedSettings.workingDays) || 26);
             let totalFoodpandaAd = parseFloat(fixedSettings.foodpandaAdMonthly) || 0;
@@ -1859,6 +1850,7 @@
             let totalOtherExpenses = monthExpenses.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
             let grandTotalCost = totalFixedCost + totalOtherExpenses;
 
+            let grossMarginRate = 1 - (avgCostRate / 100);
             let monthlyBreakEvenRevenue = grossMarginRate > 0 ? grandTotalCost / grossMarginRate : grandTotalCost * 2;
             let dailyBreakEvenRevenue = fixedSettings.workingDays > 0 ? monthlyBreakEvenRevenue / fixedSettings.workingDays : 0;
 
@@ -1926,15 +1918,6 @@
                     </div>
                 </div>
 
-                <div class="profit-card" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #fecaca;">
-                    <h3 style="margin-top:0; color:#991b1b; font-size:16px; border-bottom:1px solid #fecaca; padding-bottom:8px;">💎 全店創業本金回本與累積損益追蹤 (總計)</h3>
-                    <div class="profit-grid-settings">
-                        <div>初始投入資金：<b>$${initialCapital.toLocaleString()} 元</b></div>
-                        <div>目前剩餘資本池：<b style="color: ${currentRemainingCapital >= initialCapital ? '#166534':'#dc2626'};">$${Math.round(currentRemainingCapital).toLocaleString()} 元</b></div>
-                        <div style="grid-column: 1 / -1;">累積淨利/虧損：<b style="color: ${grandLifetimeNetProfit >= 0 ? '#166534':'#dc2626'};">${grandLifetimeNetProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(grandLifetimeNetProfit)).toLocaleString()} 元 (${capitalReturnRate.toFixed(1)}%)</b></div>
-                    </div>
-                </div>
-
                 <div class="profit-card">
                     <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ 本月成本與回本門檻設定 (含動態廣告費)</h3>
                     <div class="profit-grid-settings">
@@ -1952,7 +1935,7 @@
                         <div>每月固定總支出：<b>$${grandTotalCost.toLocaleString()} 元</b></div>
                         <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
                     </div>
-                    <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 調整初始資金、固定支出與參數設定</button>
+                    <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 調整固定支出、廣告費與營業天數參數</button>
                 </div>
 
                 <div class="profit-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
@@ -2107,8 +2090,7 @@
             overlay.id = 'settings-modal-overlay';
             overlay.innerHTML = `
                 <div class="picker-modal" style="width: 380px; text-align: left; max-height: 90vh; overflow-y: auto;">
-                    <h4 style="text-align: center; color: #c2410c;">⚙️ 設定本月 (${currentProfitMonth}) 參數與初始資金</h4>
-                    <div class="form-group"><label>💡 初始投入資金 (全店創業資本)</label><input type="number" id="set-capital" value="${fixedSettings.initialCapital || 2000000}"></div>
+                    <h4 style="text-align: center; color: #c2410c;">⚙️ 設定本月 (${currentProfitMonth}) 固定支出與參數</h4>
                     <div class="form-group"><label>營業天數</label><input type="number" id="set-days" value="${fixedSettings.workingDays}"></div>
                     <div class="form-group"><label>房租</label><input type="number" id="set-rent" value="${fixedSettings.rent}"></div>
                     <div class="form-group"><label>水電費</label><input type="number" id="set-util" value="${fixedSettings.utilities}"></div>
@@ -2129,8 +2111,9 @@
         }
 
         async function saveFixedSettings() {
+            let oldSettings = await getMonthSettings(currentProfitMonth);
             let fixedSettings = {
-                initialCapital: parseFloat(document.getElementById('set-capital').value) || 2000000,
+                initialCapital: oldSettings.initialCapital || 2000000,
                 workingDays: parseFloat(document.getElementById('set-days').value) || 26,
                 rent: parseFloat(document.getElementById('set-rent').value) || 0,
                 utilities: parseFloat(document.getElementById('set-util').value) || 0,
@@ -2156,6 +2139,142 @@
             } else {
                 document.getElementById('settings-modal-overlay').remove();
                 renderProfitView();
+            }
+        }
+
+
+        // ==================== 💎 全店創業資本與回本追蹤專屬頁面邏輯 ====================
+        async function renderCapitalView() {
+            const contentEl = document.getElementById('page-content');
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算全店總資本與回本進度中...</p>';
+
+            let [productsRes, allRevenuesRes, allExpensesRes] = await Promise.all([
+                _supabase.from('products').select('*'),
+                _supabase.from('revenues').select('*'),
+                _supabase.from('expenses').select('*')
+            ]);
+
+            const products = productsRes.data || [];
+            let allRevList = allRevenuesRes.data || [];
+            let allExpList = allExpensesRes.data || [];
+
+            let fixedSettings = await getMonthSettings(currentProfitMonth);
+            let initialCapital = parseFloat(fixedSettings.initialCapital) || 2000000;
+
+            let avgCostRate = 40;
+            if (products.length > 0) {
+                let totalRate = products.reduce((acc, p) => acc + calculateCostRate(p), 0);
+                avgCostRate = totalRate / products.length;
+            }
+            let grossMarginRate = 1 - (avgCostRate / 100);
+
+            let monthSet = new Set();
+            allRevList.forEach(r => { if(r.date) monthSet.add(r.date.substring(0, 7)); });
+            allExpList.forEach(e => { if(e.date) monthSet.add(e.date.substring(0, 7)); });
+            if (monthSet.size === 0) monthSet.add(currentProfitMonth);
+
+            let grandLifetimeNetProfit = 0;
+            for (let ym of monthSet) {
+                let mSettings = await getMonthSettings(ym);
+                let mDays = parseFloat(mSettings.workingDays) || 26;
+                let mFix = (parseFloat(mSettings.rent)||0) + (parseFloat(mSettings.utilities)||0) + (parseFloat(mSettings.fullTimeStaff)||0) + (parseFloat(mSettings.partTimeStaff)||0) + (parseFloat(mSettings.gas)||0) + (parseFloat(mSettings.oil)||0) + (parseFloat(mSettings.charcoal)||0) + ((parseFloat(mSettings.ubereatsAdDaily)||0)*mDays) + (parseFloat(mSettings.foodpandaAdMonthly)||0);
+                
+                let mExp = allExpList.filter(e => e.date && e.date.startsWith(ym)).reduce((acc, e) => acc + (parseFloat(e.amount)||0), 0);
+                let mRev = allRevList.filter(r => r.date && r.date.startsWith(ym)).reduce((acc, r) => acc + (parseFloat(r.onsite)||0) + ((parseFloat(r.ubereats)||0)*0.65) + ((parseFloat(r.foodpanda)||0)*0.67), 0);
+                
+                let mNet = (mRev * grossMarginRate) - (mFix + mExp);
+                grandLifetimeNetProfit += mNet;
+            }
+
+            let currentRemainingCapital = initialCapital + grandLifetimeNetProfit;
+            let capitalReturnRate = initialCapital > 0 ? (grandLifetimeNetProfit / initialCapital) * 100 : 0;
+
+            let html = `
+                <div class="controls-bar" style="margin-bottom: 20px;">
+                    <div class="stats-info"><span>💎 追蹤您投入的創業本金、跨月累積淨利與整體回本健康度</span></div>
+                    <div>
+                        <button class="action-btn" onclick="openCapitalSettingsModal()">⚙️ 設定初始投入資本金額</button>
+                    </div>
+                </div>
+
+                <div class="profit-card" style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); border-color: #fecaca; box-shadow: 0 10px 25px rgba(220, 38, 38, 0.08);">
+                    <h3 style="margin-top:0; color:#991b1b; font-size:18px; border-bottom:1px solid #fecaca; padding-bottom:10px;">👑 全店創業資本總覽</h3>
+                    <div class="profit-grid-settings" style="grid-template-columns: 1fr;">
+                        <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; font-size: 15px;">
+                            <span>初始投入資本額 (自己設定)：</span>
+                            <b style="font-size: 18px; color: #991b1b;">$${initialCapital.toLocaleString()} 元</b>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; font-size: 15px;">
+                            <span>目前剩餘資本池 (本金 ＋ 累積損益)：</span>
+                            <b style="font-size: 20px; color: ${currentRemainingCapital >= initialCapital ? '#166534' : '#dc2626'};">$${Math.round(currentRemainingCapital).toLocaleString()} 元</b>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profit-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
+                    <h3 style="margin-top:0; color:#166534; font-size:18px; border-bottom:1px solid #bbf7d0; padding-bottom:10px;">📊 跨月累積賺賠與回本達成率</h3>
+                    <div class="profit-row" style="font-size: 16px;">
+                        <span>全店累積淨利 / 累積虧損總額</span>
+                        <b style="color: ${grandLifetimeNetProfit >= 0 ? '#166534' : '#991b1b'}; font-size: 18px;">
+                            ${grandLifetimeNetProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(grandLifetimeNetProfit)).toLocaleString()} 元
+                        </b>
+                    </div>
+                    <div class="profit-row" style="font-size: 16px;">
+                        <span>本金回本率 / 報酬率</span>
+                        <b style="color: ${capitalReturnRate >= 0 ? '#166534' : '#991b1b'}; font-size: 18px;">
+                            ${capitalReturnRate >= 0 ? '＋' : '－'}${Math.abs(capitalReturnRate).toFixed(1)}%
+                        </b>
+                    </div>
+                    <div class="profit-row total-row" style="color: #166534; border-top-color: #86efac;">
+                        <span>💡 財務健康度狀態</span>
+                        <span>${grandLifetimeNetProfit >= 0 ? '🔥 本金已全數回本並開始獲利！' : '💪 努力打拼中，持續累積營收回本！'}</span>
+                    </div>
+                </div>
+            `;
+            contentEl.innerHTML = html;
+        }
+
+        async function openCapitalSettingsModal() {
+            let fixedSettings = await getMonthSettings(currentProfitMonth);
+            let currentCap = fixedSettings.initialCapital || 2000000;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'picker-overlay';
+            overlay.id = 'capital-modal-overlay';
+            overlay.innerHTML = `
+                <div class="picker-modal" style="width: 380px; text-align: left;">
+                    <h4 style="text-align: center; color: #c2410c;">💎 設定創業初始投入資本</h4>
+                    <div class="form-group">
+                        <label>輸入您的總投入資金 ($)</label>
+                        <input type="number" id="modal-initial-capital" value="${currentCap}" placeholder="例如: 2000000">
+                    </div>
+                    <div class="picker-btn-group" style="margin-top: 16px;">
+                        <button class="picker-btn picker-cancel" onclick="document.getElementById('capital-modal-overlay').remove()">取消</button>
+                        <button class="picker-btn picker-confirm" onclick="saveCapitalSettings()">確認儲存</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        async function saveCapitalSettings() {
+            let newCap = parseFloat(document.getElementById('modal-initial-capital').value) || 2000000;
+            let fixedSettings = await getMonthSettings(currentProfitMonth);
+            fixedSettings.initialCapital = newCap;
+
+            let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).single();
+            let res;
+            if (existing) {
+                res = await _supabase.from('settings').update({ settings_json: fixedSettings }).eq('month', currentProfitMonth);
+            } else {
+                res = await _supabase.from('settings').insert([{ month: currentProfitMonth, settings_json: fixedSettings }]);
+            }
+
+            if (res.error) {
+                alert('儲存失敗：' + res.error.message);
+            } else {
+                document.getElementById('capital-modal-overlay').remove();
+                renderCapitalView();
             }
         }
 
