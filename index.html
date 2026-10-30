@@ -367,7 +367,6 @@
             border-color: #fecaca;
         }
 
-        /* 價格漲價警示紅框 */
         .price-alert-card {
             border: 2px solid #dc2626 !important;
             background: #fff5f5 !important;
@@ -665,7 +664,6 @@
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取配方資料中...</p>';
             let { data, error } = await _supabase.from('recipes').select('*').order('id', { ascending: false });
             if (error) {
-                // 若資料表尚未建立，提示建立語法
                 contentEl.innerHTML = `<p style="color:red; text-align:center; padding:20px;">載入失敗（若為首次使用請先在 Supabase 建立 recipes 資料表）：<br>${error.message}</p>`;
                 return;
             }
@@ -1254,9 +1252,7 @@
                 statsLabelEl.innerHTML = `目前為 <b>${monthDisplayText}</b>${vendorTextExtra}，共 <b>${finalData.length}</b> 筆叫貨紀錄`;
             }
 
-            // 計算歷史每項產品的上一次單價，用於比價紅框
-            let priceHistory = {}; // item_name -> last_unit_price
-            // 先用全域資料由舊到新建立歷史記錄
+            let priceHistory = {};
             let sortedAll = [...globalPurchasesData].sort((a,b) => (a.date + a.id).localeCompare(b.date + b.id));
             let alertCount = 0;
 
@@ -1280,7 +1276,6 @@
             });
 
             let html = '';
-            // 呈現時依條件篩選並反轉 (最新在前)
             let displayList = [...finalData].sort((a,b) => (b.date + b.id).localeCompare(a.date + a.id));
 
             if (displayList.length > 0) {
@@ -1311,7 +1306,7 @@
                     `;
                 });
             } else {
-                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0; grid-column: 1 / -1;">此條件下沒有叫貨紀錄。</p>';
+                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">此條件下沒有叫貨紀錄。</p>';
             }
             containerEl.innerHTML = html;
         }
@@ -1692,8 +1687,8 @@
                 gas: 4500,
                 oil: 3000,
                 charcoal: 3500,
-                ubereatsAdDaily: 200,
-                foodpandaAdMonthly: 5000
+                ubereatsAdDaily: 200,      // UE 每日廣告費
+                foodpandaAdMonthly: 5000   // FP 每月固定廣告費
             };
 
             let avgCostRate = 40;
@@ -1702,6 +1697,7 @@
                 avgCostRate = totalRate / products.length;
             }
 
+            // 動態計算廣告費總額：UE 每日廣告費 * 營業天數 + FP 每月廣告費
             let totalUbereatsAd = (parseFloat(fixedSettings.ubereatsAdDaily) || 0) * (parseFloat(fixedSettings.workingDays) || 26);
             let totalFoodpandaAd = parseFloat(fixedSettings.foodpandaAdMonthly) || 0;
 
@@ -1718,8 +1714,14 @@
             let monthlyBreakEvenRevenue = grossMarginRate > 0 ? grandTotalCost / grossMarginRate : grandTotalCost * 2;
             let dailyBreakEvenRevenue = fixedSettings.workingDays > 0 ? monthlyBreakEvenRevenue / fixedSettings.workingDays : 0;
 
+            // 計算本月實際營業額（含抽成扣除：UE 實收 65% = 輸入金額 * 0.65，FP 實收 67% = 輸入金額 * 0.67）
             let monthRevenues = globalRevenuesData.filter(i => i.date && i.date.startsWith(currentProfitMonth));
-            let totalActualRevenue = monthRevenues.reduce((acc, i) => acc + (parseFloat(i.onsite) || 0) + (parseFloat(i.ubereats) || 0) + (parseFloat(i.foodpanda) || 0), 0);
+            let totalActualRevenue = monthRevenues.reduce((acc, i) => {
+                let onsite = parseFloat(i.onsite) || 0;
+                let ubereatsNet = (parseFloat(i.ubereats) || 0) * 0.65;   // 抽成 35%，實收 65%
+                let foodpandaNet = (parseFloat(i.foodpanda) || 0) * 0.67; // 抽成 33%，實收 67%
+                return acc + onsite + ubereatsNet + foodpandaNet;
+            }, 0);
 
             let estimatedGrossProfit = totalActualRevenue * grossMarginRate;
             let netProfit = estimatedGrossProfit - grandTotalCost;
@@ -1729,7 +1731,7 @@
 
             let html = `
                 <div class="controls-bar" style="margin-bottom: 20px;">
-                    <div class="stats-info"><span>📊 營運與回本試算儀表板</span></div>
+                    <div class="stats-info"><span>📊 營運與回本試算儀表板 (已自動扣除 UE 35% / FP 33% 抽成)</span></div>
                     <div class="search-sort-group">
                         <input type="text" id="profit-month-search" class="search-input" value="${monthDisplayTitle}" readonly onclick="openWheelPicker(changeProfitMonthWheel, '${currentProfitMonth}-01')" style="cursor: pointer; background: #fff; width: 130px;" title="點擊滾輪切換年月">
                         <button class="action-btn" onclick="openRevenueModal()">＋ 記錄今日營業額</button>
@@ -1737,21 +1739,23 @@
                 </div>
 
                 <div class="profit-card">
-                    <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ 本月成本與回本門檻設定</h3>
+                    <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ 本月成本與回本門檻設定 (含動態廣告費)</h3>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:13.5px; margin-bottom:14px;">
                         <div>營業天數：<b>${fixedSettings.workingDays} 天</b></div>
                         <div>平均成本率：<b>${avgCostRate.toFixed(1)}%</b></div>
+                        <div>UE 廣告費(每日)：<b>$${fixedSettings.ubereatsAdDaily || 0} /天</b></div>
+                        <div>FP 廣告費(每月)：<b>$${fixedSettings.foodpandaAdMonthly || 0} /月</b></div>
                         <div>每月固定總支出：<b>$${grandTotalCost.toLocaleString()} 元</b></div>
                         <div><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
                     </div>
-                    <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 調整固定支出與營業天數參數</button>
+                    <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 調整固定支出、廣告費與營業天數參數</button>
                 </div>
 
                 <div class="profit-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
-                    <h3 style="margin-top:0; color:#166534; font-size:16px; border-bottom:1px solid #bbf7d0; padding-bottom:8px;">📈 本月實際營運與回本進度</h3>
+                    <h3 style="margin-top:0; color:#166534; font-size:16px; border-bottom:1px solid #bbf7d0; padding-bottom:8px;">📈 本月實際營運與回本進度 (實收金額計算)</h3>
                     <div class="profit-row">
-                        <span>本月累計總營業額</span>
-                        <b style="color: #059669; font-size: 18px;">$${totalActualRevenue.toLocaleString()} 元</b>
+                        <span>本月累計實收總營業額</span>
+                        <b style="color: #059669; font-size: 18px;">$${Math.round(totalActualRevenue).toLocaleString()} 元</b>
                     </div>
                     <div class="profit-row">
                         <span>每日平均回本門檻</span>
@@ -1763,14 +1767,20 @@
                     </div>
                 </div>
 
-                <h4 style="color:#c2410c; margin: 20px 0 10px 0;">📅 本月每日營業額明細</h4>
+                <h4 style="color:#c2410c; margin: 20px 0 10px 0;">📅 本月每日營業額明細 (含平台實收試算)</h4>
             `;
 
             if (monthRevenues.length > 0) {
                 html += '<div class="items-grid">';
                 monthRevenues.sort((a,b) => b.date.localeCompare(a.date)).forEach((rev, index) => {
-                    let dayTotal = (parseFloat(rev.onsite) || 0) + (parseFloat(rev.ubereats) || 0) + (parseFloat(rev.foodpanda) || 0);
-                    let diffToBreakEven = dailyBreakEvenRevenue - dayTotal;
+                    let onsite = parseFloat(rev.onsite) || 0;
+                    let ueInput = parseFloat(rev.ubereats) || 0;
+                    let fpInput = parseFloat(rev.foodpanda) || 0;
+                    let ueNet = ueInput * 0.65;
+                    let fpNet = fpInput * 0.67;
+                    let dayNetTotal = onsite + ueNet + fpNet;
+
+                    let diffToBreakEven = dailyBreakEvenRevenue - dayNetTotal;
                     
                     let feedbackHtml = '';
                     if (diffToBreakEven <= 0) {
@@ -1785,9 +1795,10 @@
                     html += `
                         <div class="item-card ${zebraClass}" id="rev-card-${rev.id}">
                             <div class="card-main-info">
-                                <h4>${rev.date} <span>總計：$${dayTotal.toLocaleString()}</span></h4>
-                                <p><b>現場客人：</b>$${rev.onsite || 0} &nbsp;|&nbsp; <b>UberEats：</b>$${rev.ubereats || 0}</p>
-                                <p><b>Foodpanda：</b>$${rev.foodpanda || 0}</p>
+                                <h4>${rev.date} <span style="font-size:15px;">實收總計：$${Math.round(dayNetTotal).toLocaleString()}</span></h4>
+                                <p><b>現場：</b>$${onsite}</p>
+                                <p><b>UberEats：</b>輸入 $${ueInput} ➔ <b>實收 $${Math.round(ueNet)}</b> (抽35%)</p>
+                                <p><b>Foodpanda：</b>輸入 $${fpInput} ➔ <b>實收 $${Math.round(fpNet)}</b> (抽33%)</p>
                                 <p style="margin-top: 8px; font-size: 13px;">${feedbackHtml}</p>
                             </div>
                             <div class="card-actions" id="rev-actions-${rev.id}">
@@ -1818,7 +1829,7 @@
             overlay.className = 'picker-overlay';
             overlay.id = 'revenue-modal-overlay';
             overlay.innerHTML = `
-                <div class="picker-modal" style="width: 360px; text-align: left;">
+                <div class="picker-modal" style="width: 380px; text-align: left;">
                     <h4 style="text-align: center; color: #c2410c;">${editId ? '✏️ 修改每日營業額' : '💰 記錄每日營業額'}</h4>
                     <div id="form-toast" class="toast-msg"></div>
                     <div class="form-group">
@@ -1826,8 +1837,8 @@
                         <input type="text" id="rev-date" value="${defaultDate}" readonly onclick="openWheelPicker(setRevDate, document.getElementById('rev-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
                     <div class="form-group"><label>現場客人營業額</label><input type="number" step="0.01" id="rev-onsite" value="${revItem ? revItem.onsite || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>UberEats 營業額</label><input type="number" step="0.01" id="rev-ubereats" value="${revItem ? revItem.ubereats || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>Foodpanda 營業額</label><input type="number" step="0.01" id="rev-foodpanda" value="${revItem ? revItem.foodpanda || 0 : ''}" placeholder="0"></div>
+                    <div class="form-group"><label>UberEats 營業額 (系統會自動扣除 35% 抽成)</label><input type="number" step="0.01" id="rev-ubereats" value="${revItem ? revItem.ubereats || 0 : ''}" placeholder="0"></div>
+                    <div class="form-group"><label>Foodpanda 營業額 (系統會自動扣除 33% 抽成)</label><input type="number" step="0.01" id="rev-foodpanda" value="${revItem ? revItem.foodpanda || 0 : ''}" placeholder="0"></div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('revenue-modal-overlay').remove()">取消</button>
                         <button class="picker-btn picker-confirm" onclick="saveRevenue(${editId})">確認儲存</button>
@@ -1881,7 +1892,7 @@
             overlay.id = 'settings-modal-overlay';
             overlay.innerHTML = `
                 <div class="picker-modal" style="width: 380px; text-align: left; max-height: 90vh; overflow-y: auto;">
-                    <h4 style="text-align: center; color: #c2410c;">⚙️ 設定本月 (${currentProfitMonth}) 固定支出</h4>
+                    <h4 style="text-align: center; color: #c2410c;">⚙️ 設定本月 (${currentProfitMonth}) 固定支出與廣告費</h4>
                     <div class="form-group"><label>營業天數</label><input type="number" id="set-days" value="${fixedSettings.workingDays}"></div>
                     <div class="form-group"><label>房租</label><input type="number" id="set-rent" value="${fixedSettings.rent}"></div>
                     <div class="form-group"><label>水電費</label><input type="number" id="set-util" value="${fixedSettings.utilities}"></div>
@@ -1890,8 +1901,8 @@
                     <div class="form-group"><label>瓦斯費</label><input type="number" id="set-gas" value="${fixedSettings.gas}"></div>
                     <div class="form-group"><label>炸油費</label><input type="number" id="set-oil" value="${fixedSettings.oil}"></div>
                     <div class="form-group"><label>木碳費</label><input type="number" id="set-charcoal" value="${fixedSettings.charcoal}"></div>
-                    <div class="form-group"><label>UberEats 廣告費 (一天單價)</label><input type="number" id="set-ubereats-daily" value="${fixedSettings.ubereatsAdDaily}"></div>
-                    <div class="form-group"><label>Foodpanda 廣告費 (一個月總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
+                    <div class="form-group"><label>UberEats 廣告費 (一天單價，會自動乘以營業天數)</label><input type="number" id="set-ubereats-daily" value="${fixedSettings.ubereatsAdDaily}"></div>
+                    <div class="form-group"><label>Foodpanda 廣告費 (每月固定總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
                         <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">儲存設定</button>
