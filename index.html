@@ -444,7 +444,7 @@
             border-bottom: none;
         }
 
-        /* 滾輪式選擇器彈窗 */
+        /* 滾輪式與點擊式選擇器彈窗 */
         .picker-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -1577,7 +1577,6 @@
 
             let totalExpenseAmount = filteredData.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
 
-            // 計算設備折舊統計
             let depreciableItems = globalExpensesData.filter(item => item.is_depreciable);
             let totalAssetOriginal = 0;
             let totalAccumulatedDepreciation = 0;
@@ -1592,7 +1591,6 @@
                     let totalMonths = years * 12;
                     let monthlyDep = totalMonths > 0 ? cost / totalMonths : 0;
 
-                    // 計算已過月份數
                     let pDate = item.date ? new Date(item.date) : new Date();
                     let diffMonths = (now.getFullYear() - pDate.getFullYear()) * 12 + (now.getMonth() - pDate.getMonth());
                     if (diffMonths < 0) diffMonths = 0;
@@ -1605,7 +1603,7 @@
 
                     depreciationCardsHtml += `
                         <div style="background: rgba(255,255,255,0.7); padding: 12px 14px; border-radius: 10px; border: 1px solid #fed7aa; margin-bottom: 8px; font-size: 13.5px;">
-                            <div style="display:flex; justify-content:between; align-items:center; margin-bottom:4px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                                 <b style="color:#9a3412;">📦 ${item.name}</b>
                                 <span style="color:#c2410c; font-weight:700;">原價 $${cost.toLocaleString()} (${years}年折舊)</span>
                             </div>
@@ -1645,7 +1643,7 @@
                 html += '<div class="items-grid">';
                 filteredData.forEach((item, index) => {
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    let depreciationBadge = item.is_depreciable ? `<div style="color:#0284c7; font-weight:700; font-size:12.5px; margin-top:4px;">🏷️ 已啟用折舊 (${item.useful_life_years || 3}年攤提)</div>` : '';
+                    let depreciationBadge = item.is_depreciable ? `<div style="color:#0284c7; font-weight:700; font-size:12.5px; margin-top:4px;">🏷️ 已啟用折舊 (${item.useful_life_years || 5}年攤提)</div>` : '';
                     html += `
                         <div class="item-card ${zebraClass}" id="expense-card-${item.id}">
                             <div class="card-main-info">
@@ -1745,6 +1743,9 @@
             `;
         }
 
+        // 質感美化版折舊年限選擇器變數
+        let selectedDepYears = 5;
+
         function renderAddExpenseForm() {
             const titleEl = document.getElementById('page-title');
             const contentEl = document.getElementById('page-content');
@@ -1752,6 +1753,8 @@
             titleEl.innerText = '新增店內支出';
             actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('expenses')">← 回列表</button>`;
             const todayStr = new Date().toISOString().split('T')[0];
+            selectedDepYears = 5;
+
             contentEl.innerHTML = `
                 <div class="form-card-container">
                     <h3 class="form-header-title">💸 紀錄新店內支出</h3>
@@ -1765,20 +1768,15 @@
                     <div class="form-group"><label>金額 (總金額)</label><input type="number" step="0.01" id="exp-amount" placeholder="請輸入總金額"></div>
                     <div class="form-group"><label>相關廠商</label><input type="text" id="exp-vendor" placeholder="例如: 餐廳設備行、欣欣瓦斯"></div>
 
-                    <!-- 折舊專屬區塊 -->
+                    <!-- 質感折舊專屬區塊 -->
                     <div style="background: #fffbeb; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; margin-bottom: 18px;">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
                             <input type="checkbox" id="exp-is-dep" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" onchange="toggleDepreciationFields()">
                             <label for="exp-is-dep" style="margin: 0; cursor: pointer; color: #9a3412; font-weight: 700;">📦 此為生財器具/設備，需要進行折舊攤提</label>
                         </div>
-                        <div id="depreciation-options-box" style="display: none; padding-top: 6px; border-top: 1px dashed #fed7aa;">
-                            <label style="font-size: 13px; color: #78716c; margin-bottom: 4px; display: block;">選擇折舊年限：</label>
-                            <select id="exp-useful-years">
-                                <option value="3">3 年（適用小型生財器具、POS機、招牌等）</option>
-                                <option value="5" selected>5 年（適用大型冰箱、烤爐、空調等 - 標準推薦）</option>
-                                <option value="8">8 年（適用營業用大型冷凍庫、重型設備）</option>
-                                <option value="10">10 年（適用店面大型裝潢工程、鐵捲門等）</option>
-                            </select>
+                        <div id="depreciation-options-box" style="display: none; padding-top: 8px; border-top: 1px dashed #fed7aa;">
+                            <label style="font-size: 13px; color: #78716c; margin-bottom: 6px; display: block;">選擇折舊年限：</label>
+                            <input type="text" id="dep-years-display" value="5 年（冰箱、烤爐等 - 標準推薦）" readonly onclick="openDepYearsPicker(false)" style="cursor: pointer; background: #fff; font-weight: 600; color: #c2410c;">
                         </div>
                     </div>
 
@@ -1802,7 +1800,7 @@
             const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
             const vendor = document.getElementById('exp-vendor').value.trim();
             const is_depreciable = document.getElementById('exp-is-dep').checked;
-            const useful_life_years = is_depreciable ? (parseInt(document.getElementById('exp-useful-years').value) || 5) : 0;
+            const useful_life_years = is_depreciable ? selectedDepYears : 0;
 
             const toast = document.getElementById('form-toast');
             const submitBtn = document.getElementById('submit-exp-btn');
@@ -1825,7 +1823,15 @@
             actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('expenses')">← 回列表</button>`;
             
             const isDep = item.is_depreciable || false;
-            const years = item.useful_life_years || 5;
+            selectedDepYears = item.useful_life_years || 5;
+
+            let descMap = {
+                3: '3 年（小型器具、POS機等）',
+                5: '5 年（冰箱、烤爐等 - 標準推薦）',
+                8: '8 年（冷凍庫、重型設備）',
+                10: '10 年（裝潢工程等）'
+            };
+            let descText = descMap[selectedDepYears] || `${selectedDepYears} 年`;
 
             contentEl.innerHTML = `
                 <div class="form-card-container">
@@ -1840,20 +1846,15 @@
                     <div class="form-group"><label>金額</label><input type="number" step="0.01" id="edit-exp-amount" value="${item.amount}"></div>
                     <div class="form-group"><label>相關廠商</label><input type="text" id="edit-exp-vendor" value="${item.vendor || ''}"></div>
 
-                    <!-- 折舊專屬區塊 -->
+                    <!-- 質感折舊專屬區塊 -->
                     <div style="background: #fffbeb; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; margin-bottom: 18px;">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
                             <input type="checkbox" id="edit-exp-is-dep" ${isDep ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" onchange="toggleEditDepreciationFields()">
                             <label for="edit-exp-is-dep" style="margin: 0; cursor: pointer; color: #9a3412; font-weight: 700;">📦 此為生財器具/設備，需要進行折舊攤提</label>
                         </div>
-                        <div id="edit-depreciation-options-box" style="display: ${isDep ? 'block' : 'none'}; padding-top: 6px; border-top: 1px dashed #fed7aa;">
-                            <label style="font-size: 13px; color: #78716c; margin-bottom: 4px; display: block;">選擇折舊年限：</label>
-                            <select id="edit-exp-useful-years">
-                                <option value="3" ${years===3?'selected':''}>3 年（小型器具、POS機等）</option>
-                                <option value="5" ${years===5?'selected':''}>5 年（冰箱、烤爐等 - 標準推薦）</option>
-                                <option value="8" ${years===8?'selected':''}>8 年（冷凍庫、重型設備）</option>
-                                <option value="10" ${years===10?'selected':''}>10 年（裝潢工程等）</option>
-                            </select>
+                        <div id="edit-depreciation-options-box" style="display: ${isDep ? 'block' : 'none'}; padding-top: 8px; border-top: 1px dashed #fed7aa;">
+                            <label style="font-size: 13px; color: #78716c; margin-bottom: 6px; display: block;">選擇折舊年限：</label>
+                            <input type="text" id="edit-dep-years-display" value="${descText}" readonly onclick="openDepYearsPicker(true)" style="cursor: pointer; background: #fff; font-weight: 600; color: #c2410c;">
                         </div>
                     </div>
 
@@ -1870,6 +1871,65 @@
 
         function setEditExpenseDate(dateStr) { document.getElementById('edit-exp-date').value = dateStr; }
 
+        function openDepYearsPicker(isEdit) {
+            let options = [
+                { years: 3, label: '3 年（小型器具、POS機等）' },
+                { years: 5, label: '5 年（冰箱、烤爐等 - 標準推薦）' },
+                { years: 8, label: '8 年（冷凍庫、重型設備）' },
+                { years: 10, label: '10 年（裝潢工程等）' }
+            ];
+
+            const overlay = document.createElement('div');
+            overlay.className = 'picker-overlay';
+            overlay.id = 'wheel-picker-overlay';
+            overlay.innerHTML = `
+                <div class="picker-modal" style="width: 320px;">
+                    <h4>⏳ 選擇折舊年限</h4>
+                    <div class="picker-wheels-container" style="height: 140px;">
+                        <div class="wheel-column" id="wheel-dep-years" onscroll="handleWheelScroll('dep-years')" style="padding: 47.5px 0;"></div>
+                    </div>
+                    <div class="picker-btn-group">
+                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
+                        <button class="picker-btn picker-confirm" onclick="confirmDepYearsPicker(${isEdit})">確定選取</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            const col = document.getElementById('wheel-dep-years');
+            let html = '<div style="height:47.5px;"></div>';
+            options.forEach(opt => {
+                html += `<div class="wheel-item" data-val="${opt.years}" data-label="${opt.label}">${opt.label}</div>`;
+            });
+            html += '<div style="height:47.5px;"></div>';
+            col.innerHTML = html;
+
+            requestAnimationFrame(() => {
+                const items = col.querySelectorAll('.wheel-item');
+                for (let item of items) {
+                    if (parseInt(item.getAttribute('data-val')) === selectedDepYears) {
+                        col.scrollTop = item.offsetTop - (col.clientHeight / 2) + (item.clientHeight / 2);
+                        break;
+                    }
+                }
+                highlightSelected('dep-years');
+            });
+        }
+
+        function confirmDepYearsPicker(isEdit) {
+            const col = document.getElementById('wheel-dep-years');
+            if (col) {
+                const selItem = col.querySelector('.wheel-item.selected');
+                if (selItem) {
+                    selectedDepYears = parseInt(selItem.getAttribute('data-val'), 10) || 5;
+                    let labelText = selItem.getAttribute('data-label');
+                    let targetInput = document.getElementById(isEdit ? 'edit-dep-years-display' : 'dep-years-display');
+                    if (targetInput) targetInput.value = labelText;
+                }
+            }
+            closeWheelPicker();
+        }
+
         async function updateExpense(id) {
             const date = document.getElementById('edit-exp-date').value;
             const name = document.getElementById('edit-exp-name').value.trim();
@@ -1877,7 +1937,7 @@
             const amount = parseFloat(document.getElementById('edit-exp-amount').value) || 0;
             const vendor = document.getElementById('edit-exp-vendor').value.trim();
             const is_depreciable = document.getElementById('edit-exp-is-dep').checked;
-            const useful_life_years = is_depreciable ? (parseInt(document.getElementById('edit-exp-useful-years').value) || 5) : 0;
+            const useful_life_years = is_depreciable ? selectedDepYears : 0;
 
             const toast = document.getElementById('form-toast');
             const updateBtn = document.getElementById('update-exp-btn');
@@ -2253,7 +2313,7 @@
         }
 
 
-        // ==================== 💎 全店創業資本與回本追蹤專屬頁面邏輯 ====================
+        // ==================== 💎 全店創業資本與回本追蹤專屬頁面邏輯 (含設備累計折舊扣除) ====================
         async function renderCapitalView() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算全店總資本與回本進度中...</p>';
@@ -2296,12 +2356,46 @@
                 grandLifetimeNetProfit += mNet;
             }
 
-            let currentRemainingCapital = initialCapital + grandLifetimeNetProfit;
-            let capitalReturnRate = initialCapital > 0 ? (grandLifetimeNetProfit / initialCapital) * 100 : 0;
+            // 計算所有設備的「總累計折舊金額」，從總淨利中扣除以反映真實資產價值耗損
+            let now = new Date();
+            let totalAccumulatedDepreciation = 0;
+            let depreciableItems = allExpList.filter(e => e.is_depreciable);
+            
+            depreciableItems.forEach(item => {
+                let cost = parseFloat(item.amount) || 0;
+                let years = parseFloat(item.useful_life_years) || 5;
+                let totalMonths = years * 12;
+                let monthlyDep = totalMonths > 0 ? cost / totalMonths : 0;
+
+                let pDate = item.date ? new Date(item.date) : new Date();
+                let diffMonths = (now.getFullYear() - pDate.getFullYear()) * 12 + (now.getMonth() - pDate.getMonth());
+                if (diffMonths < 0) diffMonths = 0;
+
+                let accDep = Math.min(cost, monthlyDep * diffMonths);
+                totalAccumulatedDepreciation += accDep;
+            });
+
+            // 真正的淨利需扣除設備折舊
+            let adjustedNetProfit = grandLifetimeNetProfit - totalAccumulatedDepreciation;
+            let currentRemainingCapital = initialCapital + adjustedNetProfit;
+            let capitalReturnRate = initialCapital > 0 ? (adjustedNetProfit / initialCapital) * 100 : 0;
+
+            let depreciationDetailsHtml = '';
+            if (depreciableItems.length > 0) {
+                depreciationDetailsHtml = `
+                    <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; border-radius: 10px; border: 1px solid #fed7aa; margin-top: 12px; font-size: 14px;">
+                        <b style="color: #9a3412; display: block; margin-bottom: 6px;">🏷️ 已計入資本追蹤的設備折舊細節：</b>
+                        <div style="color: #78716c; display: flex; justify-content: space-between;">
+                            <span>列管設備總原價：$${depreciableItems.reduce((a,c)=>a+(parseFloat(c.amount)||0),0).toLocaleString()}</span>
+                            <span style="color: #dc2626; font-weight: 700;">總累計折舊扣除：-$${Math.round(totalAccumulatedDepreciation).toLocaleString()}</span>
+                        </div>
+                    </div>
+                `;
+            }
 
             let html = `
                 <div class="controls-bar" style="margin-bottom: 20px;">
-                    <div class="stats-info"><span>💎 追蹤您投入的創業本金、跨月累積淨利與整體回本健康度</span></div>
+                    <div class="stats-info"><span>💎 追蹤您投入的創業本金、跨月累積淨利、設備折舊與整體回本健康度</span></div>
                     <div>
                         <button class="action-btn" onclick="openCapitalSettingsModal()">⚙️ 設定初始投入資本金額</button>
                     </div>
@@ -2315,18 +2409,19 @@
                             <b style="font-size: 18px; color: #991b1b;">$${initialCapital.toLocaleString()} 元</b>
                         </div>
                         <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; font-size: 15px;">
-                            <span>目前剩餘資本池 (本金 ＋ 累積損益)：</span>
+                            <span>目前剩餘資本池 (本金 ＋ 調整後損益)：</span>
                             <b style="font-size: 20px; color: ${currentRemainingCapital >= initialCapital ? '#166534' : '#dc2626'};">$${Math.round(currentRemainingCapital).toLocaleString()} 元</b>
                         </div>
                     </div>
+                    ${depreciationDetailsHtml}
                 </div>
 
                 <div class="profit-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
-                    <h3 style="margin-top:0; color:#166534; font-size:18px; border-bottom:1px solid #bbf7d0; padding-bottom:10px;">📊 跨月累積賺賠與回本達成率</h3>
+                    <h3 style="margin-top:0; color:#166534; font-size:18px; border-bottom:1px solid #bbf7d0; padding-bottom:10px;">📊 跨月累積賺賠與回本達成率 (已扣除設備折舊)</h3>
                     <div class="profit-row" style="font-size: 16px;">
-                        <span>全店累積淨利 / 累積虧損總額</span>
-                        <b style="color: ${grandLifetimeNetProfit >= 0 ? '#166534' : '#991b1b'}; font-size: 18px;">
-                            ${grandLifetimeNetProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(grandLifetimeNetProfit)).toLocaleString()} 元
+                        <span>全店累積淨利 / 累積虧損總額 (含折舊)</span>
+                        <b style="color: ${adjustedNetProfit >= 0 ? '#166534' : '#991b1b'}; font-size: 18px;">
+                            ${adjustedNetProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(adjustedNetProfit)).toLocaleString()} 元
                         </b>
                     </div>
                     <div class="profit-row" style="font-size: 16px;">
@@ -2337,7 +2432,7 @@
                     </div>
                     <div class="profit-row total-row" style="color: #166534; border-top-color: #86efac;">
                         <span>💡 財務健康度狀態</span>
-                        <span>${grandLifetimeNetProfit >= 0 ? '🔥 本金已全數回本並開始獲利！' : '💪 努力打拼中，持續累積營收回本！'}</span>
+                        <span>${adjustedNetProfit >= 0 ? '🔥 本金已全數回本並開始獲利！' : '💪 努力打拼中，持續累積營收回本！'}</span>
                     </div>
                 </div>
             `;
