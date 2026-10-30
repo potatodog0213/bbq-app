@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>馬鈴吉碳烤 - 營運管理系統</title>
+    <title>馬鈴吉碳烤 - 營運管理與SOP系統</title>
     <!-- 引入 Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -250,19 +250,6 @@
         }
         .search-input:focus { border-color: var(--primary); width: 210px; }
 
-        .controls-bar select {
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid #fcd34d;
-            background: white;
-            color: var(--text-main);
-            font-size: 13.5px;
-            cursor: pointer;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .controls-bar select:focus { border-color: var(--primary); }
-
         /* 質感表單容器 */
         .form-card-container {
             background: linear-gradient(to bottom, #ffffff, #fffaf5);
@@ -288,7 +275,7 @@
 
         .form-group { margin-bottom: 18px; }
         .form-group label { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 6px; color: #44403c; }
-        .form-group input { 
+        .form-group input, .form-group textarea, .form-group select { 
             width: 100%; 
             padding: 12px 14px; 
             box-sizing: border-box; 
@@ -297,9 +284,10 @@
             font-size: 15px; 
             outline: none; 
             background: #ffffff;
+            font-family: inherit;
             transition: all 0.2s ease; 
         }
-        .form-group input:focus { 
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { 
             border-color: var(--primary); 
             box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.12); 
         }
@@ -377,6 +365,12 @@
         .item-card.confirm-delete-state {
             background: #fff5f5 !important;
             border-color: #fecaca;
+        }
+
+        /* 價格漲價警示紅框 */
+        .price-alert-card {
+            border: 2px solid #dc2626 !important;
+            background: #fff5f5 !important;
         }
 
         /* 損益總表與營運回本專屬樣式 */
@@ -516,10 +510,18 @@
         <div id="home-view">
             <div class="header">
                 <h1>🔥 馬鈴吉碳烤</h1>
-                <p>智慧營運管理與成本控制系統</p>
+                <p>智慧營運管理與標準作業系統</p>
             </div>
 
             <div class="menu-grid">
+                <div class="menu-card" onclick="openPage('recipes')">
+                    <div class="menu-card-content">
+                        <h3>配方與過程表</h3>
+                        <span>醬料、醃料、炸雞腿與飲料配方與製作步驟</span>
+                    </div>
+                    <div class="arrow">›</div>
+                </div>
+
                 <div class="menu-card" onclick="openPage('products')">
                     <div class="menu-card-content">
                         <h3>販售品項成本表</h3>
@@ -539,7 +541,7 @@
                 <div class="menu-card" onclick="openPage('purchases')">
                     <div class="menu-card-content">
                         <h3>每日叫貨記錄表</h3>
-                        <span>日期、廠商、品項與實際到貨量</span>
+                        <span>數量、單位、金額與自動比價警示</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
@@ -586,6 +588,7 @@
         let globalPurchasesData = [];
         let globalExpensesData = [];
         let globalRevenuesData = [];
+        let globalRecipesData = [];
         let currentPage = '';
 
         try {
@@ -603,7 +606,11 @@
             const actionContainer = document.getElementById('top-action-container');
             actionContainer.innerHTML = ''; 
 
-            if (pageName === 'products') {
+            if (pageName === 'recipes') {
+                titleEl.innerText = '配方與過程表 (SOP)';
+                actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddRecipeForm()">＋ 新增配方/過程</button>`;
+                renderRecipesList();
+            } else if (pageName === 'products') {
                 titleEl.innerText = '販售品項成本表';
                 actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddProductForm()">＋ 新增品項</button>`;
                 renderProductsList();
@@ -650,6 +657,187 @@
             const m = String(now.getMonth() + 1).padStart(2, '0');
             return `${y}-${m}`;
         }
+
+
+        // ==================== 配方與過程表邏輯 (Recipes SOP) ====================
+        async function renderRecipesList() {
+            const contentEl = document.getElementById('page-content');
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取配方資料中...</p>';
+            let { data, error } = await _supabase.from('recipes').select('*').order('id', { ascending: false });
+            if (error) {
+                // 若資料表尚未建立，提示建立語法
+                contentEl.innerHTML = `<p style="color:red; text-align:center; padding:20px;">載入失敗（若為首次使用請先在 Supabase 建立 recipes 資料表）：<br>${error.message}</p>`;
+                return;
+            }
+            globalRecipesData = data || [];
+            displayRecipesCards();
+        }
+
+        function displayRecipesCards() {
+            const contentEl = document.getElementById('page-content');
+            const searchInputEl = document.getElementById('recipe-search-input');
+            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
+
+            let filteredData = globalRecipesData.filter(item => {
+                if (!searchQuery) return true;
+                return (item.name && item.name.toLowerCase().includes(searchQuery)) ||
+                       (item.category && item.category.toLowerCase().includes(searchQuery)) ||
+                       (item.ingredients && item.ingredients.toLowerCase().includes(searchQuery));
+            });
+
+            let html = `
+                <div class="controls-bar">
+                    <div class="stats-info"><span>共 <b>${filteredData.length}</b> 筆配方與過程表</span></div>
+                    <div class="search-sort-group">
+                        <input type="text" id="recipe-search-input" class="search-input" placeholder="🔍 搜尋名稱、分類..." value="${searchQuery}" oninput="displayRecipesCards()">
+                        ${searchQuery ? `<button class="clear-search-btn" onclick="clearRecipeSearch()">❌ 清除</button>` : ''}
+                    </div>
+                </div>
+            `;
+
+            if (filteredData.length > 0) {
+                html += '<div class="items-grid">';
+                filteredData.forEach((item, index) => {
+                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
+                    html += `
+                        <div class="item-card ${zebraClass}" id="recipe-card-${item.id}">
+                            <div class="card-main-info">
+                                <h4>${item.name} <span>[${item.category || '一般'}]</span></h4>
+                                <p><b>📋 配方材料：</b><br><span style="white-space: pre-line; color: #44403c;">${item.ingredients || '無'}</span></p>
+                                <p style="margin-top:8px;"><b>🍳 製作過程與步驟：</b><br><span style="white-space: pre-line; color: #44403c;">${item.steps || '無'}</span></p>
+                                <p style="margin-top:8px;"><b>備註：</b>${item.note || '無'}</p>
+                            </div>
+                            <div class="card-actions" id="recipe-actions-${item.id}">
+                                <button class="card-btn edit-btn" onclick="renderEditRecipeForm(${item.id})">✏️ 修改</button>
+                                <button class="card-btn delete-btn" onclick="showDeleteConfirmRecipe(${item.id})">🗑️ 刪除</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合的配方紀錄。</p>';
+            }
+            contentEl.innerHTML = html;
+        }
+
+        function clearRecipeSearch() {
+            const input = document.getElementById('recipe-search-input');
+            if (input) input.value = '';
+            displayRecipesCards();
+        }
+
+        function showDeleteConfirmRecipe(id) {
+            const cardEl = document.getElementById(`recipe-card-${id}`);
+            const actionsEl = document.getElementById(`recipe-actions-${id}`);
+            cardEl.classList.add('confirm-delete-state');
+            actionsEl.innerHTML = `
+                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
+                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deleteRecipe(${id})">確定</button>
+                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="displayRecipesCards()">取消</button>
+            `;
+        }
+
+        function renderAddRecipeForm() {
+            const titleEl = document.getElementById('page-title');
+            const contentEl = document.getElementById('page-content');
+            const actionContainer = document.getElementById('top-action-container');
+            titleEl.innerText = '新增配方與過程表';
+            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('recipes')">← 回列表</button>`;
+            contentEl.innerHTML = `
+                <div class="form-card-container" style="max-width: 600px;">
+                    <h3 class="form-header-title">📖 建立新配方與SOP步驟</h3>
+                    <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group"><label>品項名稱 (例如: 招牌烤肉醬、炸雞腿醃料)</label><input type="text" id="rec-name" placeholder="請輸入品項名稱"></div>
+                    <div class="form-group">
+                        <label>分類</label>
+                        <select id="rec-category">
+                            <option value="醬料">醬料</option>
+                            <option value="醃料">醃料</option>
+                            <option value="炸物">炸物 (如炸雞腿)</option>
+                            <option value="飲料">飲料</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>配方材料清單 (可多行)</label><textarea id="rec-ingredients" rows="4" placeholder="例如: 醬油 500cc、糖 200g..."></textarea></div>
+                    <div class="form-group"><label>製作過程與步驟 (可多行)</label><textarea id="rec-steps" rows="6" placeholder="1. 將水煮滾...&#10;2. 加入調味料攪拌..."></textarea></div>
+                    <div class="form-group"><label>備註</label><input type="text" id="rec-note" placeholder="例如: 需冷藏保存、小火慢熬"></div>
+                    <button id="submit-rec-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addRecipe()">確認儲存配方</button>
+                </div>
+            `;
+        }
+
+        async function addRecipe() {
+            const name = document.getElementById('rec-name').value.trim();
+            const category = document.getElementById('rec-category').value;
+            const ingredients = document.getElementById('rec-ingredients').value.trim();
+            const steps = document.getElementById('rec-steps').value.trim();
+            const note = document.getElementById('rec-note').value.trim();
+            const toast = document.getElementById('form-toast');
+            const submitBtn = document.getElementById('submit-rec-btn');
+
+            if (!name) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請輸入品項名稱！'; toast.style.display = 'block'; return; }
+
+            submitBtn.disabled = true; submitBtn.innerText = '儲存中...';
+            const { error } = await _supabase.from('recipes').insert([{ name, category, ingredients, steps, note }]);
+            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存配方'; }
+            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 新增成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('recipes'), 1000); }
+        }
+
+        function renderEditRecipeForm(id) {
+            const item = globalRecipesData.find(r => r.id === id);
+            if (!item) return;
+            const titleEl = document.getElementById('page-title');
+            const contentEl = document.getElementById('page-content');
+            const actionContainer = document.getElementById('top-action-container');
+            titleEl.innerText = '修改配方與過程表';
+            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('recipes')">← 回列表</button>`;
+            contentEl.innerHTML = `
+                <div class="form-card-container" style="max-width: 600px;">
+                    <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
+                    <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group"><label>品項名稱</label><input type="text" id="edit-rec-name" value="${item.name}"></div>
+                    <div class="form-group">
+                        <label>分類</label>
+                        <select id="edit-rec-category">
+                            <option value="醬料" ${item.category==='醬料'?'selected':''}>醬料</option>
+                            <option value="醃料" ${item.category==='醃料'?'selected':''}>醃料</option>
+                            <option value="炸物" ${item.category==='炸物'?'selected':''}>炸物 (如炸雞腿)</option>
+                            <option value="飲料" ${item.category==='飲料'?'selected':''}>飲料</option>
+                            <option value="其他" ${item.category==='其他'?'selected':''}>其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>配方材料清單</label><textarea id="edit-rec-ingredients" rows="4">${item.ingredients || ''}</textarea></div>
+                    <div class="form-group"><label>製作過程與步驟</label><textarea id="edit-rec-steps" rows="6">${item.steps || ''}</textarea></div>
+                    <div class="form-group"><label>備註</label><input type="text" id="edit-rec-note" value="${item.note || ''}"></div>
+                    <button id="update-rec-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateRecipe(${item.id})">確認更新變更</button>
+                </div>
+            `;
+        }
+
+        async function updateRecipe(id) {
+            const name = document.getElementById('edit-rec-name').value.trim();
+            const category = document.getElementById('edit-rec-category').value;
+            const ingredients = document.getElementById('edit-rec-ingredients').value.trim();
+            const steps = document.getElementById('edit-rec-steps').value.trim();
+            const note = document.getElementById('edit-rec-note').value.trim();
+            const toast = document.getElementById('form-toast');
+            const updateBtn = document.getElementById('update-rec-btn');
+
+            if (!name) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請輸入品項名稱！'; toast.style.display = 'block'; return; }
+
+            updateBtn.disabled = true; updateBtn.innerText = '更新中...';
+            const { error } = await _supabase.from('recipes').update({ name, category, ingredients, steps, note }).eq('id', id);
+            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 更新失敗：' + error.message; toast.style.display = 'block'; updateBtn.disabled = false; updateBtn.innerText = '確認更新變更'; }
+            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 修改成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('recipes'), 1000); }
+        }
+
+        async function deleteRecipe(id) {
+            const { error } = await _supabase.from('recipes').delete().eq('id', id);
+            if (error) alert('刪除失敗：' + error.message);
+            else renderRecipesList();
+        }
+
 
         // ==================== 販售品項邏輯 ====================
         async function renderProductsList() {
@@ -991,7 +1179,7 @@
         }
 
 
-        // ==================== 每日叫貨記錄表邏輯 ====================
+        // ==================== 每日叫貨記錄表邏輯 (具備數量、單位、總金額與自動比價紅框) ====================
         let currentPurchaseFilterMonth = getCurrentYearMonth();
         let purchaseSearchVendorVal = '';
 
@@ -999,7 +1187,7 @@
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取叫貨記錄中...</p>';
 
-            let { data, error } = await _supabase.from('purchases').select('*').order('date', { ascending: false });
+            let { data, error } = await _supabase.from('purchases').select('*').order('date', { ascending: true }).order('id', { ascending: true });
             if (error) { contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>'; return; }
             globalPurchasesData = data || [];
 
@@ -1010,22 +1198,18 @@
             });
             let monthList = Array.from(monthSet).sort().reverse();
 
-            let monthOptionsHtml = monthList.map(m => {
-                const parts = m.split('-');
-                return `<option value="${m}" ${m === currentPurchaseFilterMonth ? 'selected' : ''}>${parts[0]}年 ${parseInt(parts[1], 10)}月</option>`;
-            }).join('');
-            monthOptionsHtml += `<option value="ALL" ${currentPurchaseFilterMonth === 'ALL' ? 'selected' : ''}>全部歷史紀錄</option>`;
-
+            const [pYear, pMonth] = currentPurchaseFilterMonth.split('-');
+            let monthDisplayTitle = currentPurchaseFilterMonth === 'ALL' ? '全部歷史紀錄' : `${pYear}年 ${parseInt(pMonth, 10)}月`;
             let vendorDisplayStr = purchaseSearchVendorVal ? `廠商：${purchaseSearchVendorVal}` : '全部廠商';
 
             let html = `
                 <div class="controls-bar">
                     <div class="stats-info"><span id="purchase-stats-label">載入中...</span></div>
                     <div class="search-sort-group">
-                        <select id="purchase-month-select" onchange="changePurchaseMonthFilter(this.value)">${monthOptionsHtml}</select>
-                        <input type="text" id="purchase-vendor-filter-input" class="search-input" value="${vendorDisplayStr}" readonly onclick="openPurchaseVendorPicker()" style="cursor: pointer; background: #fff; width: 130px;">
-                        <input type="text" id="purchase-search-input" class="search-input" placeholder="🔍 搜尋品項..." oninput="filterPurchasesCards()" style="width: 120px;">
-                        ${(purchaseSearchVendorVal || document.getElementById('purchase-search-input')?.value) ? `<button class="clear-search-btn" onclick="clearPurchaseSearch()">❌ 清除</button>` : ''}
+                        <input type="text" id="purchase-month-search" class="search-input" value="${monthDisplayTitle}" readonly onclick="openWheelPicker(changePurchaseMonthWheel, '${currentPurchaseFilterMonth === 'ALL' ? getCurrentYearMonth() + '-01' : currentPurchaseFilterMonth + '-01'}')" style="cursor: pointer; background: #fff; width: 130px;" title="點擊滾輪選擇月份">
+                        <input type="text" id="purchase-vendor-filter-input" class="search-input" value="${vendorDisplayStr}" readonly onclick="openPurchaseVendorPicker()" style="cursor: pointer; background: #fff; width: 120px;">
+                        <input type="text" id="purchase-search-input" class="search-input" placeholder="🔍 搜尋品項..." oninput="filterPurchasesCards()" style="width: 110px;">
+                        ${(purchaseSearchVendorVal || currentPurchaseFilterMonth !== getCurrentYearMonth() || document.getElementById('purchase-search-input')?.value) ? `<button class="clear-search-btn" onclick="clearPurchaseSearch()">❌ 清除</button>` : ''}
                     </div>
                 </div>
                 <div id="purchases-cards-container" class="items-grid"></div>
@@ -1034,7 +1218,10 @@
             filterPurchasesCards();
         }
 
-        function changePurchaseMonthFilter(val) { currentPurchaseFilterMonth = val; filterPurchasesCards(); }
+        function changePurchaseMonthWheel(dateStr) {
+            currentPurchaseFilterMonth = dateStr.substring(0, 7);
+            renderPurchasesList();
+        }
 
         function filterPurchasesCards() {
             const searchInputEl = document.getElementById('purchase-search-input');
@@ -1048,21 +1235,12 @@
                 return item.date && item.date.startsWith(currentPurchaseFilterMonth);
             });
 
-            let monthDisplayText = '全部';
-            if (currentPurchaseFilterMonth !== 'ALL') {
-                const parts = currentPurchaseFilterMonth.split('-');
-                monthDisplayText = `${parseInt(parts[1], 10)}月`;
-            }
+            let monthDisplayText = currentPurchaseFilterMonth === 'ALL' ? '全部' : `${parseInt(currentPurchaseFilterMonth.split('-')[1], 10)}月`;
 
             let vendorFilteredData = monthFilteredData.filter(item => {
                 if (!purchaseSearchVendorVal) return true;
                 return item.vendor && item.vendor === purchaseSearchVendorVal;
             });
-
-            if (statsLabelEl) {
-                let vendorTextExtra = purchaseSearchVendorVal ? `（${purchaseSearchVendorVal}）` : '';
-                statsLabelEl.innerHTML = `目前為 <b>${monthDisplayText}</b>${vendorTextExtra}，共 <b>${vendorFilteredData.length}</b> 筆叫貨紀錄`;
-            }
 
             let finalData = vendorFilteredData.filter(item => {
                 if (!searchQuery) return true;
@@ -1071,7 +1249,71 @@
                        (item.date && item.date.toLowerCase().includes(searchQuery));
             });
 
-            renderPurchasesCards(finalData);
+            if (statsLabelEl) {
+                let vendorTextExtra = purchaseSearchVendorVal ? `（${purchaseSearchVendorVal}）` : '';
+                statsLabelEl.innerHTML = `目前為 <b>${monthDisplayText}</b>${vendorTextExtra}，共 <b>${finalData.length}</b> 筆叫貨紀錄`;
+            }
+
+            // 計算歷史每項產品的上一次單價，用於比價紅框
+            let priceHistory = {}; // item_name -> last_unit_price
+            // 先用全域資料由舊到新建立歷史記錄
+            let sortedAll = [...globalPurchasesData].sort((a,b) => (a.date + a.id).localeCompare(b.date + b.id));
+            let alertCount = 0;
+
+            let cardHtmlMap = {};
+            sortedAll.forEach(item => {
+                let qty = parseFloat(item.quantity) || 1;
+                let total = parseFloat(item.total_price) || 0;
+                let unitPrice = qty > 0 ? total / qty : 0;
+                let itemName = item.item_name;
+
+                let isMoreExpensive = false;
+                let lastPrice = priceHistory[itemName];
+                if (lastPrice !== undefined && unitPrice > lastPrice) {
+                    isMoreExpensive = true;
+                    alertCount++;
+                }
+                if (unitPrice > 0) {
+                    priceHistory[itemName] = unitPrice;
+                }
+                cardHtmlMap[item.id] = { isMoreExpensive, unitPrice };
+            });
+
+            let html = '';
+            // 呈現時依條件篩選並反轉 (最新在前)
+            let displayList = [...finalData].sort((a,b) => (b.date + b.id).localeCompare(a.date + a.id));
+
+            if (displayList.length > 0) {
+                displayList.forEach((item, index) => {
+                    let info = cardHtmlMap[item.id] || { isMoreExpensive: false, unitPrice: 0 };
+                    let cardClass = info.isMoreExpensive ? 'item-card price-alert-card' : 'item-card';
+                    let zebraClass = (!info.isMoreExpensive && index % 2 === 1) ? 'zebra-alt' : '';
+                    let qty = parseFloat(item.quantity) || 1;
+                    let total = parseFloat(item.total_price) || 0;
+                    let unit = item.unit || '份';
+
+                    let alertBadge = info.isMoreExpensive ? `<div style="color:#dc2626; font-weight:700; font-size:13px; margin-top:4px;">🚨 價格比上次貴！(單價 $${Math.round(info.unitPrice)}/${unit})</div>` : '';
+
+                    html += `
+                        <div class="${cardClass} ${zebraClass}" id="purchase-card-${item.id}">
+                            <div class="card-main-info">
+                                <h4>${item.item_name} <span>總價：$${total.toLocaleString()}</span></h4>
+                                <p><b>日期：</b>${item.date}</p>
+                                <p><b>廠商：</b>${item.vendor || '未設定'}</p>
+                                <p><b>數量：</b>${qty} ${unit} &nbsp;|&nbsp; <b>計算單價：</b>$${Math.round(info.unitPrice)} / ${unit}</p>
+                                ${alertBadge}
+                            </div>
+                            <div class="card-actions" id="purchase-actions-${item.id}">
+                                <button class="card-btn edit-btn" onclick="renderEditPurchaseForm(${item.id})">✏️ 修改</button>
+                                <button class="card-btn delete-btn" onclick="showDeleteConfirmPurchase(${item.id})">🗑️ 刪除</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0; grid-column: 1 / -1;">此條件下沒有叫貨紀錄。</p>';
+            }
+            containerEl.innerHTML = html;
         }
 
         function openPurchaseVendorPicker() {
@@ -1129,36 +1371,10 @@
 
         function clearPurchaseSearch() {
             purchaseSearchVendorVal = '';
+            currentPurchaseFilterMonth = getCurrentYearMonth();
             const searchInput = document.getElementById('purchase-search-input');
             if (searchInput) searchInput.value = '';
             renderPurchasesList();
-        }
-
-        function renderPurchasesCards(dataList) {
-            const containerEl = document.getElementById('purchases-cards-container');
-            if (!containerEl) return;
-            let html = '';
-            if (dataList.length > 0) {
-                dataList.forEach((item, index) => {
-                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    html += `
-                        <div class="item-card ${zebraClass}" id="purchase-card-${item.id}">
-                            <div class="card-main-info">
-                                <h4>${item.item_name} <span>到貨：${item.actual_qty}</span></h4>
-                                <p><b>日期：</b>${item.date}</p>
-                                <p><b>合作廠商：</b>${item.vendor || '未設定'}</p>
-                            </div>
-                            <div class="card-actions" id="purchase-actions-${item.id}">
-                                <button class="card-btn edit-btn" onclick="renderEditPurchaseForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirmPurchase(${item.id})">🗑️ 刪除</button>
-                            </div>
-                        </div>
-                    `;
-                });
-            } else {
-                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0; grid-column: 1 / -1;">此條件下沒有叫貨紀錄。</p>';
-            }
-            containerEl.innerHTML = html;
         }
 
         function showDeleteConfirmPurchase(id) {
@@ -1187,9 +1403,13 @@
                         <label>日期 (點擊可更改)</label>
                         <input type="text" id="pur-date" value="${todayStr}" readonly onclick="openWheelPicker(setAddPurchaseDate, document.getElementById('pur-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
-                    <div class="form-group"><label>廠商名稱</label><input type="text" id="pur-vendor" placeholder="例如: 某某肉品商、蔬菜行"></div>
-                    <div class="form-group"><label>品項名稱</label><input type="text" id="pur-item-name" placeholder="例如: 雞肉串、甜不辣"></div>
-                    <div class="form-group"><label>實際到貨量</label><input type="text" id="pur-actual-qty" placeholder="例如: 50串、2箱"></div>
+                    <div class="form-group"><label>廠商名稱</label><input type="text" id="pur-vendor" placeholder="例如: 肉品商、蔬菜行"></div>
+                    <div class="form-group"><label>品項名稱</label><input type="text" id="pur-item-name" placeholder="例如: 大甜不辣、雞肉串"></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <div class="form-group"><label>數量</label><input type="number" step="0.1" id="pur-qty" placeholder="例如: 2"></div>
+                        <div class="form-group"><label>單位</label><input type="text" id="pur-unit" placeholder="例如: 袋、箱、斤"></div>
+                    </div>
+                    <div class="form-group"><label>總金額 ($)</label><input type="number" step="0.01" id="pur-total" placeholder="例如: 460"></div>
                     <button id="submit-pur-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addPurchase()">確認儲存叫貨紀錄</button>
                 </div>
             `;
@@ -1201,14 +1421,16 @@
             const date = document.getElementById('pur-date').value;
             const vendor = document.getElementById('pur-vendor').value.trim();
             const item_name = document.getElementById('pur-item-name').value.trim();
-            const actual_qty = document.getElementById('pur-actual-qty').value.trim();
+            const quantity = parseFloat(document.getElementById('pur-qty').value) || 1;
+            const unit = document.getElementById('pur-unit').value.trim() || '份';
+            const total_price = parseFloat(document.getElementById('pur-total').value) || 0;
             const toast = document.getElementById('form-toast');
             const submitBtn = document.getElementById('submit-pur-btn');
 
-            if (!date || !item_name || !actual_qty) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、品項名稱與實際到貨量！'; toast.style.display = 'block'; return; }
+            if (!date || !item_name || total_price <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、品項名稱與有效總金額！'; toast.style.display = 'block'; return; }
 
             submitBtn.disabled = true; submitBtn.innerText = '儲存中...';
-            const { error } = await _supabase.from('purchases').insert([{ date, vendor, item_name, actual_qty }]);
+            const { error } = await _supabase.from('purchases').insert([{ date, vendor, item_name, quantity, unit, total_price }]);
             if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存叫貨紀錄'; }
             else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 新增成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('purchases'), 1000); }
         }
@@ -1231,7 +1453,11 @@
                     </div>
                     <div class="form-group"><label>廠商名稱</label><input type="text" id="edit-pur-vendor" value="${item.vendor || ''}"></div>
                     <div class="form-group"><label>品項名稱</label><input type="text" id="edit-pur-item-name" value="${item.item_name}"></div>
-                    <div class="form-group"><label>實際到貨量</label><input type="text" id="edit-pur-actual-qty" value="${item.actual_qty}"></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <div class="form-group"><label>數量</label><input type="number" step="0.1" id="edit-pur-qty" value="${item.quantity || 1}"></div>
+                        <div class="form-group"><label>單位</label><input type="text" id="edit-pur-unit" value="${item.unit || '份'}"></div>
+                    </div>
+                    <div class="form-group"><label>總金額 ($)</label><input type="number" step="0.01" id="edit-pur-total" value="${item.total_price || 0}"></div>
                     <button id="update-pur-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updatePurchase(${item.id})">確認更新變更</button>
                 </div>
             `;
@@ -1243,14 +1469,16 @@
             const date = document.getElementById('edit-pur-date').value;
             const vendor = document.getElementById('edit-pur-vendor').value.trim();
             const item_name = document.getElementById('edit-pur-item-name').value.trim();
-            const actual_qty = document.getElementById('edit-pur-actual-qty').value.trim();
+            const quantity = parseFloat(document.getElementById('edit-pur-qty').value) || 1;
+            const unit = document.getElementById('edit-pur-unit').value.trim() || '份';
+            const total_price = parseFloat(document.getElementById('edit-pur-total').value) || 0;
             const toast = document.getElementById('form-toast');
             const updateBtn = document.getElementById('update-pur-btn');
 
-            if (!date || !item_name || !actual_qty) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、品項與到貨量！'; toast.style.display = 'block'; return; }
+            if (!date || !item_name || total_price <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、品項與有效總金額！'; toast.style.display = 'block'; return; }
 
             updateBtn.disabled = true; updateBtn.innerText = '更新中...';
-            const { error } = await _supabase.from('purchases').update({ date, vendor, item_name, actual_qty }).eq('id', id);
+            const { error } = await _supabase.from('purchases').update({ date, vendor, item_name, quantity, unit, total_price }).eq('id', id);
             if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 更新失敗：' + error.message; toast.style.display = 'block'; updateBtn.disabled = false; updateBtn.innerText = '確認更新變更'; }
             else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 修改成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('purchases'), 1000); }
         }
@@ -1459,27 +1687,24 @@
                 workingDays: 26,
                 rent: 25000,
                 utilities: 4000,
-                fullTimeStaff: 75000, // 2位
+                fullTimeStaff: 75000,
                 partTimeStaff: 20000,
                 gas: 4500,
                 oil: 3000,
                 charcoal: 3500,
-                ubereatsAdDaily: 200,   // Ubereats 一天
-                foodpandaAdMonthly: 5000 // Foodpanda 一個月
+                ubereatsAdDaily: 200,
+                foodpandaAdMonthly: 5000
             };
 
-            // 自動計算販售品項平均成本率
             let avgCostRate = 40;
             if (products.length > 0) {
                 let totalRate = products.reduce((acc, p) => acc + calculateCostRate(p), 0);
                 avgCostRate = totalRate / products.length;
             }
 
-            // 計算廣告費總額：Ubereats (每日單價 * 營業天數) + Foodpanda (每月固定)
             let totalUbereatsAd = (parseFloat(fixedSettings.ubereatsAdDaily) || 0) * (parseFloat(fixedSettings.workingDays) || 26);
             let totalFoodpandaAd = parseFloat(fixedSettings.foodpandaAdMonthly) || 0;
 
-            // 計算每月總固定支出
             let totalFixedCost = parseFloat(fixedSettings.rent) + parseFloat(fixedSettings.utilities) + 
                                  parseFloat(fixedSettings.fullTimeStaff) + parseFloat(fixedSettings.partTimeStaff) + 
                                  parseFloat(fixedSettings.gas) + parseFloat(fixedSettings.oil) + 
@@ -1504,9 +1729,7 @@
 
             let html = `
                 <div class="controls-bar" style="margin-bottom: 20px;">
-                    <div class="stats-info">
-                        <span>📊 營運與回本試算儀表板</span>
-                    </div>
+                    <div class="stats-info"><span>📊 營運與回本試算儀表板</span></div>
                     <div class="search-sort-group">
                         <input type="text" id="profit-month-search" class="search-input" value="${monthDisplayTitle}" readonly onclick="openWheelPicker(changeProfitMonthWheel, '${currentProfitMonth}-01')" style="cursor: pointer; background: #fff; width: 130px;" title="點擊滾輪切換年月">
                         <button class="action-btn" onclick="openRevenueModal()">＋ 記錄今日營業額</button>
