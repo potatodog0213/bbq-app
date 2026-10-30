@@ -596,6 +596,18 @@
             document.getElementById('home-view').style.display = 'block';
         }
 
+        // ==================== 取得完整精確到秒的時間字串 ====================
+        function getDetailedTimestamp() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const h = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            return `${y}-${m}-${d} ${h}:${min}:${s}`;
+        }
+
         // ==================== 販售品項邏輯 ====================
         async function renderProductsList() {
             const contentEl = document.getElementById('page-content');
@@ -847,7 +859,7 @@
         }
 
 
-        // ==================== 原物料與耗材價格表邏輯 ====================
+        // ==================== 原物料與耗材價格表邏輯 (精確到秒) ====================
         async function renderMaterialsList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取原物料資料中...</p>';
@@ -901,7 +913,7 @@
                                 <h4>${item.name} <span>$${item.unit_price} 元</span></h4>
                                 <p><b>規格/單位：</b>${item.spec || '無'}</p>
                                 <p><b>合作廠商：</b>${item.vendor || '未設定'}</p>
-                                <p><b>最後更新日期：</b>${item.updated_at || '無'}</p>
+                                <p><b>最後更新：</b>${item.updated_at || '無'}</p>
                             </div>
                             <div class="card-actions" id="material-actions-${item.id}">
                                 <button class="card-btn edit-btn" onclick="renderEditMaterialForm(${item.id})">✏️ 修改</button>
@@ -937,7 +949,7 @@
             titleEl.innerText = '新增原物料 / 耗材';
             actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('materials')">← 回列表</button>`;
 
-            const todayStr = new Date().toISOString().split('T')[0];
+            const currentTimestamp = getDetailedTimestamp();
 
             contentEl.innerHTML = `
                 <div class="form-card-container">
@@ -948,17 +960,12 @@
                     <div class="form-group"><label>單價 (進貨價格)</label><input type="number" step="0.01" id="mat-price" placeholder="請輸入單價"></div>
                     <div class="form-group"><label>合作廠商</label><input type="text" id="mat-vendor" placeholder="例如: 台中食品材料行"></div>
                     <div class="form-group">
-                        <label>最後更新日期</label>
-                        <input type="text" id="mat-updated-at" value="${todayStr}" readonly onclick="openWheelPicker(setMaterialDate, document.getElementById('mat-updated-at').value)" style="cursor: pointer; background: #fff;">
+                        <label>最後更新時間 (系統自動記錄)</label>
+                        <input type="text" id="mat-updated-at" value="${currentTimestamp}" readonly style="background: #f5f5f4; color: #78716c; cursor: not-allowed;">
                     </div>
                     <button id="submit-mat-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addMaterial()">確認儲存原物料</button>
                 </div>
             `;
-        }
-
-        function setMaterialDate(dateStr) {
-            const input = document.getElementById('mat-updated-at') || document.getElementById('edit-mat-updated-at');
-            if (input) input.value = dateStr;
         }
 
         async function addMaterial() {
@@ -966,7 +973,7 @@
             const spec = document.getElementById('mat-spec').value.trim();
             const unit_price = parseFloat(document.getElementById('mat-price').value) || 0;
             const vendor = document.getElementById('mat-vendor').value.trim();
-            const updated_at = document.getElementById('mat-updated-at').value;
+            const updated_at = getDetailedTimestamp(); // 點擊儲存當下的精確秒數
             const toast = document.getElementById('form-toast');
             const submitBtn = document.getElementById('submit-mat-btn');
 
@@ -1014,6 +1021,8 @@
             titleEl.innerText = '修改原物料資料';
             actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('materials')">← 回列表</button>`;
 
+            const currentTimestamp = getDetailedTimestamp();
+
             contentEl.innerHTML = `
                 <div class="form-card-container">
                     <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
@@ -1023,8 +1032,8 @@
                     <div class="form-group"><label>單價 (進貨價格)</label><input type="number" step="0.01" id="edit-mat-price" value="${item.unit_price}"></div>
                     <div class="form-group"><label>合作廠商</label><input type="text" id="edit-mat-vendor" value="${item.vendor || ''}"></div>
                     <div class="form-group">
-                        <label>最後更新日期</label>
-                        <input type="text" id="edit-mat-updated-at" value="${item.updated_at || new Date().toISOString().split('T')[0]}" readonly onclick="openWheelPicker(setMaterialDate, document.getElementById('edit-mat-updated-at').value)" style="cursor: pointer; background: #fff;">
+                        <label>最後更新時間 (將更新為當下時間)</label>
+                        <input type="text" id="edit-mat-updated-at" value="${currentTimestamp}" readonly style="background: #f5f5f4; color: #78716c; cursor: not-allowed;">
                     </div>
                     <button id="update-mat-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateMaterial(${item.id})">確認更新變更</button>
                 </div>
@@ -1036,7 +1045,7 @@
             const spec = document.getElementById('edit-mat-spec').value.trim();
             const unit_price = parseFloat(document.getElementById('edit-mat-price').value) || 0;
             const vendor = document.getElementById('edit-mat-vendor').value.trim();
-            const updated_at = document.getElementById('edit-mat-updated-at').value;
+            const updated_at = getDetailedTimestamp(); // 更新時自動抓取最新秒數
             const toast = document.getElementById('form-toast');
             const updateBtn = document.getElementById('update-mat-btn');
 
