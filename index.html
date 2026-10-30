@@ -1455,7 +1455,6 @@
             const expenses = expensesRes.data || [];
             globalRevenuesData = revenuesRes.data || [];
 
-            // 取得已儲存或預設的固定支出參數
             let fixedSettings = JSON.parse(localStorage.getItem(`fixed_settings_${currentProfitMonth}`)) || {
                 workingDays: 26,
                 rent: 25000,
@@ -1465,51 +1464,43 @@
                 gas: 4500,
                 oil: 3000,
                 charcoal: 3500,
-                ubereatsAd: 5000,
-                foodpandaAd: 5000
+                ubereatsAdDaily: 200,   // Ubereats 一天
+                foodpandaAdMonthly: 5000 // Foodpanda 一個月
             };
 
             // 自動計算販售品項平均成本率
-            let avgCostRate = 40; // 預設 40%
+            let avgCostRate = 40;
             if (products.length > 0) {
                 let totalRate = products.reduce((acc, p) => acc + calculateCostRate(p), 0);
                 avgCostRate = totalRate / products.length;
             }
 
+            // 計算廣告費總額：Ubereats (每日單價 * 營業天數) + Foodpanda (每月固定)
+            let totalUbereatsAd = (parseFloat(fixedSettings.ubereatsAdDaily) || 0) * (parseFloat(fixedSettings.workingDays) || 26);
+            let totalFoodpandaAd = parseFloat(fixedSettings.foodpandaAdMonthly) || 0;
+
             // 計算每月總固定支出
             let totalFixedCost = parseFloat(fixedSettings.rent) + parseFloat(fixedSettings.utilities) + 
                                  parseFloat(fixedSettings.fullTimeStaff) + parseFloat(fixedSettings.partTimeStaff) + 
                                  parseFloat(fixedSettings.gas) + parseFloat(fixedSettings.oil) + 
-                                 parseFloat(fixedSettings.charcoal) + parseFloat(fixedSettings.ubereatsAd) + 
-                                 parseFloat(fixedSettings.foodpandaAd);
+                                 parseFloat(fixedSettings.charcoal) + totalUbereatsAd + totalFoodpandaAd;
 
-            // 同時加上當月在「店內支出記錄表」中記錄的其他開銷
             let monthExpenses = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth));
             let totalOtherExpenses = monthExpenses.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
             let grandTotalCost = totalFixedCost + totalOtherExpenses;
 
-            // 損益平衡公式：總固定成本 / (1 - 平均成本率%)
             let grossMarginRate = 1 - (avgCostRate / 100);
             let monthlyBreakEvenRevenue = grossMarginRate > 0 ? grandTotalCost / grossMarginRate : grandTotalCost * 2;
             let dailyBreakEvenRevenue = fixedSettings.workingDays > 0 ? monthlyBreakEvenRevenue / fixedSettings.workingDays : 0;
 
-            // 取得當月營業額紀錄
             let monthRevenues = globalRevenuesData.filter(i => i.date && i.date.startsWith(currentProfitMonth));
             let totalActualRevenue = monthRevenues.reduce((acc, i) => acc + (parseFloat(i.onsite) || 0) + (parseFloat(i.ubereats) || 0) + (parseFloat(i.foodpanda) || 0), 0);
 
-            // 本月淨利 = 總營業額 * (1 - 平均成本率) - 總成本
             let estimatedGrossProfit = totalActualRevenue * grossMarginRate;
             let netProfit = estimatedGrossProfit - grandTotalCost;
 
-            // 月份選項
-            let monthSet = new Set();
-            monthSet.add(getCurrentYearMonth());
-            globalRevenuesData.forEach(i => { if (i.date && i.date.length >= 7) monthSet.add(i.date.substring(0, 7)); });
-            let monthList = Array.from(monthSet).sort().reverse();
-            let monthOptionsHtml = monthList.map(m => {
-                const parts = m.split('-');
-                return `<option value="${m}" ${m === currentProfitMonth ? 'selected' : ''}>${parts[0]}年 ${parseInt(parts[1], 10)}月</option>`;
-            }).join('');
+            const [pYear, pMonth] = currentProfitMonth.split('-');
+            let monthDisplayTitle = `${pYear}年 ${parseInt(pMonth, 10)}月`;
 
             let html = `
                 <div class="controls-bar" style="margin-bottom: 20px;">
@@ -1517,7 +1508,7 @@
                         <span>📊 營運與回本試算儀表板</span>
                     </div>
                     <div class="search-sort-group">
-                        <select id="profit-month-select" onchange="changeProfitMonth(this.value)">${monthOptionsHtml}</select>
+                        <input type="text" id="profit-month-search" class="search-input" value="${monthDisplayTitle}" readonly onclick="openWheelPicker(changeProfitMonthWheel, '${currentProfitMonth}-01')" style="cursor: pointer; background: #fff; width: 130px;" title="點擊滾輪切換年月">
                         <button class="action-btn" onclick="openRevenueModal()">＋ 記錄今日營業額</button>
                     </div>
                 </div>
@@ -1591,12 +1582,11 @@
             contentEl.innerHTML = html;
         }
 
-        function changeProfitMonth(val) {
-            currentProfitMonth = val;
+        function changeProfitMonthWheel(dateStr) {
+            currentProfitMonth = dateStr.substring(0, 7);
             renderProfitView();
         }
 
-        // 修改或新增營業額彈窗
         async function openRevenueModal(editId = null) {
             let revItem = editId ? globalRevenuesData.find(r => r.id === editId) : null;
             let defaultDate = revItem ? revItem.date : new Date().toISOString().split('T')[0];
@@ -1658,10 +1648,9 @@
             else renderProfitView();
         }
 
-        // 調整固定支出參數彈窗
         function openFixedSettingsModal() {
             let fixedSettings = JSON.parse(localStorage.getItem(`fixed_settings_${currentProfitMonth}`)) || {
-                workingDays: 26, rent: 25000, utilities: 4000, fullTimeStaff: 75000, partTimeStaff: 20000, gas: 4500, oil: 3000, charcoal: 3500, ubereatsAd: 5000, foodpandaAd: 5000
+                workingDays: 26, rent: 25000, utilities: 4000, fullTimeStaff: 75000, partTimeStaff: 20000, gas: 4500, oil: 3000, charcoal: 3500, ubereatsAdDaily: 200, foodpandaAdMonthly: 5000
             };
 
             const overlay = document.createElement('div');
@@ -1678,8 +1667,8 @@
                     <div class="form-group"><label>瓦斯費</label><input type="number" id="set-gas" value="${fixedSettings.gas}"></div>
                     <div class="form-group"><label>炸油費</label><input type="number" id="set-oil" value="${fixedSettings.oil}"></div>
                     <div class="form-group"><label>木碳費</label><input type="number" id="set-charcoal" value="${fixedSettings.charcoal}"></div>
-                    <div class="form-group"><label>UberEats 廣告費</label><input type="number" id="set-ubereats" value="${fixedSettings.ubereatsAd}"></div>
-                    <div class="form-group"><label>Foodpanda 廣告費</label><input type="number" id="set-foodpanda" value="${fixedSettings.foodpandaAd}"></div>
+                    <div class="form-group"><label>UberEats 廣告費 (一天單價)</label><input type="number" id="set-ubereats-daily" value="${fixedSettings.ubereatsAdDaily}"></div>
+                    <div class="form-group"><label>Foodpanda 廣告費 (一個月總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
                         <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">儲存設定</button>
@@ -1699,8 +1688,8 @@
                 gas: parseFloat(document.getElementById('set-gas').value) || 0,
                 oil: parseFloat(document.getElementById('set-oil').value) || 0,
                 charcoal: parseFloat(document.getElementById('set-charcoal').value) || 0,
-                ubereatsAd: parseFloat(document.getElementById('set-ubereats').value) || 0,
-                foodpandaAd: parseFloat(document.getElementById('set-foodpanda').value) || 0
+                ubereatsAdDaily: parseFloat(document.getElementById('set-ubereats-daily').value) || 0,
+                foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0
             };
             localStorage.setItem(`fixed_settings_${currentProfitMonth}`, JSON.stringify(fixedSettings));
             document.getElementById('settings-modal-overlay').remove();
@@ -1708,7 +1697,7 @@
         }
 
 
-        // ==================== 三段式滾輪日曆選擇器核心邏輯 ====================
+        // ==================== 滾輪選擇器核心邏輯 ====================
         let currentWheelCallback = null;
 
         function openWheelPicker(callback, initialDateStr) {
