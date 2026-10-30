@@ -592,7 +592,7 @@
                 <div class="menu-card" onclick="openPage('expenses')">
                     <div class="menu-card-content">
                         <h3>💸 店內支出記錄表</h3>
-                        <span>日期、項目、數量、金額與相關廠商</span>
+                        <span>日期、項目、數量、金額、廠商與設備折舊追蹤</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
@@ -1546,12 +1546,12 @@
         }
 
 
-        // ==================== 店內支出記錄表邏輯 ====================
+        // ==================== 店內支出記錄表邏輯 (含設備折舊追蹤) ====================
         let expenseSearchVendorVal = '';
 
         async function renderExpensesList() {
             const contentEl = document.getElementById('page-content');
-            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取支出資料中...</p>';
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取支出與設備折舊資料中...</p>';
             let { data, error } = await _supabase.from('expenses').select('*').order('date', { ascending: false });
             if (error) { contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>'; return; }
             globalExpensesData = data || [];
@@ -1577,10 +1577,60 @@
 
             let totalExpenseAmount = filteredData.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
 
+            // 計算設備折舊統計
+            let depreciableItems = globalExpensesData.filter(item => item.is_depreciable);
+            let totalAssetOriginal = 0;
+            let totalAccumulatedDepreciation = 0;
+
+            let now = new Date();
+            let depreciationCardsHtml = '';
+
+            if (depreciableItems.length > 0) {
+                depreciableItems.forEach(item => {
+                    let cost = parseFloat(item.amount) || 0;
+                    let years = parseFloat(item.useful_life_years) || 3;
+                    let totalMonths = years * 12;
+                    let monthlyDep = totalMonths > 0 ? cost / totalMonths : 0;
+
+                    // 計算已過月份數
+                    let pDate = item.date ? new Date(item.date) : new Date();
+                    let diffMonths = (now.getFullYear() - pDate.getFullYear()) * 12 + (now.getMonth() - pDate.getMonth());
+                    if (diffMonths < 0) diffMonths = 0;
+
+                    let accDep = Math.min(cost, monthlyDep * diffMonths);
+                    let bookValue = Math.max(0, cost - accDep);
+
+                    totalAssetOriginal += cost;
+                    totalAccumulatedDepreciation += accDep;
+
+                    depreciationCardsHtml += `
+                        <div style="background: rgba(255,255,255,0.7); padding: 12px 14px; border-radius: 10px; border: 1px solid #fed7aa; margin-bottom: 8px; font-size: 13.5px;">
+                            <div style="display:flex; justify-content:between; align-items:center; margin-bottom:4px;">
+                                <b style="color:#9a3412;">📦 ${item.name}</b>
+                                <span style="color:#c2410c; font-weight:700;">原價 $${cost.toLocaleString()} (${years}年折舊)</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; color:var(--text-muted); flex-wrap:wrap; gap:6px;">
+                                <span>每月折舊：$${Math.round(monthlyDep).toLocaleString()} /月</span>
+                                <span style="color:#dc2626;">已折舊：$${Math.round(accDep).toLocaleString()}</span>
+                                <span style="color:#166534; font-weight:700;">剩餘殘值：$${Math.round(bookValue).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
             let html = `
+                <div class="profit-card" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: #fde68a; margin-bottom: 20px;">
+                    <h3 style="margin-top:0; color:#9a3412; font-size:16px; border-bottom:1px solid #fde68a; padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>📦 營業設備資產與累計折舊專區</span>
+                        <span style="font-size: 13px; color: #78716c;">列管設備：${depreciableItems.length} 項</span>
+                    </h3>
+                    ${depreciableItems.length > 0 ? depreciationCardsHtml : '<p style="color:var(--text-muted); font-size:13.5px; margin: 6px 0;">目前沒有勾選折舊的設備支出。新增支出時可勾選「此為生財器具/設備，需要進行折舊攤提」。</p>'}
+                </div>
+
                 <div class="controls-bar">
                     <div class="stats-info">
-                        <span>共 <b>${filteredData.length}</b> 筆</span>
+                        <span>共 <b>${filteredData.length}</b> 筆支出</span>
                         <span>花費總金額：<b style="color:#dc2626;">$${totalExpenseAmount.toLocaleString()} 元</b></span>
                     </div>
                     <div class="search-sort-group">
@@ -1595,6 +1645,7 @@
                 html += '<div class="items-grid">';
                 filteredData.forEach((item, index) => {
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
+                    let depreciationBadge = item.is_depreciable ? `<div style="color:#0284c7; font-weight:700; font-size:12.5px; margin-top:4px;">🏷️ 已啟用折舊 (${item.useful_life_years || 3}年攤提)</div>` : '';
                     html += `
                         <div class="item-card ${zebraClass}" id="expense-card-${item.id}">
                             <div class="card-main-info">
@@ -1602,6 +1653,7 @@
                                 <p><b>日期：</b>${item.date}</p>
                                 <p><b>數量：</b>${item.quantity || 1}</p>
                                 <p><b>相關廠商：</b>${item.vendor || '無'}</p>
+                                ${depreciationBadge}
                             </div>
                             <div class="card-actions" id="expense-actions-${item.id}">
                                 <button class="card-btn edit-btn" onclick="renderEditExpenseForm(${item.id})">✏️ 修改</button>
@@ -1612,7 +1664,7 @@
                 });
                 html += '</div>';
             } else {
-                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合條件的支出紀錄。</p>';
+                html += '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">沒有找到符合條件的支出紀錄。</p>';
             }
             contentEl.innerHTML = html;
         }
@@ -1708,13 +1760,37 @@
                         <label>日期</label>
                         <input type="text" id="exp-date" value="${todayStr}" readonly onclick="openDatePicker(setAddExpenseDate, document.getElementById('exp-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
-                    <div class="form-group"><label>支出項目名稱</label><input type="text" id="exp-name" placeholder="例如: 瓦斯桶、竹籤"></div>
+                    <div class="form-group"><label>支出項目名稱</label><input type="text" id="exp-name" placeholder="例如: 營業用冰箱、瓦斯桶、竹籤"></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="exp-qty" value="1" placeholder="請輸入數量"></div>
                     <div class="form-group"><label>金額 (總金額)</label><input type="number" step="0.01" id="exp-amount" placeholder="請輸入總金額"></div>
-                    <div class="form-group"><label>相關廠商</label><input type="text" id="exp-vendor" placeholder="例如: 欣欣瓦斯行"></div>
+                    <div class="form-group"><label>相關廠商</label><input type="text" id="exp-vendor" placeholder="例如: 餐廳設備行、欣欣瓦斯"></div>
+
+                    <!-- 折舊專屬區塊 -->
+                    <div style="background: #fffbeb; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; margin-bottom: 18px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <input type="checkbox" id="exp-is-dep" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" onchange="toggleDepreciationFields()">
+                            <label for="exp-is-dep" style="margin: 0; cursor: pointer; color: #9a3412; font-weight: 700;">📦 此為生財器具/設備，需要進行折舊攤提</label>
+                        </div>
+                        <div id="depreciation-options-box" style="display: none; padding-top: 6px; border-top: 1px dashed #fed7aa;">
+                            <label style="font-size: 13px; color: #78716c; margin-bottom: 4px; display: block;">選擇折舊年限：</label>
+                            <select id="exp-useful-years">
+                                <option value="3">3 年（適用小型生財器具、POS機、招牌等）</option>
+                                <option value="5" selected>5 年（適用大型冰箱、烤爐、空調等 - 標準推薦）</option>
+                                <option value="8">8 年（適用營業用大型冷凍庫、重型設備）</option>
+                                <option value="10">10 年（適用店面大型裝潢工程、鐵捲門等）</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <button id="submit-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addExpense()">確認儲存支出</button>
                 </div>
             `;
+        }
+
+        function toggleDepreciationFields() {
+            const isDep = document.getElementById('exp-is-dep').checked;
+            const box = document.getElementById('depreciation-options-box');
+            box.style.display = isDep ? 'block' : 'none';
         }
 
         function setAddExpenseDate(dateStr) { document.getElementById('exp-date').value = dateStr; }
@@ -1725,13 +1801,16 @@
             const quantity = parseFloat(document.getElementById('exp-qty').value) || 1;
             const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
             const vendor = document.getElementById('exp-vendor').value.trim();
+            const is_depreciable = document.getElementById('exp-is-dep').checked;
+            const useful_life_years = is_depreciable ? (parseInt(document.getElementById('exp-useful-years').value) || 5) : 0;
+
             const toast = document.getElementById('form-toast');
             const submitBtn = document.getElementById('submit-exp-btn');
 
             if (!date || !name || amount <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、項目名稱與有效金額！'; toast.style.display = 'block'; return; }
 
             submitBtn.disabled = true; submitBtn.innerText = '儲存中...';
-            const { error } = await _supabase.from('expenses').insert([{ date, name, quantity, amount, vendor }]);
+            const { error } = await _supabase.from('expenses').insert([{ date, name, quantity, amount, vendor, is_depreciable, useful_life_years }]);
             if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存支出'; }
             else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 新增成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('expenses'), 1000); }
         }
@@ -1744,6 +1823,10 @@
             const actionContainer = document.getElementById('top-action-container');
             titleEl.innerText = '修改支出紀錄';
             actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('expenses')">← 回列表</button>`;
+            
+            const isDep = item.is_depreciable || false;
+            const years = item.useful_life_years || 5;
+
             contentEl.innerHTML = `
                 <div class="form-card-container">
                     <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
@@ -1756,9 +1839,33 @@
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="edit-exp-qty" value="${item.quantity || 1}"></div>
                     <div class="form-group"><label>金額</label><input type="number" step="0.01" id="edit-exp-amount" value="${item.amount}"></div>
                     <div class="form-group"><label>相關廠商</label><input type="text" id="edit-exp-vendor" value="${item.vendor || ''}"></div>
+
+                    <!-- 折舊專屬區塊 -->
+                    <div style="background: #fffbeb; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; margin-bottom: 18px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <input type="checkbox" id="edit-exp-is-dep" ${isDep ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" onchange="toggleEditDepreciationFields()">
+                            <label for="edit-exp-is-dep" style="margin: 0; cursor: pointer; color: #9a3412; font-weight: 700;">📦 此為生財器具/設備，需要進行折舊攤提</label>
+                        </div>
+                        <div id="edit-depreciation-options-box" style="display: ${isDep ? 'block' : 'none'}; padding-top: 6px; border-top: 1px dashed #fed7aa;">
+                            <label style="font-size: 13px; color: #78716c; margin-bottom: 4px; display: block;">選擇折舊年限：</label>
+                            <select id="edit-exp-useful-years">
+                                <option value="3" ${years===3?'selected':''}>3 年（小型器具、POS機等）</option>
+                                <option value="5" ${years===5?'selected':''}>5 年（冰箱、烤爐等 - 標準推薦）</option>
+                                <option value="8" ${years===8?'selected':''}>8 年（冷凍庫、重型設備）</option>
+                                <option value="10" ${years===10?'selected':''}>10 年（裝潢工程等）</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <button id="update-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateExpense(${item.id})">確認更新變更</button>
                 </div>
             `;
+        }
+
+        function toggleEditDepreciationFields() {
+            const isDep = document.getElementById('edit-exp-is-dep').checked;
+            const box = document.getElementById('edit-depreciation-options-box');
+            box.style.display = isDep ? 'block' : 'none';
         }
 
         function setEditExpenseDate(dateStr) { document.getElementById('edit-exp-date').value = dateStr; }
@@ -1769,13 +1876,16 @@
             const quantity = parseFloat(document.getElementById('edit-exp-qty').value) || 1;
             const amount = parseFloat(document.getElementById('edit-exp-amount').value) || 0;
             const vendor = document.getElementById('edit-exp-vendor').value.trim();
+            const is_depreciable = document.getElementById('edit-exp-is-dep').checked;
+            const useful_life_years = is_depreciable ? (parseInt(document.getElementById('edit-exp-useful-years').value) || 5) : 0;
+
             const toast = document.getElementById('form-toast');
             const updateBtn = document.getElementById('update-exp-btn');
 
             if (!date || !name || amount <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、名稱與金額！'; toast.style.display = 'block'; return; }
 
             updateBtn.disabled = true; updateBtn.innerText = '更新中...';
-            const { error } = await _supabase.from('expenses').update({ date, name, quantity, amount, vendor }).eq('id', id);
+            const { error } = await _supabase.from('expenses').update({ date, name, quantity, amount, vendor, is_depreciable, useful_life_years }).eq('id', id);
             if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 更新失敗：' + error.message; toast.style.display = 'block'; updateBtn.disabled = false; updateBtn.innerText = '確認更新變更'; }
             else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 修改成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('expenses'), 1000); }
         }
