@@ -613,6 +613,14 @@
             return `${y}-${m}-${d} ${h}:${min}:${s}`;
         }
 
+        // ==================== 取得當前年份月份 (格式 YYYY-MM) ====================
+        function getCurrentYearMonth() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            return `${y}-${m}`;
+        }
+
         // ==================== 販售品項邏輯 ====================
         async function renderProductsList() {
             const contentEl = document.getElementById('page-content');
@@ -881,7 +889,6 @@
 
             globalMaterialsData = data || [];
             
-            // 建立骨架，並只綁定 input 事件用局部過濾，避免中文選字被中斷
             contentEl.innerHTML = `
                 <div class="controls-bar">
                     <div class="stats-info">
@@ -1102,7 +1109,9 @@
         }
 
 
-        // ==================== 每日叫貨記錄表邏輯 ====================
+        // ==================== 每日叫貨記錄表邏輯 (預設顯示「目前為 X 月，共 Y 筆叫貨紀錄」) ====================
+        let currentPurchaseFilterMonth = getCurrentYearMonth(); // 預設當前年月，例如 '2026-10'
+
         async function renderPurchasesList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取叫貨記錄中...</p>';
@@ -1118,34 +1127,94 @@
             }
 
             globalPurchasesData = data || [];
-            displayPurchasesList();
-        }
 
-        function displayPurchasesList() {
-            const contentEl = document.getElementById('page-content');
-            const searchInputEl = document.getElementById('purchase-search-input');
-            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
-
-            let filteredData = globalPurchasesData.filter(item => {
-                if (!searchQuery) return true;
-                return item.date && item.date.toLowerCase().includes(searchQuery);
+            // 抓取現有紀錄中的所有月份，供下拉式選單選擇
+            let monthSet = new Set();
+            monthSet.add(getCurrentYearMonth());
+            globalPurchasesData.forEach(item => {
+                if (item.date && item.date.length >= 7) {
+                    monthSet.add(item.date.substring(0, 7));
+                }
             });
+            let monthList = Array.from(monthSet).sort().reverse();
+
+            let monthOptionsHtml = monthList.map(m => {
+                const parts = m.split('-');
+                const monthNum = parseInt(parts[1], 10);
+                return `<option value="${m}" ${m === currentPurchaseFilterMonth ? 'selected' : ''}>${parts[0]}年 ${monthNum}月</option>`;
+            }).join('');
+
+            monthOptionsHtml += `<option value="ALL" ${currentPurchaseFilterMonth === 'ALL' ? 'selected' : ''}>全部歷史紀錄</option>`;
 
             let html = `
                 <div class="controls-bar">
                     <div class="stats-info">
-                        <span>共 <b>${filteredData.length}</b> 筆叫貨紀錄</span>
+                        <span id="purchase-stats-label">載入中...</span>
                     </div>
                     <div class="search-sort-group">
-                        <input type="text" id="purchase-search-input" class="search-input" placeholder="📅 點此選擇日期搜尋..." value="${searchQuery}" readonly onclick="openWheelPicker(setPurchaseSearchDate, '${searchQuery || new Date().toISOString().split('T')[0]}')" style="cursor: pointer; background: #fff;">
-                        ${searchQuery ? `<button class="clear-search-btn" onclick="clearPurchaseSearch()">❌ 清除搜尋</button>` : ''}
+                        <select id="purchase-month-select" onchange="changePurchaseMonthFilter(this.value)">
+                            ${monthOptionsHtml}
+                        </select>
+                        <input type="text" id="purchase-search-input" class="search-input" placeholder="🔍 搜尋廠商、品項..." oninput="filterPurchasesCards()">
                     </div>
                 </div>
+                <div id="purchases-cards-container" class="items-grid"></div>
             `;
 
-            if (filteredData.length > 0) {
-                html += '<div class="items-grid">';
-                filteredData.forEach((item, index) => {
+            contentEl.innerHTML = html;
+            filterPurchasesCards();
+        }
+
+        function changePurchaseMonthFilter(val) {
+            currentPurchaseFilterMonth = val;
+            filterPurchasesCards();
+        }
+
+        function filterPurchasesCards() {
+            const searchInputEl = document.getElementById('purchase-search-input');
+            const statsLabelEl = document.getElementById('purchase-stats-label');
+            const containerEl = document.getElementById('purchases-cards-container');
+            if (!containerEl) return;
+
+            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
+
+            // 1. 先按月份過濾
+            let monthFilteredData = globalPurchasesData.filter(item => {
+                if (currentPurchaseFilterMonth === 'ALL') return true;
+                return item.date && item.date.startsWith(currentPurchaseFilterMonth);
+            });
+
+            // 計算目前顯示的月份文字
+            let monthDisplayText = '全部';
+            if (currentPurchaseFilterMonth !== 'ALL') {
+                const parts = currentPurchaseFilterMonth.split('-');
+                monthDisplayText = `${parseInt(parts[1], 10)}月`;
+            }
+
+            // 更新統計標籤字串：「目前為 X 月，共 Y 筆叫貨紀錄」
+            if (statsLabelEl) {
+                statsLabelEl.innerHTML = `目前為 <b>${monthDisplayText}</b>，共 <b>${monthFilteredData.length}</b> 筆叫貨紀錄`;
+            }
+
+            // 2. 再按關鍵字 (廠商、品項、日期) 過濾
+            let finalData = monthFilteredData.filter(item => {
+                if (!searchQuery) return true;
+                const vendorMatch = item.vendor && item.vendor.toLowerCase().includes(searchQuery);
+                const itemMatch = item.item_name && item.item_name.toLowerCase().includes(searchQuery);
+                const dateMatch = item.date && item.date.toLowerCase().includes(searchQuery);
+                return vendorMatch || itemMatch || dateMatch;
+            });
+
+            renderPurchasesCards(finalData);
+        }
+
+        function renderPurchasesCards(dataList) {
+            const containerEl = document.getElementById('purchases-cards-container');
+            if (!containerEl) return;
+
+            let html = '';
+            if (dataList.length > 0) {
+                dataList.forEach((item, index) => {
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
 
                     html += `
@@ -1162,28 +1231,10 @@
                         </div>
                     `;
                 });
-                html += '</div>';
             } else {
-                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合該日期的叫貨紀錄。</p>';
+                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0; grid-column: 1 / -1;">此條件下沒有叫貨紀錄。</p>';
             }
-
-            contentEl.innerHTML = html;
-        }
-
-        function setPurchaseSearchDate(dateStr) {
-            const input = document.getElementById('purchase-search-input');
-            if (input) {
-                input.value = dateStr;
-                displayPurchasesList();
-            }
-        }
-
-        function clearPurchaseSearch() {
-            const input = document.getElementById('purchase-search-input');
-            if (input) {
-                input.value = '';
-                displayPurchasesList();
-            }
+            containerEl.innerHTML = html;
         }
 
         function showDeleteConfirmPurchase(id) {
@@ -1193,7 +1244,7 @@
             actionsEl.innerHTML = `
                 <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
                 <button class="card-btn" style="background: #ef4444; color: white;" onclick="deletePurchase(${id})">確定</button>
-                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="displayPurchasesList()">取消</button>
+                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="renderPurchasesList()">取消</button>
             `;
         }
 
@@ -1212,7 +1263,7 @@
                     <h3 class="form-header-title">📋 建立每日叫貨紀錄</h3>
                     <div id="form-toast" class="toast-msg"></div>
                     <div class="form-group">
-                        <label>日期</label>
+                        <label>日期 (點擊可更改)</label>
                         <input type="text" id="pur-date" value="${todayStr}" readonly onclick="openWheelPicker(setAddPurchaseDate, document.getElementById('pur-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
                     <div class="form-group"><label>廠商名稱</label><input type="text" id="pur-vendor" placeholder="例如: 某某肉品商、蔬菜行"></div>
