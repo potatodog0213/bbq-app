@@ -1652,6 +1652,7 @@
         // ==================== 店內支出記錄表邏輯 (含設備折舊追蹤) ====================
         let expenseSearchVendorVal = '';
         let expenseSearchDepFilterVal = 'ALL'; // 'ALL', 'DEPR', 'NON_DEPR'
+        let expenseSearchDateVal = ''; // 支出記錄表的日期篩選值 (空字串代表看全部)
 
         async function renderExpensesList() {
             const contentEl = document.getElementById('page-content');
@@ -1664,16 +1665,15 @@
 
         function displayExpensesList() {
             const contentEl = document.getElementById('page-content');
-            const searchInputEl = document.getElementById('expense-search-input');
-            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
 
             let vendorDisplayStr = expenseSearchVendorVal ? `廠商：${expenseSearchVendorVal}` : '全部廠商';
             let depDisplayMap = { 'ALL': '全部支出類型', 'DEPR': '僅看折舊設備', 'NON_DEPR': '僅看一般支出' };
             let depDisplayStr = depDisplayMap[expenseSearchDepFilterVal] || '全部支出類型';
+            let dateDisplayStr = expenseSearchDateVal ? `📅 ${expenseSearchDateVal}` : '📅 選擇日期篩選';
 
             let dateFilteredData = globalExpensesData.filter(item => {
-                if (!searchQuery) return true;
-                return item.date && item.date.toLowerCase().includes(searchQuery);
+                if (!expenseSearchDateVal) return true;
+                return item.date === expenseSearchDateVal;
             });
 
             let vendorFilteredData = dateFilteredData.filter(item => {
@@ -1746,8 +1746,8 @@
                     <div class="search-sort-group">
                         <input type="text" id="expense-dep-filter-input" class="search-input" value="${depDisplayStr}" readonly onclick="openExpenseDepFilterPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊篩選折舊與一般支出">
                         <input type="text" id="expense-vendor-filter-input" class="search-input" value="${vendorDisplayStr}" readonly onclick="openExpenseVendorPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇廠商篩選">
-                        <input type="text" id="expense-search-input" class="search-input" value="${searchQuery}" readonly onclick="openDatePicker(setSearchDateQuery, '${searchQuery || new Date().toISOString().split('T')[0]}')" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇日期">
-                        ${(searchQuery || expenseSearchVendorVal || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
+                        <input type="text" id="expense-date-filter-input" class="search-input" value="${dateDisplayStr}" readonly onclick="openDatePicker(setSearchDateQuery, expenseSearchDateVal || new Date().toISOString().split('T')[0])" style="cursor: pointer; background: #fff; width: 140px; font-weight: 600; color: #c2410c;" title="點擊選擇日期篩選">
+                        ${(expenseSearchDateVal || expenseSearchVendorVal || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
                     </div>
                 </div>
             `;
@@ -1890,15 +1890,14 @@
         }
 
         function setSearchDateQuery(selectedDate) {
-            const searchInput = document.getElementById('expense-search-input');
-            if (searchInput) { searchInput.value = selectedDate; displayExpensesList(); }
+            expenseSearchDateVal = selectedDate;
+            displayExpensesList();
         }
 
         function clearExpenseSearch() {
             expenseSearchVendorVal = '';
             expenseSearchDepFilterVal = 'ALL';
-            const searchInput = document.getElementById('expense-search-input');
-            if (searchInput) searchInput.value = '';
+            expenseSearchDateVal = '';
             displayExpensesList();
         }
 
@@ -2032,7 +2031,7 @@
                     <div id="form-toast" class="toast-msg"></div>
                     <div class="form-group">
                         <label>日期</label>
-                        <input type="text" id="edit-exp-date" value="${item.date}" readonly onclick="openDatePicker(setEditExpenseDate, document.getElementById('edit-exp-date').value)" style="cursor: pointer; background: #fff;">
+                        <input type="text" id="edit-exp-date" value="${item.date}" readonly onclick="openDatePicker(setEditPurchaseDate, document.getElementById('edit-exp-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
                     <div class="form-group"><label>支出項目名稱</label><input type="text" id="edit-exp-name" value="${item.name}"></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="edit-exp-qty" value="${item.quantity || 1}"></div>
@@ -2077,7 +2076,7 @@
             box.style.display = isDep ? 'block' : 'none';
         }
 
-        function setEditExpenseDate(dateStr) { document.getElementById('edit-exp-date').value = dateStr; }
+        function setEditPurchaseDate(dateStr) { document.getElementById('edit-exp-date').value = dateStr; }
 
         async function updateExpense(id) {
             const date = document.getElementById('edit-exp-date').value;
@@ -2329,7 +2328,7 @@
                 });
                 html += '</div>';
             } else {
-                html += '<p style="color:var(--text-muted); text-align:center; padding: 20px 0;">本月尚無登錄每日營業額紀錄,點擊上方按鈕開始記錄！</p>';
+                html += '<p style="color:var(--text-muted); text-align:center; padding: 20px 0;">本月尚無登錄每日營業額紀錄，點擊上方按鈕開始記錄！</p>';
             }
 
             contentEl.innerHTML = html;
