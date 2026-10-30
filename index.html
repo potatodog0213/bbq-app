@@ -555,6 +555,7 @@
         let _supabase;
         let globalProductsData = [];
         let globalMaterialsData = [];
+        let globalPurchasesData = [];
         let globalExpensesData = [];
         let currentPage = '';
 
@@ -581,6 +582,10 @@
                 titleEl.innerText = '原物料與耗材價格表';
                 actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddMaterialForm()">＋ 新增原物料</button>`;
                 renderMaterialsList();
+            } else if (pageName === 'purchases') {
+                titleEl.innerText = '每日叫貨記錄表';
+                actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddPurchaseForm()">＋ 新增叫貨紀錄</button>`;
+                renderPurchasesList();
             } else if (pageName === 'expenses') {
                 titleEl.innerText = '店內支出記錄表';
                 actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddExpenseForm()">＋ 新增支出</button>`;
@@ -859,7 +864,7 @@
         }
 
 
-        // ==================== 原物料與耗材價格表邏輯 (精確到秒) ====================
+        // ==================== 原物料與耗材價格表邏輯 (修正注音與拼音選字卡頓) ====================
         async function renderMaterialsList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取原物料資料中...</p>';
@@ -875,13 +880,29 @@
             }
 
             globalMaterialsData = data || [];
-            displayMaterialsList();
+            
+            // 建立骨架，並只綁定 input 事件用局部過濾，避免中文選字被中斷
+            contentEl.innerHTML = `
+                <div class="controls-bar">
+                    <div class="stats-info">
+                        <span id="material-count-label">共 <b>${globalMaterialsData.length}</b> 筆原物料/耗材</span>
+                    </div>
+                    <div class="search-sort-group">
+                        <input type="text" id="material-search-input" class="search-input" placeholder="🔍 搜尋原物料、規格..." oninput="filterMaterialsCards()">
+                    </div>
+                </div>
+                <div id="materials-cards-container" class="items-grid"></div>
+            `;
+            filterMaterialsCards();
         }
 
-        function displayMaterialsList() {
-            const contentEl = document.getElementById('page-content');
+        function filterMaterialsCards() {
             const searchInputEl = document.getElementById('material-search-input');
-            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
+            const containerEl = document.getElementById('materials-cards-container');
+            const countLabelEl = document.getElementById('material-count-label');
+            if (!searchInputEl || !containerEl) return;
+
+            const searchQuery = searchInputEl.value.trim().toLowerCase();
 
             let filteredData = globalMaterialsData.filter(item => {
                 if (!searchQuery) return true;
@@ -891,19 +912,12 @@
                 return nameMatch || specMatch || vendorMatch;
             });
 
-            let html = `
-                <div class="controls-bar">
-                    <div class="stats-info">
-                        <span>共 <b>${filteredData.length}</b> 筆原物料/耗材</span>
-                    </div>
-                    <div class="search-sort-group">
-                        <input type="text" id="material-search-input" class="search-input" placeholder="🔍 搜尋原物料、規格..." value="${searchQuery}" oninput="displayMaterialsList()">
-                    </div>
-                </div>
-            `;
+            if (countLabelEl) {
+                countLabelEl.innerHTML = `共 <b>${filteredData.length}</b> 筆原物料/耗材`;
+            }
 
+            let html = '';
             if (filteredData.length > 0) {
-                html += '<div class="items-grid">';
                 filteredData.forEach((item, index) => {
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
 
@@ -922,12 +936,11 @@
                         </div>
                     `;
                 });
-                html += '</div>';
             } else {
-                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合的原物料紀錄。</p>';
+                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0; grid-column: 1 / -1;">沒有找到符合的原物料紀錄。</p>';
             }
 
-            contentEl.innerHTML = html;
+            containerEl.innerHTML = html;
         }
 
         function showDeleteConfirmMaterial(id) {
@@ -937,7 +950,7 @@
             actionsEl.innerHTML = `
                 <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
                 <button class="card-btn" style="background: #ef4444; color: white;" onclick="deleteMaterial(${id})">確定</button>
-                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="displayMaterialsList()">取消</button>
+                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="renderMaterialsList()">取消</button>
             `;
         }
 
@@ -973,7 +986,7 @@
             const spec = document.getElementById('mat-spec').value.trim();
             const unit_price = parseFloat(document.getElementById('mat-price').value) || 0;
             const vendor = document.getElementById('mat-vendor').value.trim();
-            const updated_at = getDetailedTimestamp(); // 點擊儲存當下的精確秒數
+            const updated_at = getDetailedTimestamp();
             const toast = document.getElementById('form-toast');
             const submitBtn = document.getElementById('submit-mat-btn');
 
@@ -1045,7 +1058,7 @@
             const spec = document.getElementById('edit-mat-spec').value.trim();
             const unit_price = parseFloat(document.getElementById('edit-mat-price').value) || 0;
             const vendor = document.getElementById('edit-mat-vendor').value.trim();
-            const updated_at = getDetailedTimestamp(); // 更新時自動抓取最新秒數
+            const updated_at = getDetailedTimestamp();
             const toast = document.getElementById('form-toast');
             const updateBtn = document.getElementById('update-mat-btn');
 
@@ -1089,7 +1102,238 @@
         }
 
 
-        // ==================== 店內支出記錄表與滾輪日曆邏輯 ====================
+        // ==================== 每日叫貨記錄表邏輯 ====================
+        async function renderPurchasesList() {
+            const contentEl = document.getElementById('page-content');
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取叫貨記錄中...</p>';
+
+            let { data, error } = await _supabase
+                .from('purchases')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (error) {
+                contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>';
+                return;
+            }
+
+            globalPurchasesData = data || [];
+            displayPurchasesList();
+        }
+
+        function displayPurchasesList() {
+            const contentEl = document.getElementById('page-content');
+            const searchInputEl = document.getElementById('purchase-search-input');
+            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
+
+            let filteredData = globalPurchasesData.filter(item => {
+                if (!searchQuery) return true;
+                return item.date && item.date.toLowerCase().includes(searchQuery);
+            });
+
+            let html = `
+                <div class="controls-bar">
+                    <div class="stats-info">
+                        <span>共 <b>${filteredData.length}</b> 筆叫貨紀錄</span>
+                    </div>
+                    <div class="search-sort-group">
+                        <input type="text" id="purchase-search-input" class="search-input" placeholder="📅 點此選擇日期搜尋..." value="${searchQuery}" readonly onclick="openWheelPicker(setPurchaseSearchDate, '${searchQuery || new Date().toISOString().split('T')[0]}')" style="cursor: pointer; background: #fff;">
+                        ${searchQuery ? `<button class="clear-search-btn" onclick="clearPurchaseSearch()">❌ 清除搜尋</button>` : ''}
+                    </div>
+                </div>
+            `;
+
+            if (filteredData.length > 0) {
+                html += '<div class="items-grid">';
+                filteredData.forEach((item, index) => {
+                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
+
+                    html += `
+                        <div class="item-card ${zebraClass}" id="purchase-card-${item.id}">
+                            <div class="card-main-info">
+                                <h4>${item.item_name} <span>到貨：${item.actual_qty}</span></h4>
+                                <p><b>日期：</b>${item.date}</p>
+                                <p><b>合作廠商：</b>${item.vendor || '未設定'}</p>
+                            </div>
+                            <div class="card-actions" id="purchase-actions-${item.id}">
+                                <button class="card-btn edit-btn" onclick="renderEditPurchaseForm(${item.id})">✏️ 修改</button>
+                                <button class="card-btn delete-btn" onclick="showDeleteConfirmPurchase(${item.id})">🗑️ 刪除</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html += '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">沒有找到符合該日期的叫貨紀錄。</p>';
+            }
+
+            contentEl.innerHTML = html;
+        }
+
+        function setPurchaseSearchDate(dateStr) {
+            const input = document.getElementById('purchase-search-input');
+            if (input) {
+                input.value = dateStr;
+                displayPurchasesList();
+            }
+        }
+
+        function clearPurchaseSearch() {
+            const input = document.getElementById('purchase-search-input');
+            if (input) {
+                input.value = '';
+                displayPurchasesList();
+            }
+        }
+
+        function showDeleteConfirmPurchase(id) {
+            const cardEl = document.getElementById(`purchase-card-${id}`);
+            const actionsEl = document.getElementById(`purchase-actions-${id}`);
+            cardEl.classList.add('confirm-delete-state');
+            actionsEl.innerHTML = `
+                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
+                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deletePurchase(${id})">確定</button>
+                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="displayPurchasesList()">取消</button>
+            `;
+        }
+
+        function renderAddPurchaseForm() {
+            const titleEl = document.getElementById('page-title');
+            const contentEl = document.getElementById('page-content');
+            const actionContainer = document.getElementById('top-action-container');
+
+            titleEl.innerText = '新增叫貨紀錄';
+            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('purchases')">← 回列表</button>`;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            contentEl.innerHTML = `
+                <div class="form-card-container">
+                    <h3 class="form-header-title">📋 建立每日叫貨紀錄</h3>
+                    <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="text" id="pur-date" value="${todayStr}" readonly onclick="openWheelPicker(setAddPurchaseDate, document.getElementById('pur-date').value)" style="cursor: pointer; background: #fff;">
+                    </div>
+                    <div class="form-group"><label>廠商名稱</label><input type="text" id="pur-vendor" placeholder="例如: 某某肉品商、蔬菜行"></div>
+                    <div class="form-group"><label>品項名稱</label><input type="text" id="pur-item-name" placeholder="例如: 雞肉串、甜不辣"></div>
+                    <div class="form-group"><label>實際到貨量</label><input type="text" id="pur-actual-qty" placeholder="例如: 50串、2箱"></div>
+                    <button id="submit-pur-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addPurchase()">確認儲存叫貨紀錄</button>
+                </div>
+            `;
+        }
+
+        function setAddPurchaseDate(dateStr) {
+            document.getElementById('pur-date').value = dateStr;
+        }
+
+        async function addPurchase() {
+            const date = document.getElementById('pur-date').value;
+            const vendor = document.getElementById('pur-vendor').value.trim();
+            const item_name = document.getElementById('pur-item-name').value.trim();
+            const actual_qty = document.getElementById('pur-actual-qty').value.trim();
+            const toast = document.getElementById('form-toast');
+            const submitBtn = document.getElementById('submit-pur-btn');
+
+            if (!date || !item_name || !actual_qty) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '⚠️ 請填寫完整日期、品項名稱與實際到貨量！';
+                toast.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = '儲存中...';
+
+            const { error } = await _supabase.from('purchases').insert([{ date, vendor, item_name, actual_qty }]);
+
+            if (error) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '❌ 儲存失敗：' + error.message;
+                toast.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.innerText = '確認儲存叫貨紀錄';
+            } else {
+                toast.className = 'toast-msg toast-success';
+                toast.innerText = '✅ 新增成功！正在返回列表...';
+                toast.style.display = 'block';
+                setTimeout(() => openPage('purchases'), 1000);
+            }
+        }
+
+        function renderEditPurchaseForm(id) {
+            const item = globalPurchasesData.find(p => p.id === id);
+            if (!item) return;
+
+            const titleEl = document.getElementById('page-title');
+            const contentEl = document.getElementById('page-content');
+            const actionContainer = document.getElementById('top-action-container');
+
+            titleEl.innerText = '修改叫貨紀錄';
+            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('purchases')">← 回列表</button>`;
+
+            contentEl.innerHTML = `
+                <div class="form-card-container">
+                    <h3 class="form-header-title">✏️ 正在修改：${item.item_name}</h3>
+                    <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="text" id="edit-pur-date" value="${item.date}" readonly onclick="openWheelPicker(setEditPurchaseDate, document.getElementById('edit-pur-date').value)" style="cursor: pointer; background: #fff;">
+                    </div>
+                    <div class="form-group"><label>廠商名稱</label><input type="text" id="edit-pur-vendor" value="${item.vendor || ''}"></div>
+                    <div class="form-group"><label>品項名稱</label><input type="text" id="edit-pur-item-name" value="${item.item_name}"></div>
+                    <div class="form-group"><label>實際到貨量</label><input type="text" id="edit-pur-actual-qty" value="${item.actual_qty}"></div>
+                    <button id="update-pur-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updatePurchase(${item.id})">確認更新變更</button>
+                </div>
+            `;
+        }
+
+        function setEditPurchaseDate(dateStr) {
+            document.getElementById('edit-pur-date').value = dateStr;
+        }
+
+        async function updatePurchase(id) {
+            const date = document.getElementById('edit-pur-date').value;
+            const vendor = document.getElementById('edit-pur-vendor').value.trim();
+            const item_name = document.getElementById('edit-pur-item-name').value.trim();
+            const actual_qty = document.getElementById('edit-pur-actual-qty').value.trim();
+            const toast = document.getElementById('form-toast');
+            const updateBtn = document.getElementById('update-pur-btn');
+
+            if (!date || !item_name || !actual_qty) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '⚠️ 請填寫完整日期、品項與到貨量！';
+                toast.style.display = 'block';
+                return;
+            }
+
+            updateBtn.disabled = true;
+            updateBtn.innerText = '更新中...';
+
+            const { error } = await _supabase.from('purchases').update({ date, vendor, item_name, actual_qty }).eq('id', id);
+
+            if (error) {
+                toast.className = 'toast-msg toast-error';
+                toast.innerText = '❌ 更新失敗：' + error.message;
+                toast.style.display = 'block';
+                updateBtn.disabled = false;
+                updateBtn.innerText = '確認更新變更';
+            } else {
+                toast.className = 'toast-msg toast-success';
+                toast.innerText = '✅ 修改成功！正在返回列表...';
+                toast.style.display = 'block';
+                setTimeout(() => openPage('purchases'), 1000);
+            }
+        }
+
+        async function deletePurchase(id) {
+            const { error } = await _supabase.from('purchases').delete().eq('id', id);
+            if (error) alert('刪除失敗：' + error.message);
+            else renderPurchasesList();
+        }
+
+
+        // ==================== 店內支出記錄表邏輯 ====================
         async function renderExpensesList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取支出資料中...</p>';
