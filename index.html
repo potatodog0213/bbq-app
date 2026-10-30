@@ -313,7 +313,7 @@
             box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.12); 
         }
 
-        /* 超質感點擊式開關卡片 (取代醜醜的 checkbox) */
+        /* 超質感點擊式開關卡片 */
         .depreciation-toggle-card {
             background: #ffffff;
             border: 2px solid #fed7aa;
@@ -361,6 +361,59 @@
         }
         .depreciation-toggle-card.active .custom-checkbox-circle::after {
             display: block;
+        }
+
+        /* 質感折舊年限按鈕群組 */
+        .dep-years-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 6px;
+        }
+        @media(min-width: 450px) {
+            .dep-years-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        .dep-year-btn {
+            background: #ffffff;
+            border: 1px solid #fed7aa;
+            border-radius: 10px;
+            padding: 10px 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #78716c;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .dep-year-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: #fff7ed;
+        }
+        .dep-year-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 8px rgba(234, 88, 12, 0.25);
+        }
+
+        /* 高質感當前已選年限提示膠囊 */
+        .selected-dep-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+            color: #9a3412;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13.5px;
+            font-weight: 700;
+            border: 1px solid #fdba74;
+            box-shadow: 0 2px 4px rgba(154, 52, 18, 0.06);
+            margin-bottom: 10px;
         }
 
         .toast-msg {
@@ -1693,7 +1746,7 @@
                     <div class="search-sort-group">
                         <input type="text" id="expense-dep-filter-input" class="search-input" value="${depDisplayStr}" readonly onclick="openExpenseDepFilterPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊篩選折舊與一般支出">
                         <input type="text" id="expense-vendor-filter-input" class="search-input" value="${vendorDisplayStr}" readonly onclick="openExpenseVendorPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇廠商篩選">
-                        <input type="text" id="expense-search-input" class="search-input" placeholder="📅 點此選擇日期..." value="${searchQuery}" readonly onclick="openDatePicker(setSearchDateQuery, '${searchQuery || new Date().toISOString().split('T')[0]}')" style="cursor: pointer; background: #fff; width: 120px;">
+                        <input type="text" id="expense-search-input" class="search-input" value="${searchQuery}" readonly onclick="openDatePicker(setSearchDateQuery, '${searchQuery || new Date().toISOString().split('T')[0]}')" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇日期">
                         ${(searchQuery || expenseSearchVendorVal || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
                     </div>
                 </div>
@@ -1860,7 +1913,7 @@
             `;
         }
 
-        // 質感美化版折舊年限選擇器變數
+        // 質感按鈕群組折舊年限變數
         let selectedDepYears = 5;
 
         function renderAddExpenseForm() {
@@ -1898,8 +1951,16 @@
                     </div>
 
                     <div id="depreciation-options-box" style="display: none; background: #fffbeb; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; margin-bottom: 18px;">
-                        <label style="font-size: 13px; color: #78716c; margin-bottom: 6px; display: block;">選擇折舊年限：</label>
-                        <input type="text" id="dep-years-display" value="5 年（冰箱、烤爐等 - 標準推薦）" readonly onclick="openDepYearsPicker(false)" style="cursor: pointer; background: #fff; font-weight: 600; color: #c2410c;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label style="font-size: 13.5px; font-weight: 700; color: #9a3412; margin: 0;">選擇折舊年限：</label>
+                            <span id="selected-dep-label-badge" class="selected-dep-badge">⭐ 目前選擇：5 年</span>
+                        </div>
+                        <div class="dep-years-grid">
+                            <div class="dep-year-btn" data-years="3" onclick="selectDepYears(3)">3 年</div>
+                            <div class="dep-year-btn active" data-years="5" onclick="selectDepYears(5)">5 年 (推薦)</div>
+                            <div class="dep-year-btn" data-years="8" onclick="selectDepYears(8)">8 年</div>
+                            <div class="dep-year-btn" data-years="10" onclick="selectDepYears(10)">10 年</div>
+                        </div>
                     </div>
 
                     <button id="submit-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addExpense()">確認儲存支出</button>
@@ -1913,6 +1974,23 @@
             const isDep = card.classList.contains('active');
             const box = document.getElementById('depreciation-options-box');
             box.style.display = isDep ? 'block' : 'none';
+        }
+
+        function selectDepYears(years) {
+            selectedDepYears = years;
+            // 同步更新畫面上的 active 樣式與狀態標籤
+            document.querySelectorAll('.dep-year-btn').forEach(btn => {
+                if (parseInt(btn.getAttribute('data-years')) === years) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            const badge = document.getElementById('selected-dep-label-badge');
+            if (badge) {
+                let recDesc = years === 5 ? ' (推薦)' : '';
+                badge.innerText = `⭐ 目前選擇：${years} 年${recDesc}`;
+            }
         }
 
         function setAddExpenseDate(dateStr) { document.getElementById('exp-date').value = dateStr; }
@@ -1949,14 +2027,6 @@
             const isDep = item.is_depreciable || false;
             selectedDepYears = item.useful_life_years || 5;
 
-            let descMap = {
-                3: '3 年（小型器具、POS機等）',
-                5: '5 年（冰箱、烤爐等 - 標準推薦）',
-                8: '8 年（冷凍庫、重型設備）',
-                10: '10 年（裝潢工程等）'
-            };
-            let descText = descMap[selectedDepYears] || `${selectedDepYears} 年`;
-
             contentEl.innerHTML = `
                 <div class="form-card-container">
                     <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
@@ -1983,8 +2053,16 @@
                     </div>
 
                     <div id="edit-depreciation-options-box" style="display: ${isDep ? 'block' : 'none'}; background: #fffbeb; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; margin-bottom: 18px;">
-                        <label style="font-size: 13px; color: #78716c; margin-bottom: 6px; display: block;">選擇折舊年限：</label>
-                        <input type="text" id="edit-dep-years-display" value="${descText}" readonly onclick="openDepYearsPicker(true)" style="cursor: pointer; background: #fff; font-weight: 600; color: #c2410c;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label style="font-size: 13.5px; font-weight: 700; color: #9a3412; margin: 0;">選擇折舊年限：</label>
+                            <span id="selected-dep-label-badge" class="selected-dep-badge">⭐ 目前選擇：${selectedDepYears} 年</span>
+                        </div>
+                        <div class="dep-years-grid">
+                            <div class="dep-year-btn ${selectedDepYears===3?'active':''}" data-years="3" onclick="selectDepYears(3)">3 年</div>
+                            <div class="dep-year-btn ${selectedDepYears===5?'active':''}" data-years="5" onclick="selectDepYears(5)">5 年 (推薦)</div>
+                            <div class="dep-year-btn ${selectedDepYears===8?'active':''}" data-years="8" onclick="selectDepYears(8)">8 年</div>
+                            <div class="dep-year-btn ${selectedDepYears===10?'active':''}" data-years="10" onclick="selectDepYears(10)">10 年</div>
+                        </div>
                     </div>
 
                     <button id="update-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateExpense(${item.id})">確認更新變更</button>
@@ -2001,65 +2079,6 @@
         }
 
         function setEditExpenseDate(dateStr) { document.getElementById('edit-exp-date').value = dateStr; }
-
-        function openDepYearsPicker(isEdit) {
-            let options = [
-                { years: 3, label: '3 年（小型器具、POS機等）' },
-                { years: 5, label: '5 年（冰箱、烤爐等 - 標準推薦）' },
-                { years: 8, label: '8 年（冷凍庫、重型設備）' },
-                { years: 10, label: '10 年（裝潢工程等）' }
-            ];
-
-            const overlay = document.createElement('div');
-            overlay.className = 'picker-overlay';
-            overlay.id = 'wheel-picker-overlay';
-            overlay.innerHTML = `
-                <div class="picker-modal" style="width: 320px;">
-                    <h4>⏳ 選擇折舊年限</h4>
-                    <div class="picker-wheels-container" style="height: 140px;">
-                        <div class="wheel-column" id="wheel-dep-years" onscroll="handleWheelScroll('dep-years')" style="padding: 47.5px 0;"></div>
-                    </div>
-                    <div class="picker-btn-group">
-                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="confirmDepYearsPicker(${isEdit})">確定選取</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-
-            const col = document.getElementById('wheel-dep-years');
-            let html = '<div style="height:47.5px;"></div>';
-            options.forEach(opt => {
-                html += `<div class="wheel-item" data-val="${opt.years}" data-label="${opt.label}">${opt.label}</div>`;
-            });
-            html += '<div style="height:47.5px;"></div>';
-            col.innerHTML = html;
-
-            requestAnimationFrame(() => {
-                const items = col.querySelectorAll('.wheel-item');
-                for (let item of items) {
-                    if (parseInt(item.getAttribute('data-val')) === selectedDepYears) {
-                        col.scrollTop = item.offsetTop - (col.clientHeight / 2) + (item.clientHeight / 2);
-                        break;
-                    }
-                }
-                highlightSelected('dep-years');
-            });
-        }
-
-        function confirmDepYearsPicker(isEdit) {
-            const col = document.getElementById('wheel-dep-years');
-            if (col) {
-                const selItem = col.querySelector('.wheel-item.selected');
-                if (selItem) {
-                    selectedDepYears = parseInt(selItem.getAttribute('data-val'), 10) || 5;
-                    let labelText = selItem.getAttribute('data-label');
-                    let targetInput = document.getElementById(isEdit ? 'edit-dep-years-display' : 'dep-years-display');
-                    if (targetInput) targetInput.value = labelText;
-                }
-            }
-            closeWheelPicker();
-        }
 
         async function updateExpense(id) {
             const date = document.getElementById('edit-exp-date').value;
@@ -2290,8 +2309,7 @@
                     }
 
                     let dObj = new Date(rev.date);
-                    let weekDayStr = !isNaN(dObj.getDay()) ? ` (${dayOfWeekNames[dObj.getDay()][0]})` : ''; // simplified or array
-                    weekDayStr = !isNaN(dObj.getDay()) ? ` (${dayOfWeekNames[dObj.getDay()]})` : '';
+                    let weekDayStr = !isNaN(dObj.getDay()) ? ` (${dayOfWeekNames[dObj.getDay()]})` : '';
 
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
                     html += `
@@ -2445,7 +2463,7 @@
         }
 
 
-        // ==================== 💎 全店創業資本與回本追蹤專屬頁面邏輯 (含設備累計折舊扣除) ====================
+        // ==================== 💎 全店創業資本與回本追蹤專屬頁面邏輯 ====================
         async function renderCapitalView() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算全店總資本與回本進度中...</p>';
@@ -2614,7 +2632,7 @@
         }
 
 
-        // ==================== 滾輪選擇器核心邏輯 (支援 ±50 年寬廣範圍) ====================
+        // ==================== 滾輪選擇器核心邏輯 ====================
         let currentWheelCallback = null;
         let isYearMonthOnlyMode = false;
 
