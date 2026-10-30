@@ -1778,7 +1778,6 @@
                 return data.settings_json;
             }
 
-            // 如果該月沒有，找最新的一筆
             let { data: latestData } = await _supabase.from('settings').select('*').order('id', { ascending: false }).limit(1);
             if (latestData && latestData.length > 0 && latestData[0].settings_json) {
                 return latestData[0].settings_json;
@@ -1840,12 +1839,9 @@
 
             let monthRevenues = globalRevenuesData.filter(i => i.date && i.date.startsWith(currentProfitMonth));
             
-            // 統計：賺錢幾天、賠錢幾天、打平幾天
             let profitDaysCount = 0;
             let lossDaysCount = 0;
-            let breakEvenDaysCount = 0;
 
-            // 星期幾營收統計 (0=週日, 1=週一 ... 6=週六)
             let dayOfWeekNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
             let weekdayTotals = { 0: {sum:0, count:0}, 1: {sum:0, count:0}, 2: {sum:0, count:0}, 3: {sum:0, count:0}, 4: {sum:0, count:0}, 5: {sum:0, count:0}, 6: {sum:0, count:0} };
 
@@ -1855,13 +1851,8 @@
                 let foodpandaNet = (parseFloat(i.foodpanda) || 0) * 0.67; 
                 let dayTotal = onsite + ubereatsNet + foodpandaNet;
 
-                // 算當天損益 (假設當日毛利扣掉當日分攤成本或直接拿實收對比每日門檻)
-                let dayEstimatedGross = dayTotal * grossMarginRate;
-                // 簡化為：當日實收營收對比每日回本門檻
-                let diff = dayTotal - dailyBreakEvenRevenue;
-                if (diff > 100) profitDaysCount++;
-                else if (diff < -100) lossDaysCount++;
-                else breakEvenDaysCount++;
+                if (dayTotal >= dailyBreakEvenRevenue) profitDaysCount++;
+                else lossDaysCount++;
 
                 if (i.date) {
                     let dObj = new Date(i.date);
@@ -1875,7 +1866,6 @@
                 return acc + dayTotal;
             }, 0);
 
-            // 找出賺最多與最少的星期幾
             let bestDay = '尚無資料';
             let worstDay = '尚無資料';
             let maxAvg = -1;
@@ -1897,6 +1887,7 @@
 
             let estimatedGrossProfit = totalActualRevenue * grossMarginRate;
             let netProfit = estimatedGrossProfit - grandTotalCost;
+            let revenueGap = totalActualRevenue - monthlyBreakEvenRevenue;
 
             const [pYear, pMonth] = currentProfitMonth.split('-');
             let monthDisplayTitle = `${pYear}年 ${parseInt(pMonth, 10)}月`;
@@ -1927,7 +1918,7 @@
                         <div>每月固定總支出：<b>$${grandTotalCost.toLocaleString()} 元</b></div>
                         <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
                     </div>
-                    <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 調整固定支出、廣告費與營業天數參數 (雲端同步)</button>
+                    <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 調整固定支出、廣告費與營業天數參數</button>
                 </div>
 
                 <div class="profit-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
@@ -1941,16 +1932,20 @@
                         <b>$${Math.round(dailyBreakEvenRevenue).toLocaleString()} 元 / 天</b>
                     </div>
                     <div class="profit-row">
-                        <span>本月戰績統計</span>
-                        <b style="color: #1e293b;">🔥 賺錢 ${profitDaysCount} 天 &nbsp;|&nbsp; 💧 賠錢 ${lossDaysCount} 天 &nbsp;|&nbsp; 🎯 打平 ${breakEvenDaysCount} 天</b>
+                        <span>本月達標天數統計</span>
+                        <b style="color: #1e293b;">🔥 賺錢 ${profitDaysCount} 天 &nbsp;|&nbsp; 💧 賠錢 ${lossDaysCount} 天</b>
                     </div>
                     <div class="profit-row">
                         <span>📅 星期幾營運洞察</span>
                         <b style="color: #9a3412; font-size: 13.5px;">⭐ 賺最多：${bestDay} &nbsp;|&nbsp; 📉 賺最少：${worstDay}</b>
                     </div>
+                    <div class="profit-row">
+                        <span>🎯 距離月回本目標營業額差距</span>
+                        <b style="color: #c2410c;">${revenueGap >= 0 ? '超額達標 ＋' : '還差 －'}$${Math.round(Math.abs(revenueGap)).toLocaleString()} 元</b>
+                    </div>
                     <div class="profit-row total-row" style="color: ${netProfit >= 0 ? '#166534' : '#991b1b'}; border-top-color: #86efac;">
-                        <span>💰 本月累計損益結算</span>
-                        <span>${netProfit >= 0 ? '賺錢 ＋' : '差額 －'}$${Math.round(Math.abs(netProfit)).toLocaleString()} 元</span>
+                        <span>💰 本月實際口袋損益結算 (毛利扣固定支出)</span>
+                        <span>${netProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(netProfit)).toLocaleString()} 元</span>
                     </div>
                 </div>
 
@@ -1972,13 +1967,10 @@
                     let feedbackHtml = '';
                     if (diffToBreakEven <= 0) {
                         feedbackHtml = `<span style="color:#059669; font-weight:700;">🔥 太棒了！有賺錢，超額賺取 $${Math.abs(Math.round(diffToBreakEven)).toLocaleString()} 元！</span>`;
-                    } else if (Math.abs(diffToBreakEven) < 100) {
-                        feedbackHtml = `<span style="color:#d97706; font-weight:700;">🎯 剛好打平！繼續努力！</span>`;
                     } else {
                         feedbackHtml = `<span style="color:#dc2626; font-weight:700;">💪 距離今日回本還差 $${Math.round(diffToBreakEven).toLocaleString()} 元</span>`;
                     }
 
-                    // 計算星期幾
                     let dObj = new Date(rev.date);
                     let weekDayStr = !isNaN(dObj.getDay()) ? ` (${dayOfWeekNames[dObj.getDay()]})` : '';
 
@@ -2094,7 +2086,7 @@
                     <div class="form-group"><label>Foodpanda 廣告費 (每月固定總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">雲端同步儲存</button>
+                        <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">儲存設定</button>
                     </div>
                 </div>
             `;
@@ -2115,7 +2107,6 @@
                 foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0
             };
             
-            // 寫入 Supabase settings 表格（確保手機與電腦同步）
             let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).single();
             let res;
             if (existing) {
@@ -2125,7 +2116,7 @@
             }
 
             if (res.error) {
-                alert('儲存至雲端失敗：' + res.error.message);
+                alert('儲存失敗：' + res.error.message);
             } else {
                 document.getElementById('settings-modal-overlay').remove();
                 renderProfitView();
