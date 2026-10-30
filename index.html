@@ -1794,7 +1794,7 @@
                 charcoal: 0,
                 ubereatsAdDaily: 0,
                 foodpandaAdMonthly: 0,
-                initialCapital: 2000000 // 預設初始投入資本 200 萬
+                initialCapital: 2000000
             };
         }
 
@@ -1824,28 +1824,9 @@
             }
             let grossMarginRate = 1 - (avgCostRate / 100);
 
-            // 【跨月份全店總計計算】計算自開店以來的累積賺賠
             let allRevList = allRevenuesRes.data || [];
             let allExpList = allExpensesRes.data || [];
             
-            let totalLifetimeRevenue = allRevList.reduce((acc, r) => {
-                let onsite = parseFloat(r.onsite) || 0;
-                let ue = (parseFloat(r.ubereats) || 0) * 0.65;
-                let fp = (parseFloat(r.foodpanda) || 0) * 0.67;
-                return acc + onsite + ue + fp;
-            }, 0);
-
-            let totalLifetimeGrossProfit = totalLifetimeRevenue * grossMarginRate;
-            let totalLifetimeOtherExpenses = allExpList.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
-            
-            // 估算歷史總固定支出 (依各月設定加總，若無則用當月設定)
-            let totalLifetimeFixedCost = totalFixedCostSumAllMonths || 0; // 簡化為：當月固定支出 * 總營運月數 或直接加總
-            // 為了精準，我們計算全店累積淨利 = 歷史總毛利 - 歷史總支出 (其他支出 + 歷史固定成本)
-            let estimatedLifetimeNetProfit = totalLifetimeGrossProfit - totalLifetimeOtherExpenses; // 需補上固定成本
-
-            // 另外一種精準算法：將各月的淨利加總
-            let netProfitMap = {};
-            // 找出所有有營業額或支出的月份
             let monthSet = new Set();
             allRevList.forEach(r => { if(r.date) monthSet.add(r.date.substring(0, 7)); });
             allExpList.forEach(e => { if(e.date) monthSet.add(e.date.substring(0, 7)); });
@@ -1866,7 +1847,6 @@
             let currentRemainingCapital = initialCapital + grandLifetimeNetProfit;
             let capitalReturnRate = initialCapital > 0 ? (grandLifetimeNetProfit / initialCapital) * 100 : 0;
 
-            // 當月計算
             let totalUbereatsAd = (parseFloat(fixedSettings.ubereatsAdDaily) || 0) * (parseFloat(fixedSettings.workingDays) || 26);
             let totalFoodpandaAd = parseFloat(fixedSettings.foodpandaAdMonthly) || 0;
 
