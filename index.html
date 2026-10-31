@@ -464,7 +464,7 @@
         .cost-rate, .total-amount-tag { color: #dc2626; font-weight: 700; }
         
         .platform-breakeven-box {
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.75);
             border: 1px solid #fed7aa;
             border-radius: 10px;
             padding: 10px 12px;
@@ -983,7 +983,7 @@
                             <option value="醃料" ${item.category==='醃料'?'selected':''}>醃料</option>
                             <option value="炸物" ${item.category==='炸物'?'selected':''}>炸物 (如炸雞腿)</option>
                             <option value="飲料" ${item.category==='飲料'?'selected':''}>飲料</option>
-                            <option value="其他" ${item.category==='自由'?'selected':''}>其他</option>
+                            <option value="其他" ${item.category==='其他'?'selected':''}>其他</option>
                         </select>
                     </div>
                     <div class="form-group"><label>配方材料清單</label><textarea id="edit-rec-ingredients" rows="4">${item.ingredients || ''}</textarea></div>
@@ -1084,25 +1084,25 @@
                     let costRate = calculateCostRate(item).toFixed(1);
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
                     
-                    // 計算平台抽成後回本所需售價 (四捨五入)
-                    let totalCost = parseFloat(item.package_cost) || 0;
-                    let ubereatsBreakevenPrice = Math.round(totalCost / 0.65);
-                    let foodpandaBreakevenPrice = Math.round(totalCost / 0.67);
+                    // 以「現場售價」推算平台應賣多少錢才能維持同等毛利 (四捨五入)
+                    let currentPrice = parseFloat(item.price) || 0;
+                    let ubereatsTargetPrice = Math.round(currentPrice / 0.65);
+                    let foodpandaTargetPrice = Math.round(currentPrice / 0.67);
 
                     html += `
                         <div class="item-card ${zebraClass}" id="card-${item.id}">
                             <div class="card-main-info">
-                                <h4>${item.name} <span>$${item.price} 元</span></h4>
+                                <h4>${item.name} <span>現場售價：$${item.price} 元</span></h4>
                                 <p><b>食材單價：</b>$${item.ingredient_cost}</p>
                                 <p><b>總成本：</b>$${item.package_cost} &nbsp;|&nbsp; <span class="cost-rate">成本率：${costRate}%</span></p>
                                 <div class="platform-breakeven-box">
                                     <div>
-                                        <span style="color:#059669; font-weight:700;">Ubereats 回本所需售價 (抽35%)：</span>
-                                        <b style="color:#059669; font-size:14px;">$${ubereatsBreakevenPrice} 元</b>
+                                        <span style="color:#059669; font-weight:700;">Ubereats 建議售價 (抽35%)：</span>
+                                        <b style="color:#059669; font-size:14px;">$${ubereatsTargetPrice} 元</b>
                                     </div>
                                     <div>
-                                        <span style="color:#d97706; font-weight:700;">foodpanda 回本所需售價 (抽33%)：</span>
-                                        <b style="color:#d97706; font-size:14px;">$${foodpandaBreakevenPrice} 元</b>
+                                        <span style="color:#d97706; font-weight:700;">foodpanda 建議售價 (抽33%)：</span>
+                                        <b style="color:#d97706; font-size:14px;">$${foodpandaTargetPrice} 元</b>
                                     </div>
                                 </div>
                                 <p style="margin-top:6px;"><b>備註：</b>${item.note || '無'}</p>
