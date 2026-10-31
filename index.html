@@ -463,6 +463,24 @@
         .item-card p { margin: 4px 0; font-size: 13.5px; color: var(--text-muted); }
         .cost-rate, .total-amount-tag { color: #dc2626; font-weight: 700; }
         
+        .platform-breakeven-box {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid #fed7aa;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .platform-breakeven-box div {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .platform-breakeven-box div:last-child {
+            margin-bottom: 0;
+        }
+
         .card-actions {
             display: flex;
             gap: 10px;
@@ -965,7 +983,7 @@
                             <option value="醃料" ${item.category==='醃料'?'selected':''}>醃料</option>
                             <option value="炸物" ${item.category==='炸物'?'selected':''}>炸物 (如炸雞腿)</option>
                             <option value="飲料" ${item.category==='飲料'?'selected':''}>飲料</option>
-                            <option value="其他" ${item.category==='其他'?'selected':''}>其他</option>
+                            <option value="其他" ${item.category==='自由'?'selected':''}>其他</option>
                         </select>
                     </div>
                     <div class="form-group"><label>配方材料清單</label><textarea id="edit-rec-ingredients" rows="4">${item.ingredients || ''}</textarea></div>
@@ -1065,13 +1083,29 @@
                 filteredData.forEach((item, index) => {
                     let costRate = calculateCostRate(item).toFixed(1);
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
+                    
+                    // 計算平台抽成後回本所需售價 (四捨五入)
+                    let totalCost = parseFloat(item.package_cost) || 0;
+                    let ubereatsBreakevenPrice = Math.round(totalCost / 0.65);
+                    let foodpandaBreakevenPrice = Math.round(totalCost / 0.67);
+
                     html += `
                         <div class="item-card ${zebraClass}" id="card-${item.id}">
                             <div class="card-main-info">
                                 <h4>${item.name} <span>$${item.price} 元</span></h4>
                                 <p><b>食材單價：</b>$${item.ingredient_cost}</p>
                                 <p><b>總成本：</b>$${item.package_cost} &nbsp;|&nbsp; <span class="cost-rate">成本率：${costRate}%</span></p>
-                                <p><b>備註：</b>${item.note || '無'}</p>
+                                <div class="platform-breakeven-box">
+                                    <div>
+                                        <span style="color:#059669; font-weight:700;">Ubereats 回本所需售價 (抽35%)：</span>
+                                        <b style="color:#059669; font-size:14px;">$${ubereatsBreakevenPrice} 元</b>
+                                    </div>
+                                    <div>
+                                        <span style="color:#d97706; font-weight:700;">foodpanda 回本所需售價 (抽33%)：</span>
+                                        <b style="color:#d97706; font-size:14px;">$${foodpandaBreakevenPrice} 元</b>
+                                    </div>
+                                </div>
+                                <p style="margin-top:6px;"><b>備註：</b>${item.note || '無'}</p>
                             </div>
                             <div class="card-actions" id="actions-${item.id}">
                                 <button class="card-btn edit-btn" onclick="renderEditProductForm(${item.id})">✏️ 修改</button>
@@ -2229,7 +2263,7 @@
 
             let html = `
                 <div class="controls-bar" style="margin-bottom: 20px;">
-                    <div class="stats-info"><span>📊 營運與回本試算儀表板 (已自動扣除 UberEats 35% / Foodpanda 33% 抽成)</span></div>
+                    <div class="stats-info"><span>📊 營運與回本試算儀表板 (已自動扣除 Ubereats 35% / foodpanda 33% 抽成)</span></div>
                     <div class="search-sort-group">
                         <input type="text" id="profit-month-search" class="search-input" value="${monthDisplayTitle}" readonly onclick="openYearMonthPicker(changeProfitMonthWheel, '${currentProfitMonth}')" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇年月">
                         <button class="action-btn" onclick="openRevenueModal()">＋ 記錄今日營業額</button>
@@ -2248,8 +2282,8 @@
                         <div>瓦斯費：<b>$${(fixedSettings.gas || 0).toLocaleString()} 元</b></div>
                         <div>炸油費：<b>$${(fixedSettings.oil || 0).toLocaleString()} 元</b></div>
                         <div>木碳費：<b>$${(fixedSettings.charcoal || 0).toLocaleString()} 元</b></div>
-                        <div>UberEats 廣告費（每日）：<b>$${fixedSettings.ubereatsAdDaily || 0} /天</b></div>
-                        <div>Foodpanda 廣告費（每月）：<b>$${fixedSettings.foodpandaAdMonthly || 0} /月</b></div>
+                        <div>Ubereats 廣告費（每日）：<b>$${fixedSettings.ubereatsAdDaily || 0} /天</b></div>
+                        <div>foodpanda 廣告費（每月）：<b>$${fixedSettings.foodpandaAdMonthly || 0} /月</b></div>
                         <div>每月固定總支出：<b>$${grandTotalCost.toLocaleString()} 元</b></div>
                         <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
                     </div>
@@ -2315,8 +2349,8 @@
                             <div class="card-main-info">
                                 <h4>${rev.date}${weekDayStr} <span style="font-size:15px;">實收總計：$${Math.round(dayNetTotal).toLocaleString()}</span></h4>
                                 <p><b>現場：</b>$${onsite}</p>
-                                <p><b>UberEats：</b>輸入 $${ueInput} ➔ <b>實收 $${Math.round(ueNet)}</b> (抽35%)</p>
-                                <p><b>Foodpanda：</b>輸入 $${fpInput} ➔ <b>實收 $${Math.round(fpNet)}</b> (抽33%)</p>
+                                <p><b>Ubereats：</b>輸入 $${ueInput} ➔ <b>實收 $${Math.round(ueNet)}</b> (抽35%)</p>
+                                <p><b>foodpanda：</b>輸入 $${fpInput} ➔ <b>實收 $${Math.round(fpNet)}</b> (抽33%)</p>
                                 <p style="margin-top: 8px; font-size: 13px;">${feedbackHtml}</p>
                             </div>
                             <div class="card-actions" id="rev-actions-${rev.id}">
@@ -2355,8 +2389,8 @@
                         <input type="text" id="rev-date" value="${defaultDate}" readonly onclick="openDatePicker(setRevDate, document.getElementById('rev-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
                     <div class="form-group"><label>現場客人營業額</label><input type="number" step="0.01" id="rev-onsite" value="${revItem ? revItem.onsite || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>UberEats 營業額 (自動扣除 35% 抽成)</label><input type="number" step="0.01" id="rev-ubereats" value="${revItem ? revItem.ubereats || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>Foodpanda 營業額 (自動扣除 33% 抽成)</label><input type="number" step="0.01" id="rev-foodpanda" value="${revItem ? revItem.foodpanda || 0 : ''}" placeholder="0"></div>
+                    <div class="form-group"><label>Ubereats 營業額 (自動扣除 35% 抽成)</label><input type="number" step="0.01" id="rev-ubereats" value="${revItem ? revItem.ubereats || 0 : ''}" placeholder="0"></div>
+                    <div class="form-group"><label>foodpanda 營業額 (自動扣除 33% 抽成)</label><input type="number" step="0.01" id="rev-foodpanda" value="${revItem ? revItem.foodpanda || 0 : ''}" placeholder="0"></div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('revenue-modal-overlay').remove()">取消</button>
                         <button class="picker-btn picker-confirm" onclick="saveRevenue(${editId})">確認儲存</button>
@@ -2417,8 +2451,8 @@
                     <div class="form-group"><label>瓦斯費</label><input type="number" id="set-gas" value="${fixedSettings.gas}"></div>
                     <div class="form-group"><label>炸油費</label><input type="number" id="set-oil" value="${fixedSettings.oil}"></div>
                     <div class="form-group"><label>木碳費</label><input type="number" id="set-charcoal" value="${fixedSettings.charcoal}"></div>
-                    <div class="form-group"><label>UberEats 廣告費 (一天單價)</label><input type="number" id="set-ubereats-daily" value="${fixedSettings.ubereatsAdDaily}"></div>
-                    <div class="form-group"><label>Foodpanda 廣告費 (每月固定總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
+                    <div class="form-group"><label>Ubereats 廣告費 (一天單價)</label><input type="number" id="set-ubereats-daily" value="${fixedSettings.ubereatsAdDaily}"></div>
+                    <div class="form-group"><label>foodpanda 廣告費 (每月固定總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
                         <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">儲存設定</button>
