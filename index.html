@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>馬鈴吉碳烤 - 智慧營運管理系統</title>
-    <!-- 引入 Supabase -->
+    <!-- 引入 Supabase & QRCode.js -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --primary: #ea580c;
@@ -37,48 +38,68 @@
             margin: 0 auto; 
         }
 
-        /* 質感主視覺 Header (首頁) */
+        /* 頂部管理員權限列 */
+        .admin-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            padding: 8px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            font-size: 13.5px;
+        }
+        .admin-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .badge-admin { background: #dcfce7; color: #166534; }
+        .badge-guest { background: #f1f5f9; color: #475569; }
+
+        /* 唯讀隱藏標籤控制 */
+        .admin-only { display: none !important; }
+        .is-admin .admin-only { display: inline-flex !important; }
+        .is-admin div.admin-only, .is-admin button.admin-only { display: block !important; }
+
+        /* 主視覺 Header */
         .header { 
             text-align: center; 
-            margin-bottom: 32px; 
+            margin-bottom: 28px; 
             background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%);
-            padding: 36px 24px;
+            padding: 32px 24px;
             border-radius: 24px;
             border: 1px solid #fdba74;
             box-shadow: var(--shadow);
             position: relative;
             overflow: hidden;
         }
-        .header::after {
-            content: '';
-            position: absolute;
-            bottom: -50px;
-            right: -50px;
-            width: 150px;
-            height: 150px;
-            background: rgba(234, 88, 12, 0.05);
-            border-radius: 50%;
-            pointer-events: none;
-        }
         .header h1 { 
-            font-size: 32px; 
-            margin: 0 0 10px 0; 
+            font-size: 30px; 
+            margin: 0 0 8px 0; 
             color: #9a3412; 
             letter-spacing: 0.8px;
             font-weight: 800;
         }
         .header p { 
             color: #c2410c; 
-            font-size: 15px; 
+            font-size: 14.5px; 
             margin: 0; 
             font-weight: 600;
         }
-        
+
         /* 主選單格線 */
         .menu-grid { 
             display: grid; 
             grid-template-columns: 1fr; 
-            gap: 18px; 
+            gap: 16px; 
         }
         @media (min-width: 600px) {
             .menu-grid { grid-template-columns: repeat(2, 1fr); }
@@ -86,7 +107,7 @@
 
         .menu-card {
             background: linear-gradient(135deg, #fffdf9 0%, #fffbeb 100%);
-            padding: 24px;
+            padding: 22px;
             border-radius: 18px;
             box-shadow: var(--shadow);
             cursor: pointer;
@@ -101,53 +122,22 @@
         .menu-card::before {
             content: '';
             position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 6px;
+            left: 0; top: 0; height: 100%; width: 6px;
             background: linear-gradient(to bottom, #f59e0b, #d97706);
             transition: background 0.3s;
         }
         .menu-card:hover {
-            transform: translateY(-4px);
+            transform: translateY(-3px);
             box-shadow: var(--shadow-hover);
             border-color: #f97316;
             background: #ffffff;
         }
-        .menu-card:hover::before {
-            background: linear-gradient(to bottom, #f97316, #ea580c);
-        }
-        .menu-card:active { transform: scale(0.98); }
+        .menu-card.capital-card::before { background: linear-gradient(to bottom, #b91c1c, #991b1b); }
+        .menu-card.menu-gen-card::before { background: linear-gradient(to bottom, #059669, #10b981); }
 
-        .menu-card.capital-card::before {
-            background: linear-gradient(to bottom, #b91c1c, #991b1b);
-        }
-        .menu-card.capital-card:hover {
-            border-color: #dc2626;
-        }
-
-        .menu-card-content h3 { 
-            margin: 0 0 6px 0; 
-            font-size: 18px; 
-            color: #7c2d12; 
-            font-weight: 700;
-        }
-        .menu-card-content span { 
-            font-size: 13.5px; 
-            color: var(--text-muted); 
-            line-height: 1.4; 
-            display: block; 
-        }
-        .arrow { 
-            font-size: 22px; 
-            color: #d97706; 
-            font-weight: bold; 
-            transition: transform 0.3s;
-        }
-        .menu-card:hover .arrow {
-            transform: translateX(6px);
-            color: var(--primary);
-        }
+        .menu-card-content h3 { margin: 0 0 5px 0; font-size: 17.5px; color: #7c2d12; font-weight: 700; }
+        .menu-card-content span { font-size: 13px; color: var(--text-muted); line-height: 1.4; display: block; }
+        .arrow { font-size: 20px; color: #d97706; font-weight: bold; }
 
         /* 子頁面容器 */
         .page-view { 
@@ -168,508 +158,134 @@
             border-bottom: 1px solid #fed7aa;
             padding-bottom: 16px;
         }
-        .top-left-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
+        .top-left-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
         .back-btn { 
-            background: #78716c; 
-            color: white; 
-            border: none; 
-            padding: 10px 16px; 
-            border-radius: 10px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            font-size: 14px; 
-            transition: background 0.2s;
-            white-space: nowrap;
+            background: #78716c; color: white; border: none; padding: 9px 15px; 
+            border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13.5px; 
+            transition: background 0.2s; white-space: nowrap;
         }
         .back-btn:hover { background: #57534e; }
 
         .action-btn { 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            padding: 10px 18px; 
-            border-radius: 10px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            font-size: 14px; 
-            transition: background 0.2s;
-            box-shadow: 0 4px 6px rgba(234, 88, 12, 0.2);
-            white-space: nowrap;
+            background: var(--primary); color: white; border: none; padding: 9px 16px; 
+            border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13.5px; 
+            transition: background 0.2s; box-shadow: 0 4px 6px rgba(234, 88, 12, 0.2); white-space: nowrap;
         }
         .action-btn:hover { background: var(--primary-hover); }
-        .action-btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
 
         .clear-search-btn {
-            background: #f1f5f9;
-            color: #475569;
-            border: 1px solid #cbd5e1;
-            padding: 8px 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13.5px;
-            font-weight: 600;
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
-        .clear-search-btn:hover {
-            background: #e2e8f0;
-            color: #1e293b;
+            background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;
+            padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
         }
 
         .controls-bar {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            margin-bottom: 22px;
-            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-            padding: 18px;
-            border-radius: 14px;
-            border: 1px solid #fde68a;
-            font-size: 14px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px;
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); padding: 16px;
+            border-radius: 14px; border: 1px solid #fde68a; font-size: 13.5px;
         }
         @media(min-width: 600px) {
-            .controls-bar {
-                flex-direction: row;
-                justify-content: space-between;
-                align-items: center;
-            }
+            .controls-bar { flex-direction: row; justify-content: space-between; align-items: center; }
         }
 
-        .stats-info {
-            display: flex;
-            gap: 14px;
-            color: var(--text-muted);
-            flex-wrap: wrap;
-            align-items: center;
-        }
+        .stats-info { display: flex; gap: 14px; color: var(--text-muted); flex-wrap: wrap; align-items: center; }
         .stats-info b { color: #9a3412; }
 
-        .search-sort-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
+        .search-sort-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .search-input, .filter-select {
-            padding: 9px 14px;
-            border-radius: 9px;
-            border: 1px solid #fcd34d;
-            background: white;
-            color: var(--text-main);
-            font-size: 14px;
-            outline: none;
-            transition: all 0.2s;
-        }
-        .search-input:focus, .filter-select:focus { 
-            border-color: var(--primary); 
-            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15); 
+            padding: 8px 12px; border-radius: 8px; border: 1px solid #fcd34d;
+            background: white; color: var(--text-main); font-size: 13.5px; outline: none;
         }
 
         .form-card-container {
-            background: linear-gradient(to bottom, #ffffff, #fffaf5);
-            padding: 28px 20px;
-            border-radius: 16px;
-            border: 1px solid #fed7aa;
-            box-shadow: 0 6px 16px rgba(234, 88, 12, 0.05);
-            max-width: 520px;
-            margin: 0 auto;
+            background: linear-gradient(to bottom, #ffffff, #fffaf5); padding: 24px 18px;
+            border-radius: 16px; border: 1px solid #fed7aa; max-width: 520px; margin: 0 auto;
         }
         .form-header-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #c2410c;
-            margin-top: 0;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px dashed #fed7aa;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            font-size: 17.5px; font-weight: 700; color: #c2410c; margin-top: 0;
+            margin-bottom: 18px; padding-bottom: 10px; border-bottom: 2px dashed #fed7aa;
         }
-
-        .form-group { margin-bottom: 18px; }
-        .form-group label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; color: #44403c; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 5px; color: #44403c; }
         .form-group input, .form-group textarea, .form-group select { 
-            width: 100%; 
-            padding: 12px 14px; 
-            box-sizing: border-box; 
-            border: 1px solid #fed7aa; 
-            border-radius: 10px; 
-            font-size: 15px; 
-            outline: none; 
-            background: #ffffff;
-            font-family: inherit;
-            transition: all 0.2s ease; 
-        }
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { 
-            border-color: var(--primary); 
-            box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.12); 
+            width: 100%; padding: 10px 12px; box-sizing: border-box; border: 1px solid #fed7aa; 
+            border-radius: 9px; font-size: 14.5px; outline: none; background: #ffffff;
         }
 
-        /* 超質感點擊式開關卡片 */
-        .depreciation-toggle-card {
-            background: #ffffff;
-            border: 2px solid #fed7aa;
-            border-radius: 12px;
-            padding: 14px 16px;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            user-select: none;
-        }
-        .depreciation-toggle-card:hover {
-            border-color: var(--primary);
-            background: #fff7ed;
-        }
-        .depreciation-toggle-card.active {
-            border-color: var(--primary);
-            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-            box-shadow: 0 4px 12px rgba(234, 88, 12, 0.12);
-        }
-        .custom-checkbox-circle {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            border: 2px solid #d97706;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-            flex-shrink: 0;
-            background: white;
-        }
-        .depreciation-toggle-card.active .custom-checkbox-circle {
-            background: var(--primary);
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.2);
-        }
-        .custom-checkbox-circle::after {
-            content: '✓';
-            color: white;
-            font-size: 13px;
-            font-weight: bold;
-            display: none;
-        }
-        .depreciation-toggle-card.active .custom-checkbox-circle::after {
-            display: block;
-        }
-
-        /* 質感折舊年限按鈕群組 */
-        .dep-years-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-top: 6px;
-        }
-        @media(min-width: 450px) {
-            .dep-years-grid {
-                grid-template-columns: repeat(4, 1fr);
-            }
-        }
-        .dep-year-btn {
-            background: #ffffff;
-            border: 1px solid #fed7aa;
-            border-radius: 10px;
-            padding: 10px 8px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            color: #78716c;
-            transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .dep-year-btn:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-            background: #fff7ed;
-        }
-        .dep-year-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            box-shadow: 0 4px 8px rgba(234, 88, 12, 0.25);
-        }
-
-        /* 高質感當前已選年限提示膠囊 */
-        .selected-dep-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
-            color: #9a3412;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13.5px;
-            font-weight: 700;
-            border: 1px solid #fdba74;
-            box-shadow: 0 2px 4px rgba(154, 52, 18, 0.06);
-            margin-bottom: 10px;
-        }
-
-        .toast-msg {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            font-size: 14px;
-            font-weight: 600;
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-        .toast-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .toast-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .items-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
-        }
-        @media (min-width: 600px) {
-            .items-grid { grid-template-columns: repeat(2, 1fr); }
-        }
+        .items-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 600px) { .items-grid { grid-template-columns: repeat(2, 1fr); } }
 
         .item-card { 
-            background: var(--card-potato-light); 
-            border: 1px solid #fde68a; 
-            padding: 18px; 
-            border-radius: 14px; 
-            box-shadow: var(--shadow);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            background: var(--card-potato-light); border: 1px solid #fde68a; padding: 16px; 
+            border-radius: 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; justify-content: space-between;
         }
-        .item-card.zebra-alt {
-            background: var(--card-potato-dark); 
-            border-color: #fcd34d;
-        }
-        .item-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-hover);
-            border-color: #f97316;
-        }
-        .item-card h4 { margin: 0 0 8px 0; color: #292524; font-size: 17px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
-        .item-card h4 span { color: #c2410c; font-weight: 700; }
-        .item-card p { margin: 4px 0; font-size: 13.5px; color: var(--text-muted); }
-        .cost-rate, .total-amount-tag { color: #dc2626; font-weight: 700; }
-        
-        .platform-breakeven-box {
-            background: rgba(255, 255, 255, 0.75);
-            border: 1px solid #fed7aa;
-            border-radius: 10px;
-            padding: 10px 12px;
-            margin-top: 8px;
-            font-size: 13px;
-        }
-        .platform-breakeven-box div {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
-        }
-        .platform-breakeven-box div:last-child {
-            margin-bottom: 0;
-        }
+        .item-card h4 { margin: 0 0 6px 0; color: #292524; font-size: 16.5px; display: flex; justify-content: space-between; align-items: center; }
+        .item-card p { margin: 4px 0; font-size: 13px; color: var(--text-muted); }
 
-        .card-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 12px;
-            padding-top: 10px;
-            border-top: 1px dashed #fed7aa;
-        }
-        .card-btn {
-            flex: 1;
-            padding: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-        }
+        .card-actions { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #fed7aa; }
+        .card-btn { flex: 1; padding: 7px; font-size: 12.5px; font-weight: 600; border-radius: 7px; border: none; cursor: pointer; }
         .edit-btn { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
-        .edit-btn:hover { background: #dbeafe; }
         .delete-btn { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-        .delete-btn:hover { background: #fee2e2; }
-
-        .item-card.confirm-delete-state {
-            background: #fff5f5 !important;
-            border-color: #fecaca;
-        }
-
-        .price-alert-card {
-            border: 2px solid #dc2626 !important;
-            background: #fff5f5 !important;
-        }
 
         .profit-card {
             background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-            border: 1px solid #fed7aa;
-            border-radius: 16px;
-            padding: 22px;
-            box-shadow: var(--shadow);
-            margin-bottom: 22px;
+            border: 1px solid #fed7aa; border-radius: 16px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 20px;
         }
-        .profit-grid-settings {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 10px;
-            font-size: 14px;
-            margin-bottom: 16px;
-        }
-        @media(min-width: 550px) {
-            .profit-grid-settings {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px 18px;
-            }
-        }
-        .profit-grid-settings div {
-            background: rgba(255, 255, 255, 0.6);
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid #fed7aa;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .profit-grid-settings { display: grid; grid-template-columns: 1fr; gap: 8px; font-size: 13.5px; margin-bottom: 14px; }
+        @media(min-width: 550px) { .profit-grid-settings { grid-template-columns: repeat(2, 1fr); gap: 10px 14px; } }
+        .profit-grid-settings div { background: rgba(255, 255, 255, 0.7); padding: 8px 11px; border-radius: 8px; border: 1px solid #fed7aa; display: flex; justify-content: space-between; }
         .profit-grid-settings div b { color: #9a3412; }
 
-        .profit-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px dashed #fed7aa;
-            font-size: 15px;
-        }
-        .profit-row:last-child { border-bottom: none; }
-        .profit-row.total-row {
-            font-size: 18px;
-            font-weight: 800;
-            color: #9a3412;
-            margin-top: 8px;
-            padding-top: 16px;
-            border-top: 2px solid #f97316;
-            border-bottom: none;
-        }
+        .profit-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #fed7aa; font-size: 14.5px; }
+        .profit-row.total-row { font-size: 17px; font-weight: 800; color: #9a3412; margin-top: 6px; padding-top: 14px; border-top: 2px solid #f97316; }
 
-        /* 滾輪式與點擊式選擇器彈窗 */
+        /* 彈窗 */
         .picker-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            animation: fadeIn 0.2s ease;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.45); display: flex; justify-content: center; align-items: center; z-index: 1000;
         }
         .picker-modal {
-            background: white;
-            padding: 24px;
-            border-radius: 20px;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
-            width: 340px;
-            text-align: center;
-            border: 1px solid #fed7aa;
+            background: white; padding: 22px; border-radius: 18px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); width: 340px; text-align: center;
         }
-        .picker-modal h4 {
-            margin: 0 0 16px 0;
-            color: #c2410c;
-            font-size: 17px;
-        }
-        .picker-wheels-container {
-            display: flex;
-            justify-content: space-between;
-            gap: 8px;
-            margin-bottom: 20px;
-            height: 140px;
-            position: relative;
-        }
-        .picker-wheels-container::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            width: 100%;
-            height: 45px;
-            transform: translateY(-50%);
-            border-top: 2px solid var(--primary);
-            border-bottom: 2px solid var(--primary);
-            background: rgba(234, 88, 12, 0.05);
-            pointer-events: none;
-            box-sizing: border-box;
-            z-index: 2;
-        }
-        .wheel-column {
-            flex: 1;
-            height: 100%;
-            overflow-y: scroll;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            scroll-snap-type: y mandatory;
-            padding: 47.5px 0;
-            box-sizing: border-box;
-            position: relative;
-            z-index: 1;
-        }
-        .wheel-column::-webkit-scrollbar { display: none; }
-        .wheel-item {
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 15px;
-            font-weight: 600;
-            color: #78716c;
-            cursor: pointer;
-            scroll-snap-align: center;
-            transition: color 0.2s, font-size 0.2s;
-            box-sizing: border-box;
-            padding: 0 4px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .wheel-item.selected {
-            color: #c2410c;
-            font-size: 17px;
-            font-weight: 700;
-        }
-        .picker-btn-group {
-            display: flex;
-            gap: 10px;
-        }
-        .picker-btn {
-            flex: 1;
-            padding: 10px;
-            border-radius: 10px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 14px;
-        }
+        .picker-btn-group { display: flex; gap: 10px; margin-top: 14px; }
+        .picker-btn { flex: 1; padding: 9px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 13.5px; }
         .picker-confirm { background: var(--primary); color: white; }
-        .picker-confirm:hover { background: var(--primary-hover); }
         .picker-cancel { background: #e2e8f0; color: #334155; }
-        .picker-cancel:hover { background: #cbd5e1; }
+
+        /* 菜單範本樣式 */
+        .menu-template-container {
+            width: 100%; max-width: 600px; margin: 0 auto; background-color: #fdfaf3;
+            padding: 20px; box-sizing: border-box; border: 2px solid #fdba74; border-radius: 16px;
+            font-family: "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif; color: #333;
+        }
+        .menu-items-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 16px; margin-bottom: 20px; }
+        .menu-item { display: flex; justify-content: space-between; font-size: 15px; font-weight: 500; }
+        .item-name { letter-spacing: 1px; }
+        .item-price { font-weight: 600; }
+        .template-bottom-bar {
+            border-top: 2px dashed #fed7aa; padding-top: 15px; display: flex;
+            justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;
+        }
+        .logo-section { display: flex; align-items: center; gap: 10px; }
+        .store-name-block h2 { margin: 0; font-size: 24px; color: #333; letter-spacing: 2px; }
+        .store-name-block h3 { margin: -2px 0 0 0; font-size: 18px; color: #333; letter-spacing: 4px; font-weight: 500; }
+        .info-section { font-size: 11.5px; text-align: right; line-height: 1.4; color: #444; }
+        .qrcode-section { display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end; }
+        .qrcode-box { width: 48px; height: 48px; background: white; padding: 2px; border: 1px solid #fed7aa; border-radius: 6px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div class="container" id="app-root">
+        <!-- 頂部管理員權限控制列 -->
+        <div class="admin-bar">
+            <div class="admin-status">
+                <span>權限狀態：</span>
+                <span id="role-badge" class="status-badge badge-guest">👀 訪客模式 (僅檢視)</span>
+            </div>
+            <button id="admin-auth-btn" class="clear-search-btn" onclick="handleAuthClick()">🔑 管理員登入</button>
+        </div>
+
         <!-- 首頁主選單 -->
         <div id="home-view">
             <div class="header">
@@ -690,6 +306,14 @@
                     <div class="menu-card-content">
                         <h3>📊 販售品項成本表</h3>
                         <span>品項名稱、單價、成本、售價、成本率</span>
+                    </div>
+                    <div class="arrow">›</div>
+                </div>
+
+                <div class="menu-card menu-gen-card" onclick="openPage('menu_gen')">
+                    <div class="menu-card-content">
+                        <h3>📄 菜單與 QR Code 生成</h3>
+                        <span>根據成本表自動排版產出菜單畫面</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
@@ -721,7 +345,7 @@
                 <div class="menu-card" onclick="openPage('profit')">
                     <div class="menu-card-content">
                         <h3>📈 每月損益總表與回本試算</h3>
-                        <span>固定支出、營業額、每日回本目標與淨利結算</span>
+                        <span>固定支出、水電分算、外送抽成與日回本試算</span>
                     </div>
                     <div class="arrow">›</div>
                 </div>
@@ -755,19 +379,67 @@
         const supabaseKey = rawKey.replace(/[^\x20-\x7E]/g, '').trim();
         
         let _supabase;
+        let isAdmin = false; 
+        const ADMIN_PIN = "8888"; 
+
         let globalProductsData = [];
         let globalMaterialsData = [];
         let globalPurchasesData = [];
         let globalExpensesData = [];
         let globalRevenuesData = [];
         let globalRecipesData = [];
-        let globalSettingsData = [];
+        let currentProfitMonth = getCurrentYearMonth();
         let currentPage = '';
 
         try {
             _supabase = supabase.createClient(supabaseUrl.trim(), supabaseKey);
         } catch (e) {
             alert('Supabase 初始化失敗：' + e.message);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('bbq_admin_authed') === 'true') {
+                setAdminRole(true);
+            } else {
+                setAdminRole(false);
+            }
+        });
+
+        function setAdminRole(status) {
+            isAdmin = status;
+            const root = document.getElementById('app-root');
+            const badge = document.getElementById('role-badge');
+            const btn = document.getElementById('admin-auth-btn');
+            if (isAdmin) {
+                root.classList.add('is-admin');
+                badge.className = 'status-badge badge-admin';
+                badge.innerText = '🔓 管理員模式 (完整可修改)';
+                btn.innerText = '🚪 登出權限';
+            } else {
+                root.classList.remove('is-admin');
+                badge.className = 'status-badge badge-guest';
+                badge.innerText = '👀 訪客模式 (僅供檢視)';
+                btn.innerText = '🔑 管理員登入';
+            }
+        }
+
+        function handleAuthClick() {
+            if (isAdmin) {
+                localStorage.removeItem('bbq_admin_authed');
+                setAdminRole(false);
+                alert('已切換為唯讀訪客模式。');
+                openPage(currentPage || 'products');
+            } else {
+                let pin = prompt('請輸入管理員解鎖密碼：');
+                if (pin === ADMIN_PIN) {
+                    localStorage.setItem('bbq_admin_authed', 'true');
+                    setAdminRole(true);
+                    alert('解鎖成功！');
+                    openPage(currentPage || 'products');
+                } else if (pin !== null) {
+                    alert('密碼錯誤！');
+                }
+            }
         }
 
         function openPage(pageName) {
@@ -781,23 +453,26 @@
 
             if (pageName === 'recipes') {
                 titleEl.innerText = '配方與過程表 (SOP)';
-                actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddRecipeForm()">＋ 新增配方/過程</button>`;
+                actionContainer.innerHTML = `<button class="action-btn admin-only" onclick="renderAddRecipeForm()">＋ 新增配方/過程</button>`;
                 renderRecipesList();
             } else if (pageName === 'products') {
                 titleEl.innerText = '販售品項成本表';
-                actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddProductForm()">＋ 新增品項</button>`;
+                actionContainer.innerHTML = `<button class="action-btn admin-only" onclick="renderAddProductForm()">＋ 新增品項</button>`;
                 renderProductsList();
+            } else if (pageName === 'menu_gen') {
+                titleEl.innerText = '菜單與 QR Code 自動生成';
+                renderPublicMenuGenView();
             } else if (pageName === 'materials') {
                 titleEl.innerText = '原物料與耗材價格表';
-                actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddMaterialForm()">＋ 新增原物料</button>`;
+                actionContainer.innerHTML = `<button class="action-btn admin-only" onclick="renderAddMaterialForm()">＋ 新增原物料</button>`;
                 renderMaterialsList();
             } else if (pageName === 'purchases') {
                 titleEl.innerText = '每日叫貨記錄表';
-                actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddPurchaseForm()">＋ 新增叫貨紀錄</button>`;
+                actionContainer.innerHTML = `<button class="action-btn admin-only" onclick="renderAddPurchaseForm()">＋ 新增叫貨紀錄</button>`;
                 renderPurchasesList();
             } else if (pageName === 'expenses') {
                 titleEl.innerText = '店內支出記錄表';
-                actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddExpenseForm()">＋ 新增支出</button>`;
+                actionContainer.innerHTML = `<button class="action-btn admin-only" onclick="renderAddExpenseForm()">＋ 新增支出</button>`;
                 renderExpensesList();
             } else if (pageName === 'profit') {
                 titleEl.innerText = '每月損益總表與回本試算';
@@ -816,17 +491,6 @@
             document.getElementById('home-view').style.display = 'block';
         }
 
-        function getDetailedTimestamp() {
-            const now = new Date();
-            const y = now.getFullYear();
-            const m = String(now.getMonth() + 1).padStart(2, '0');
-            const d = String(now.getDate()).padStart(2, '0');
-            const h = String(now.getHours()).padStart(2, '0');
-            const min = String(now.getMinutes()).padStart(2, '0');
-            const s = String(now.getSeconds()).padStart(2, '0');
-            return `${y}-${m}-${d} ${h}:${min}:${s}`;
-        }
-
         function getCurrentYearMonth() {
             const now = new Date();
             const y = now.getFullYear();
@@ -834,1607 +498,506 @@
             return `${y}-${m}`;
         }
 
+        // ==================== 分月獨立設定參數取得 ====================
+        async function getMonthSettings(monthStr) {
+            let { data } = await _supabase.from('settings').select('*').eq('month', monthStr).single();
+            if (data && data.settings_json) {
+                return data.settings_json;
+            }
+            // 預設範本資料（符合您的樣本數據）
+            return {
+                workingDays: 26,
+                rent: 33000,
+                electricityCost: 4870,  // 電費獨立
+                waterCost: 220,         // 水費獨立
+                fullTimeStaff: 62000,   // 正職薪水
+                partTimeStaff: 10000,   // 工讀生薪水
+                gas: 1650,              // 瓦斯
+                oil: 5700,              // 炸油
+                charcoal: 1100,         // 木炭
+                ubereatsAdDaily: 256,   // UE 廣告費/天
+                foodpandaAdMonthly: 1400, // FP 廣告費/月
+                ubereatsCommissionRate: 35, // 抽成 (8/1起 35%)
+                foodpandaCommissionRate: 33,
+                initialCapital: 2000000
+            };
+        }
 
-        // ==================== 配方與過程表邏輯 ====================
+        // ==================== 模組 1：配方與過程表 ====================
         async function renderRecipesList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取配方資料中...</p>';
             let { data, error } = await _supabase.from('recipes').select('*').order('id', { ascending: false });
-            if (error) {
-                contentEl.innerHTML = `<p style="color:red; text-align:center; padding:20px;">載入失敗：<br>${error.message}</p>`;
-                return;
-            }
+            if (error) { contentEl.innerHTML = `<p style="color:red; text-align:center;">載入失敗：${error.message}</p>`; return; }
             globalRecipesData = data || [];
             
             contentEl.innerHTML = `
                 <div class="controls-bar">
-                    <div class="stats-info"><span id="recipe-count-label">共 <b>${globalRecipesData.length}</b> 筆配方與過程表</span></div>
-                    <div class="search-sort-group">
-                        <input type="text" id="recipe-search-input" class="search-input" placeholder="🔍 搜尋名稱、分類..." oninput="filterRecipesCards()">
-                        <button class="clear-search-btn" onclick="clearRecipeSearch()">❌ 清除</button>
-                    </div>
+                    <div class="stats-info"><span>共 <b>${globalRecipesData.length}</b> 筆配方與過程表</span></div>
                 </div>
                 <div id="recipes-cards-container" class="items-grid"></div>
             `;
-            filterRecipesCards();
-        }
-
-        function filterRecipesCards() {
-            const searchInputEl = document.getElementById('recipe-search-input');
-            const containerEl = document.getElementById('recipes-cards-container');
-            const countLabelEl = document.getElementById('recipe-count-label');
-            if (!searchInputEl || !containerEl) return;
-            const searchQuery = searchInputEl.value.trim().toLowerCase();
-
-            let filteredData = globalRecipesData.filter(item => {
-                if (!searchQuery) return true;
-                return (item.name && item.name.toLowerCase().includes(searchQuery)) ||
-                       (item.category && item.category.toLowerCase().includes(searchQuery)) ||
-                       (item.ingredients && item.ingredients.toLowerCase().includes(searchQuery));
-            });
-
-            if (countLabelEl) countLabelEl.innerHTML = `共 <b>${filteredData.length}</b> 筆配方與過程表`;
-
+            
             let html = '';
-            if (filteredData.length > 0) {
-                filteredData.forEach((item, index) => {
-                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    html += `
-                        <div class="item-card ${zebraClass}" id="recipe-card-${item.id}">
-                            <div class="card-main-info">
-                                <h4>${item.name} <span>[${item.category || '一般'}]</span></h4>
-                                <p><b>📋 配方材料：</b><br><span style="white-space: pre-line; color: #44403c;">${item.ingredients || '無'}</span></p>
-                                <p style="margin-top:8px;"><b>🍳 製作過程與步驟：</b><br><span style="white-space: pre-line; color: #44403c;">${item.steps || '無'}</span></p>
-                                <p style="margin-top:8px;"><b>備註：</b>${item.note || '無'}</p>
-                            </div>
-                            <div class="card-actions" id="recipe-actions-${item.id}">
-                                <button class="card-btn edit-btn" onclick="renderEditRecipeForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirmRecipe(${item.id})">🗑️ 刪除</button>
-                            </div>
+            globalRecipesData.forEach(item => {
+                html += `
+                    <div class="item-card">
+                        <div>
+                            <h4>${item.name} <span>[${item.category || '一般'}]</span></h4>
+                            <p><b>📋 配方材料：</b><br>${item.ingredients || '無'}</p>
+                            <p style="margin-top:6px;"><b>🍳 製作步驟：</b><br>${item.steps || '無'}</p>
                         </div>
-                    `;
-                });
-            } else {
-                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0; grid-column: 1 / -1;">沒有找到符合的配方紀錄。</p>';
-            }
-            containerEl.innerHTML = html;
-        }
-
-        function clearRecipeSearch() {
-            const input = document.getElementById('recipe-search-input');
-            if (input) input.value = '';
-            filterRecipesCards();
-        }
-
-        function showDeleteConfirmRecipe(id) {
-            const cardEl = document.getElementById(`recipe-card-${id}`);
-            const actionsEl = document.getElementById(`recipe-actions-${id}`);
-            cardEl.classList.add('confirm-delete-state');
-            actionsEl.innerHTML = `
-                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
-                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deleteRecipe(${id})">確定</button>
-                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="filterRecipesCards()">取消</button>
-            `;
+                        <div class="card-actions admin-only">
+                            <button class="card-btn delete-btn" onclick="deleteRecipe(${item.id})">🗑️ 刪除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('recipes-cards-container').innerHTML = html;
         }
 
         function renderAddRecipeForm() {
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '新增配方與過程表';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('recipes')">← 回列表</button>`;
-            contentEl.innerHTML = `
-                <div class="form-card-container" style="max-width: 600px;">
-                    <h3 class="form-header-title">📖 建立新配方與SOP步驟</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group"><label>品項名稱 (例如: 招牌烤肉醬、炸雞腿醃料)</label><input type="text" id="rec-name" placeholder="請輸入品項名稱"></div>
-                    <div class="form-group">
-                        <label>分類</label>
-                        <select id="rec-category">
-                            <option value="醬料">醬料</option>
-                            <option value="醃料">醃料</option>
-                            <option value="炸物">炸物 (如炸雞腿)</option>
-                            <option value="飲料">飲料</option>
-                            <option value="其他">其他</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label>配方材料清單 (可多行)</label><textarea id="rec-ingredients" rows="4" placeholder="例如: 醬油 500cc、糖 200g..."></textarea></div>
-                    <div class="form-group"><label>製作過程與步驟 (可多行)</label><textarea id="rec-steps" rows="6" placeholder="1. 將水煮滾...&#10;2. 加入調味料攪拌..."></textarea></div>
-                    <div class="form-group"><label>備註</label><input type="text" id="rec-note" placeholder="例如: 需冷藏保存、小火慢熬"></div>
-                    <button id="submit-rec-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addRecipe()">確認儲存配方</button>
+            if (!isAdmin) return;
+            document.getElementById('page-title').innerText = '新增配方/過程';
+            document.getElementById('page-content').innerHTML = `
+                <div class="form-card-container">
+                    <h3 class="form-header-title">✨ 建立新配方</h3>
+                    <div class="form-group"><label>品名/標題</label><input type="text" id="recipe-name"></div>
+                    <div class="form-group"><label>分類</label><input type="text" id="recipe-cat" placeholder="例如: 醬料 / 炸物"></div>
+                    <div class="form-group"><label>配方材料</label><textarea id="recipe-ing" rows="3"></textarea></div>
+                    <div class="form-group"><label>製作步驟</label><textarea id="recipe-steps" rows="4"></textarea></div>
+                    <button class="action-btn" style="width:100%;" onclick="saveRecipe()">確認儲存</button>
                 </div>
             `;
         }
 
-        async function addRecipe() {
-            const name = document.getElementById('rec-name').value.trim();
-            const category = document.getElementById('rec-category').value;
-            const ingredients = document.getElementById('rec-ingredients').value.trim();
-            const steps = document.getElementById('rec-steps').value.trim();
-            const note = document.getElementById('rec-note').value.trim();
-            const toast = document.getElementById('form-toast');
-            const submitBtn = document.getElementById('submit-rec-btn');
-
-            if (!name) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請輸入品項名稱！'; toast.style.display = 'block'; return; }
-
-            submitBtn.disabled = true; submitBtn.innerText = '儲存中...';
-            const { error } = await _supabase.from('recipes').insert([{ name, category, ingredients, steps, note }]);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存配方'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 新增成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('recipes'), 1000); }
-        }
-
-        function renderEditRecipeForm(id) {
-            const item = globalRecipesData.find(r => r.id === id);
-            if (!item) return;
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '修改配方與過程表';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('recipes')">← 回列表</button>`;
-            contentEl.innerHTML = `
-                <div class="form-card-container" style="max-width: 600px;">
-                    <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group"><label>品項名稱</label><input type="text" id="edit-rec-name" value="${item.name}"></div>
-                    <div class="form-group">
-                        <label>分類</label>
-                        <select id="edit-rec-category">
-                            <option value="醬料" ${item.category==='醬料'?'selected':''}>醬料</option>
-                            <option value="醃料" ${item.category==='醃料'?'selected':''}>醃料</option>
-                            <option value="炸物" ${item.category==='炸物'?'selected':''}>炸物 (如炸雞腿)</option>
-                            <option value="飲料" ${item.category==='飲料'?'selected':''}>飲料</option>
-                            <option value="其他" ${item.category==='其他'?'selected':''}>其他</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label>配方材料清單</label><textarea id="edit-rec-ingredients" rows="4">${item.ingredients || ''}</textarea></div>
-                    <div class="form-group"><label>製作過程與步驟</label><textarea id="edit-rec-steps" rows="6">${item.steps || ''}</textarea></div>
-                    <div class="form-group"><label>備註</label><input type="text" id="edit-rec-note" value="${item.note || ''}"></div>
-                    <button id="update-rec-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateRecipe(${item.id})">確認更新變更</button>
-                </div>
-            `;
-        }
-
-        async function updateRecipe(id) {
-            const name = document.getElementById('edit-rec-name').value.trim();
-            const category = document.getElementById('edit-rec-category').value;
-            const ingredients = document.getElementById('edit-rec-ingredients').value.trim();
-            const steps = document.getElementById('edit-rec-steps').value.trim();
-            const note = document.getElementById('edit-rec-note').value.trim();
-            const toast = document.getElementById('form-toast');
-            const updateBtn = document.getElementById('update-rec-btn');
-
-            if (!name) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請輸入品項名稱！'; toast.style.display = 'block'; return; }
-
-            updateBtn.disabled = true; updateBtn.innerText = '更新中...';
-            const { error } = await _supabase.from('recipes').update({ name, category, ingredients, steps, note }).eq('id', id);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 更新失敗：' + error.message; toast.style.display = 'block'; updateBtn.disabled = false; updateBtn.innerText = '確認更新變更'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 修改成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('recipes'), 1000); }
+        async function saveRecipe() {
+            if (!isAdmin) return;
+            let name = document.getElementById('recipe-name').value;
+            let category = document.getElementById('recipe-cat').value;
+            let ingredients = document.getElementById('recipe-ing').value;
+            let steps = document.getElementById('recipe-steps').value;
+            let { error } = await _supabase.from('recipes').insert([{ name, category, ingredients, steps }]);
+            if (error) alert('儲存失敗：' + error.message);
+            else openPage('recipes');
         }
 
         async function deleteRecipe(id) {
-            const { error } = await _supabase.from('recipes').delete().eq('id', id);
-            if (error) alert('刪除失敗：' + error.message);
-            else renderRecipesList();
+            if (!isAdmin) return;
+            if (!confirm('確定刪除？')) return;
+            await _supabase.from('recipes').delete().eq('id', id);
+            renderRecipesList();
         }
 
-
-        // ==================== 販售品項邏輯 ====================
+        // ==================== 模組 2：販售品項成本表 ====================
         async function renderProductsList() {
             const contentEl = document.getElementById('page-content');
-            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取品項資料中...</p>';
-            let { data, error } = await _supabase.from('products').select('*').order('id', { ascending: false });
-            if (error) { contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>'; return; }
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取品項中...</p>';
+            let { data } = await _supabase.from('products').select('*').order('id', { ascending: true });
             globalProductsData = data || [];
             
             contentEl.innerHTML = `
                 <div class="controls-bar">
-                    <div class="stats-info"><span id="product-stats-label">載入中...</span></div>
-                    <div class="search-sort-group">
-                        <input type="text" id="product-search-input" class="search-input" placeholder="🔍 搜尋商品名稱..." oninput="filterProductsCards()">
-                        <select id="product-sort-select" class="filter-select" onchange="filterProductsCards()">
-                            <option value="price-asc">售價：由低到高 ↗</option>
-                            <option value="price-desc">售價：由高到低 ↘</option>
-                            <option value="cost-rate-asc">成本率：由低到高 ↗</option>
-                            <option value="cost-rate-desc">成本率：由高到低 ↘</option>
-                        </select>
-                    </div>
+                    <div class="stats-info"><span>共 <b>${globalProductsData.length}</b> 項商品</span></div>
                 </div>
                 <div id="products-cards-container" class="items-grid"></div>
             `;
-            filterProductsCards();
-        }
-
-        function calculateCostRate(item) {
-            if (!item.price || item.price <= 0) return 0;
-            return (item.package_cost / item.price) * 100;
-        }
-
-        function filterProductsCards() {
-            const searchInputEl = document.getElementById('product-search-input');
-            const sortSelectEl = document.getElementById('product-sort-select');
-            const containerEl = document.getElementById('products-cards-container');
-            const statsLabelEl = document.getElementById('product-stats-label');
-            if (!containerEl) return;
-
-            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
-            const sortOrder = sortSelectEl ? sortSelectEl.value : 'price-asc';
-
-            let filteredData = globalProductsData.filter(item => {
-                if (!searchQuery) return true;
-                return (item.name && item.name.toLowerCase().includes(searchQuery)) || (item.note && item.note.toLowerCase().includes(searchQuery));
-            });
-
-            if (sortOrder === 'price-asc') filteredData.sort((a, b) => (a.price || 0) - (b.price || 0));
-            else if (sortOrder === 'price-desc') filteredData.sort((a, b) => (b.price || 0) - (a.price || 0));
-            else if (sortOrder === 'cost-rate-asc') filteredData.sort((a, b) => calculateCostRate(a) - calculateCostRate(b));
-            else if (sortOrder === 'cost-rate-desc') filteredData.sort((a, b) => calculateCostRate(b) - calculateCostRate(a));
-
-            let totalCostRate = 0;
-            if (filteredData.length > 0) {
-                totalCostRate = (filteredData.reduce((acc, item) => acc + calculateCostRate(item), 0) / filteredData.length).toFixed(1);
-            }
-
-            if (statsLabelEl) {
-                statsLabelEl.innerHTML = `共 <b>${filteredData.length}</b> 項 &nbsp;|&nbsp; 平均成本率：<b>${totalCostRate}%</b>`;
-            }
-
+            
             let html = '';
-            if (filteredData.length > 0) {
-                filteredData.forEach((item, index) => {
-                    let costRate = calculateCostRate(item).toFixed(1);
-                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    
-                    // 以「現場售價」推算平台應賣多少錢才能維持同等毛利 (四捨五入)
-                    let currentPrice = parseFloat(item.price) || 0;
-                    let ubereatsTargetPrice = Math.round(currentPrice / 0.65);
-                    let foodpandaTargetPrice = Math.round(currentPrice / 0.67);
-
-                    html += `
-                        <div class="item-card ${zebraClass}" id="card-${item.id}">
-                            <div class="card-main-info">
-                                <h4>${item.name} <span>現場售價：$${item.price} 元</span></h4>
-                                <p><b>食材單價：</b>$${item.ingredient_cost}</p>
-                                <p><b>總成本：</b>$${item.package_cost} &nbsp;|&nbsp; <span class="cost-rate">成本率：${costRate}%</span></p>
-                                <div class="platform-breakeven-box">
-                                    <div>
-                                        <span style="color:#059669; font-weight:700;">Ubereats 建議售價 (抽35%)：</span>
-                                        <b style="color:#059669; font-size:14px;">$${ubereatsTargetPrice} 元</b>
-                                    </div>
-                                    <div>
-                                        <span style="color:#d97706; font-weight:700;">foodpanda 建議售價 (抽33%)：</span>
-                                        <b style="color:#d97706; font-size:14px;">$${foodpandaTargetPrice} 元</b>
-                                    </div>
-                                </div>
-                                <p style="margin-top:6px;"><b>備註：</b>${item.note || '無'}</p>
-                            </div>
-                            <div class="card-actions" id="actions-${item.id}">
-                                <button class="card-btn edit-btn" onclick="renderEditProductForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirmProduct(${item.id})">🗑️ 刪除</button>
-                            </div>
+            globalProductsData.forEach(item => {
+                html += `
+                    <div class="item-card">
+                        <div>
+                            <h4>${item.name} <span>售價：$${item.price}</span></h4>
+                            <p><b>總成本：</b>$${item.package_cost}</p>
                         </div>
-                    `;
-                });
-            } else {
-                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0; grid-column: 1 / -1;">沒有找到符合條件的品項紀錄。</p>';
-            }
-            containerEl.innerHTML = html;
-        }
-
-        function showDeleteConfirmProduct(id) {
-            const cardEl = document.getElementById(`card-${id}`);
-            const actionsEl = document.getElementById(`actions-${id}`);
-            cardEl.classList.add('confirm-delete-state');
-            actionsEl.innerHTML = `
-                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
-                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deleteProduct(${id})">確定</button>
-                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="filterProductsCards()">取消</button>
-            `;
+                        <div class="card-actions admin-only">
+                            <button class="card-btn delete-btn" onclick="deleteProduct(${item.id})">🗑️ 刪除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('products-cards-container').innerHTML = html;
         }
 
         function renderAddProductForm() {
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '新增販售品項';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('products')">← 回列表</button>`;
-            contentEl.innerHTML = `
+            if (!isAdmin) return;
+            document.getElementById('page-title').innerText = '新增販售品項';
+            document.getElementById('page-content').innerHTML = `
                 <div class="form-card-container">
-                    <h3 class="form-header-title">✨ 建立新碳烤品項資料</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group"><label>品項名稱</label><input type="text" id="prod-name" placeholder="例如: 茄子、豆干"></div>
-                    <div class="form-group"><label>單價</label><input type="number" step="0.01" id="prod-unit-price" placeholder="請輸入數字"></div>
-                    <div class="form-group"><label>總成本 (食材+包材)</label><input type="number" step="0.01" id="prod-cost" placeholder="請輸入數字"></div>
-                    <div class="form-group"><label>售價</label><input type="number" step="0.01" id="prod-price" placeholder="請輸入數字"></div>
-                    <div class="form-group"><label>備註</label><input type="text" id="prod-note" placeholder="例如: 8吋竹籤"></div>
-                    <button id="submit-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addProduct()">確認儲存品項</button>
+                    <h3 class="form-header-title">✨ 建立新品項</h3>
+                    <div class="form-group"><label>品項名稱</label><input type="text" id="prod-name"></div>
+                    <div class="form-group"><label>售價</label><input type="text" id="prod-price"></div>
+                    <div class="form-group"><label>食材與包裝總成本</label><input type="number" id="prod-cost"></div>
+                    <button class="action-btn" style="width:100%;" onclick="addProduct()">確認儲存</button>
                 </div>
             `;
         }
 
         async function addProduct() {
-            const name = document.getElementById('prod-name').value.trim();
-            const ingredient_cost = parseFloat(document.getElementById('prod-unit-price').value) || 0;
-            const package_cost = parseFloat(document.getElementById('prod-cost').value) || 0;
-            const price = parseFloat(document.getElementById('prod-price').value) || 0;
-            const note = document.getElementById('prod-note').value;
-            const toast = document.getElementById('form-toast');
-            const submitBtn = document.getElementById('submit-btn');
-
-            if (!name) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請輸入品項名稱！'; toast.style.display = 'block'; return; }
-            if (globalProductsData.some(item => item.name === name)) { toast.className = 'toast-msg toast-error'; toast.innerText = `⚠️ 已經有「${name}」這個品項了！`; toast.style.display = 'block'; return; }
-
-            submitBtn.disabled = true; submitBtn.innerText = '儲存中...';
-            const { error } = await _supabase.from('products').insert([{ name, ingredient_cost, package_cost, price, note }]);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存品項'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 新增成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('products'), 1000); }
-        }
-
-        function renderEditProductForm(id) {
-            const item = globalProductsData.find(p => p.id === id);
-            if (!item) return;
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '修改品項資料';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('products')">← 回列表</button>`;
-            contentEl.innerHTML = `
-                <div class="form-card-container">
-                    <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group"><label>品項名稱</label><input type="text" id="edit-name" value="${item.name}"></div>
-                    <div class="form-group"><label>單價</label><input type="number" step="0.01" id="edit-unit-price" value="${item.ingredient_cost}"></div>
-                    <div class="form-group"><label>總成本 (食材+包材)</label><input type="number" step="0.01" id="edit-cost" value="${item.package_cost}"></div>
-                    <div class="form-group"><label>售價</label><input type="number" step="0.01" id="edit-price" value="${item.price}"></div>
-                    <div class="form-group"><label>備註</label><input type="text" id="edit-note" value="${item.note || ''}"></div>
-                    <button id="update-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateProduct(${item.id})">確認更新變更</button>
-                </div>
-            `;
-        }
-
-        async function updateProduct(id) {
-            const name = document.getElementById('edit-name').value.trim();
-            const ingredient_cost = parseFloat(document.getElementById('edit-unit-price').value) || 0;
-            const package_cost = parseFloat(document.getElementById('edit-cost').value) || 0;
-            const price = parseFloat(document.getElementById('edit-price').value) || 0;
-            const note = document.getElementById('edit-note').value;
-            const toast = document.getElementById('form-toast');
-            const updateBtn = document.getElementById('update-btn');
-
-            if (!name) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請輸入品項名稱！'; toast.style.display = 'block'; return; }
-            if (globalProductsData.some(item => item.name === name && item.id !== id)) { toast.className = 'toast-msg toast-error'; toast.innerText = `⚠️ 已經有其他品項叫「${name}」了！`; toast.style.display = 'block'; return; }
-
-            updateBtn.disabled = true; updateBtn.innerText = '更新中...';
-            const { error } = await _supabase.from('products').update({ name, ingredient_cost, package_cost, price, note }).eq('id', id);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 更新失敗：' + error.message; toast.style.display = 'block'; updateBtn.disabled = false; updateBtn.innerText = '確認更新變更'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 修改成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('products'), 1000); }
+            if (!isAdmin) return;
+            let name = document.getElementById('prod-name').value;
+            let priceInput = document.getElementById('prod-price').value;
+            let price = isNaN(priceInput) ? priceInput : parseFloat(priceInput);
+            let package_cost = parseFloat(document.getElementById('prod-cost').value) || 0;
+            let { error } = await _supabase.from('products').insert([{ name, price, package_cost }]);
+            if (error) alert('失敗：' + error.message);
+            else openPage('products');
         }
 
         async function deleteProduct(id) {
-            const { error } = await _supabase.from('products').delete().eq('id', id);
-            if (error) alert('刪除失敗：' + error.message);
-            else renderProductsList();
+            if (!isAdmin) return;
+            if (!confirm('確定刪除？')) return;
+            await _supabase.from('products').delete().eq('id', id);
+            renderProductsList();
         }
 
-
-        // ==================== 原物料與耗材價格表邏輯 ====================
-        async function renderMaterialsList() {
+        // ==================== 菜單與 QR Code 自動生成 ====================
+        async function renderPublicMenuGenView() {
             const contentEl = document.getElementById('page-content');
-            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取原物料資料中...</p>';
-            let { data, error } = await _supabase.from('materials').select('*').order('updated_at', { ascending: false });
-            if (error) { contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>'; return; }
-            globalMaterialsData = data || [];
-            contentEl.innerHTML = `
-                <div class="controls-bar">
-                    <div class="stats-info"><span id="material-count-label">共 <b>${globalMaterialsData.length}</b> 筆原物料/耗材</span></div>
-                    <div class="search-sort-group"><input type="text" id="material-search-input" class="search-input" placeholder="🔍 搜尋原物料、規格..." oninput="filterMaterialsCards()"></div>
-                </div>
-                <div id="materials-cards-container" class="items-grid"></div>
-            `;
-            filterMaterialsCards();
-        }
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">產生菜單中...</p>';
 
-        function filterMaterialsCards() {
-            const searchInputEl = document.getElementById('material-search-input');
-            const containerEl = document.getElementById('materials-cards-container');
-            const countLabelEl = document.getElementById('material-count-label');
-            if (!searchInputEl || !containerEl) return;
-            const searchQuery = searchInputEl.value.trim().toLowerCase();
+            let { data: products } = await _supabase.from('products').select('*').order('id', { ascending: true });
+            products = products || [];
 
-            let filteredData = globalMaterialsData.filter(item => {
-                if (!searchQuery) return true;
-                return (item.name && item.name.toLowerCase().includes(searchQuery)) ||
-                       (item.spec && item.spec.toLowerCase().includes(searchQuery)) ||
-                       (item.vendor && item.vendor.toLowerCase().includes(searchQuery));
+            let itemsHtml = '';
+            products.forEach(item => {
+                itemsHtml += `
+                    <div class="menu-item">
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-price">${item.price}</span>
+                    </div>
+                `;
             });
 
-            if (countLabelEl) countLabelEl.innerHTML = `共 <b>${filteredData.length}</b> 筆原物料/耗材`;
-
-            let html = '';
-            if (filteredData.length > 0) {
-                filteredData.forEach((item, index) => {
-                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    html += `
-                        <div class="item-card ${zebraClass}" id="material-card-${item.id}">
-                            <div class="card-main-info">
-                                <h4>${item.name} <span>$${item.unit_price} 元</span></h4>
-                                <p><b>規格/單位：</b>${item.spec || '無'}</p>
-                                <p><b>合作廠商：</b>${item.vendor || '未設定'}</p>
-                                <p><b>最後更新：</b>${item.updated_at || '無'}</p>
-                            </div>
-                            <div class="card-actions" id="material-actions-${item.id}">
-                                <button class="card-btn edit-btn" onclick="renderEditMaterialForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirmMaterial(${item.id})">🗑️ 刪除</button>
+            contentEl.innerHTML = `
+                <div style="text-align:center; margin-bottom: 15px;">
+                    <p style="color: #c2410c; font-size: 14px; font-weight: 600;">✨ 系統已根據您的品項成本表自動排版生成菜單</p>
+                </div>
+                
+                <div class="menu-template-container">
+                    <div class="menu-items-grid">
+                        ${itemsHtml}
+                    </div>
+                    <div class="template-bottom-bar">
+                        <div class="logo-section">
+                            <div class="store-name-block">
+                                <h2>馬鈴吉</h2>
+                                <h3>碳烤</h3>
                             </div>
                         </div>
-                    `;
-                });
-            } else {
-                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0; grid-column: 1 / -1;">沒有找到符合的原物料紀錄。</p>';
-            }
-            containerEl.innerHTML = html;
+                        <div class="info-section">
+                            <div>營業時間：17:30 ～ 24:00</div>
+                            <div>公休日：星期三</div>
+                            <div>地 址：桃園市八德區介壽路二段18號</div>
+                            <div class="qrcode-section">
+                                <div id="qr-ig" class="qrcode-box"></div>
+                                <div id="qr-line" class="qrcode-box"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                if (document.getElementById('qr-ig')) new QRCode(document.getElementById('qr-ig'), { text: "https://instagram.com", width: 44, height: 44, colorDark: "#9a3412" });
+                if (document.getElementById('qr-line')) new QRCode(document.getElementById('qr-line'), { text: window.location.href, width: 44, height: 44, colorDark: "#166534" });
+            }, 100);
         }
 
-        function showDeleteConfirmMaterial(id) {
-            const cardEl = document.getElementById(`material-card-${id}`);
-            const actionsEl = document.getElementById(`material-actions-${id}`);
-            cardEl.classList.add('confirm-delete-state');
-            actionsEl.innerHTML = `
-                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
-                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deleteMaterial(${id})">確定</button>
-                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="filterMaterialsCards()">取消</button>
+        // ==================== 模組 3：原物料價格表 ====================
+        async function renderMaterialsList() {
+            const contentEl = document.getElementById('page-content');
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取原物料中...</p>';
+            let { data } = await _supabase.from('materials').select('*').order('id', { ascending: true });
+            globalMaterialsData = data || [];
+            
+            contentEl.innerHTML = `
+                <div class="controls-bar"><div class="stats-info"><span>共 <b>${globalMaterialsData.length}</b> 項原物料</span></div></div>
+                <div id="mat-cards-container" class="items-grid"></div>
             `;
+            let html = '';
+            globalMaterialsData.forEach(item => {
+                html += `
+                    <div class="item-card">
+                        <div>
+                            <h4>${item.name} <span>$${item.price} / ${item.unit || '單位'}</span></h4>
+                            <p><b>規格：</b>${item.spec || '無'} | <b>廠商：</b>${item.supplier || '無'}</p>
+                        </div>
+                        <div class="card-actions admin-only">
+                            <button class="card-btn delete-btn" onclick="deleteMaterial(${item.id})">🗑️ 刪除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('mat-cards-container').innerHTML = html;
         }
 
         function renderAddMaterialForm() {
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '新增原物料 / 耗材';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('materials')">← 回列表</button>`;
-            const currentTimestamp = getDetailedTimestamp();
-            contentEl.innerHTML = `
+            if (!isAdmin) return;
+            document.getElementById('page-title').innerText = '新增原物料';
+            document.getElementById('page-content').innerHTML = `
                 <div class="form-card-container">
-                    <h3 class="form-header-title">📦 建立新原物料或耗材資料</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group"><label>品項名稱</label><input type="text" id="mat-name" placeholder="例如: 椒鹽粉、竹籤、紙袋"></div>
-                    <div class="form-group"><label>規格 / 單位</label><input type="text" id="mat-spec" placeholder="例如: 1kg/包、8吋 100支/包"></div>
-                    <div class="form-group"><label>單價 (進貨價格)</label><input type="number" step="0.01" id="mat-price" placeholder="請輸入單價"></div>
-                    <div class="form-group"><label>合作廠商</label><input type="text" id="mat-vendor" placeholder="例如: 台中食品材料行"></div>
-                    <div class="form-group">
-                        <label>最後更新時間 (系統自動記錄)</label>
-                        <input type="text" id="mat-updated-at" value="${currentTimestamp}" readonly style="background: #f5f5f4; color: #78716c; cursor: not-allowed;">
-                    </div>
-                    <button id="submit-mat-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addMaterial()">確認儲存原物料</button>
+                    <h3 class="form-header-title">✨ 建立新原物料</h3>
+                    <div class="form-group"><label>品名</label><input type="text" id="mat-name"></div>
+                    <div class="form-group"><label>規格</label><input type="text" id="mat-spec"></div>
+                    <div class="form-group"><label>單價</label><input type="number" id="mat-price"></div>
+                    <div class="form-group"><label>單位</label><input type="text" id="mat-unit"></div>
+                    <div class="form-group"><label>廠商</label><input type="text" id="mat-supp"></div>
+                    <button class="action-btn" style="width:100%;" onclick="addMaterial()">確認儲存</button>
                 </div>
             `;
         }
 
         async function addMaterial() {
-            const name = document.getElementById('mat-name').value.trim();
-            const spec = document.getElementById('mat-spec').value.trim();
-            const unit_price = parseFloat(document.getElementById('mat-price').value) || 0;
-            const vendor = document.getElementById('mat-vendor').value.trim();
-            const updated_at = getDetailedTimestamp();
-            const toast = document.getElementById('form-toast');
-            const submitBtn = document.getElementById('submit-mat-btn');
-
-            if (!name || unit_price <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整品項名稱與有效單價！'; toast.style.display = 'block'; return; }
-            if (globalMaterialsData.some(item => item.name === name)) { toast.className = 'toast-msg toast-error'; toast.innerText = `⚠️ 已經有「${name}」這個原物料了！`; toast.style.display = 'block'; return; }
-
-            submitBtn.disabled = true; submitBtn.innerText = '儲存中...';
-            const { error } = await _supabase.from('materials').insert([{ name, spec, unit_price, vendor, updated_at }]);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存原物料'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 新增成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('materials'), 1000); }
-        }
-
-        function renderEditMaterialForm(id) {
-            const item = globalMaterialsData.find(m => m.id === id);
-            if (!item) return;
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '修改原物料資料';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('materials')">← 回列表</button>`;
-            const currentTimestamp = getDetailedTimestamp();
-            contentEl.innerHTML = `
-                <div class="form-card-container">
-                    <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group"><label>品項名稱</label><input type="text" id="edit-mat-name" value="${item.name}"></div>
-                    <div class="form-group"><label>規格 / 單位</label><input type="text" id="edit-mat-spec" value="${item.spec || ''}"></div>
-                    <div class="form-group"><label>單價 (進貨價格)</label><input type="number" step="0.01" id="edit-mat-price" value="${item.unit_price}"></div>
-                    <div class="form-group"><label>合作廠商</label><input type="text" id="edit-mat-vendor" value="${item.vendor || ''}"></div>
-                    <div class="form-group">
-                        <label>最後更新時間 (將更新為當下時間)</label>
-                        <input type="text" id="edit-mat-updated-at" value="${currentTimestamp}" readonly style="background: #f5f5f4; color: #78716c; cursor: not-allowed;">
-                    </div>
-                    <button id="update-mat-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateMaterial(${item.id})">確認更新變更</button>
-                </div>
-            `;
-        }
-
-        async function updateMaterial(id) {
-            const name = document.getElementById('edit-mat-name').value.trim();
-            const spec = document.getElementById('edit-mat-spec').value.trim();
-            const unit_price = parseFloat(document.getElementById('edit-mat-price').value) || 0;
-            const vendor = document.getElementById('edit-mat-vendor').value.trim();
-            const updated_at = getDetailedTimestamp();
-            const toast = document.getElementById('form-toast');
-            const updateBtn = document.getElementById('update-mat-btn');
-
-            if (!name || unit_price <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整品項名稱與有效單價！'; toast.style.display = 'block'; return; }
-            if (globalMaterialsData.some(item => item.name === name && item.id !== id)) { toast.className = 'toast-msg toast-error'; toast.innerText = `⚠️ 已經有其他原物料叫「${name}」了！`; toast.style.display = 'block'; return; }
-
-            updateBtn.disabled = true; updateBtn.innerText = '更新中...';
-            const { error } = await _supabase.from('materials').update({ name, spec, unit_price, vendor, updated_at }).eq('id', id);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 更新失敗：' + error.message; toast.style.display = 'block'; updateBtn.disabled = false; updateBtn.innerText = '確認更新變更'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 修改成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('materials'), 1000); }
+            if (!isAdmin) return;
+            let name = document.getElementById('mat-name').value;
+            let spec = document.getElementById('mat-spec').value;
+            let price = parseFloat(document.getElementById('mat-price').value) || 0;
+            let unit = document.getElementById('mat-unit').value;
+            let supplier = document.getElementById('mat-supp').value;
+            await _supabase.from('materials').insert([{ name, spec, price, unit, supplier }]);
+            openPage('materials');
         }
 
         async function deleteMaterial(id) {
-            const { error } = await _supabase.from('materials').delete().eq('id', id);
-            if (error) alert('刪除失敗：' + error.message);
-            else renderMaterialsList();
+            if (!isAdmin) return;
+            if (!confirm('確定刪除？')) return;
+            await _supabase.from('materials').delete().eq('id', id);
+            renderMaterialsList();
         }
 
-
-        // ==================== 每日叫貨記錄表邏輯 ====================
-        let currentPurchaseFilterMonth = getCurrentYearMonth();
-        let purchaseSearchVendorVal = '';
-
+        // ==================== 模組 4：每日叫貨紀錄 ====================
         async function renderPurchasesList() {
             const contentEl = document.getElementById('page-content');
-            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取叫貨記錄中...</p>';
-
-            let { data, error } = await _supabase.from('purchases').select('*').order('date', { ascending: true }).order('id', { ascending: true });
-            if (error) { contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>'; return; }
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取叫貨紀錄中...</p>';
+            let { data } = await _supabase.from('purchases').select('*').order('id', { ascending: false });
             globalPurchasesData = data || [];
-
-            let monthSet = new Set();
-            monthSet.add(getCurrentYearMonth());
-            globalPurchasesData.forEach(item => {
-                if (item.date && item.date.length >= 7) monthSet.add(item.date.substring(0, 7));
-            });
-
-            const [pYear, pMonth] = currentPurchaseFilterMonth.split('-');
-            let monthDisplayTitle = currentPurchaseFilterMonth === 'ALL' ? '全部歷史紀錄' : `${pYear}年 ${parseInt(pMonth, 10)}月`;
-            let vendorDisplayStr = purchaseSearchVendorVal ? `廠商：${purchaseSearchVendorVal}` : '全部廠商';
-
-            let html = `
-                <div class="controls-bar">
-                    <div class="stats-info"><span id="purchase-stats-label">載入中...</span></div>
-                    <div class="search-sort-group">
-                        <input type="text" id="purchase-month-search" class="search-input" value="${monthDisplayTitle}" readonly onclick="openYearMonthPicker(changePurchaseMonthWheel, '${currentPurchaseFilterMonth === 'ALL' ? getCurrentYearMonth() : currentPurchaseFilterMonth}')" style="cursor: pointer; background: #fff; width: 130px;" title="點擊選擇年月">
-                        <input type="text" id="purchase-vendor-filter-input" class="search-input" value="${vendorDisplayStr}" readonly onclick="openPurchaseVendorPicker()" style="cursor: pointer; background: #fff; width: 120px;">
-                        <input type="text" id="purchase-search-input" class="search-input" placeholder="🔍 搜尋品項..." oninput="filterPurchasesCards()" style="width: 110px;">
-                        ${(purchaseSearchVendorVal || currentPurchaseFilterMonth !== getCurrentYearMonth() || document.getElementById('purchase-search-input')?.value) ? `<button class="clear-search-btn" onclick="clearPurchaseSearch()">❌ 清除</button>` : ''}
-                    </div>
-                </div>
-                <div id="purchases-cards-container" class="items-grid"></div>
+            
+            contentEl.innerHTML = `
+                <div class="controls-bar"><div class="stats-info"><span>共 <b>${globalPurchasesData.length}</b> 筆叫貨紀錄</span></div></div>
+                <div id="pur-cards-container" class="items-grid"></div>
             `;
-            contentEl.innerHTML = html;
-            filterPurchasesCards();
-        }
-
-        function changePurchaseMonthWheel(ymStr) {
-            currentPurchaseFilterMonth = ymStr;
-            renderPurchasesList();
-        }
-
-        function filterPurchasesCards() {
-            const searchInputEl = document.getElementById('purchase-search-input');
-            const statsLabelEl = document.getElementById('purchase-stats-label');
-            const containerEl = document.getElementById('purchases-cards-container');
-            if (!containerEl) return;
-
-            const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
-            let monthFilteredData = globalPurchasesData.filter(item => {
-                if (currentPurchaseFilterMonth === 'ALL') return true;
-                return item.date && item.date.startsWith(currentPurchaseFilterMonth);
-            });
-
-            let monthDisplayText = currentPurchaseFilterMonth === 'ALL' ? '全部' : `${parseInt(currentPurchaseFilterMonth.split('-')[1], 10)}月`;
-
-            let vendorFilteredData = monthFilteredData.filter(item => {
-                if (!purchaseSearchVendorVal) return true;
-                return item.vendor && item.vendor === purchaseSearchVendorVal;
-            });
-
-            let finalData = vendorFilteredData.filter(item => {
-                if (!searchQuery) return true;
-                return (item.item_name && item.item_name.toLowerCase().includes(searchQuery)) ||
-                       (item.vendor && item.vendor.toLowerCase().includes(searchQuery)) ||
-                       (item.date && item.date.toLowerCase().includes(searchQuery));
-            });
-
-            if (statsLabelEl) {
-                let vendorTextExtra = purchaseSearchVendorVal ? `（${purchaseSearchVendorVal}）` : '';
-                statsLabelEl.innerHTML = `目前為 <b>${monthDisplayText}</b>${vendorTextExtra}，共 <b>${finalData.length}</b> 筆叫貨紀錄`;
-            }
-
-            let priceHistory = {};
-            let sortedAll = [...globalPurchasesData].sort((a,b) => (a.date + a.id).localeCompare(b.date + b.id));
-            let cardHtmlMap = {};
-
-            sortedAll.forEach(item => {
-                let qty = parseFloat(item.quantity) || 1;
-                let total = parseFloat(item.total_price) || 0;
-                let unitPrice = qty > 0 ? total / qty : 0;
-                let itemName = item.item_name;
-
-                let isMoreExpensive = false;
-                let lastPrice = priceHistory[itemName];
-                if (lastPrice !== undefined && unitPrice > lastPrice) {
-                    isMoreExpensive = true;
-                }
-                if (unitPrice > 0) {
-                    priceHistory[itemName] = unitPrice;
-                }
-                cardHtmlMap[item.id] = { isMoreExpensive, unitPrice };
-            });
-
             let html = '';
-            let displayList = [...finalData].sort((a,b) => (b.date + b.id).localeCompare(a.date + a.id));
-
-            if (displayList.length > 0) {
-                displayList.forEach((item, index) => {
-                    let info = cardHtmlMap[item.id] || { isMoreExpensive: false, unitPrice: 0 };
-                    let cardClass = info.isMoreExpensive ? 'item-card price-alert-card' : 'item-card';
-                    let zebraClass = (!info.isMoreExpensive && index % 2 === 1) ? 'zebra-alt' : '';
-                    let qty = parseFloat(item.quantity) || 1;
-                    let total = parseFloat(item.total_price) || 0;
-                    let unit = item.unit || '份';
-
-                    let alertBadge = info.isMoreExpensive ? `<div style="color:#dc2626; font-weight:700; font-size:13px; margin-top:4px;">🚨 價格比上次貴！(單價 $${Math.round(info.unitPrice)}/${unit})</div>` : '';
-
-                    html += `
-                        <div class="${cardClass} ${zebraClass}" id="purchase-card-${item.id}">
-                            <div class="card-main-info">
-                                <h4>${item.item_name} <span>總價：$${total.toLocaleString()}</span></h4>
-                                <p><b>日期：</b>${item.date}</p>
-                                <p><b>廠商：</b>${item.vendor || '未設定'}</p>
-                                <p><b>數量：</b>${qty} ${unit} &nbsp;|&nbsp; <b>計算單價：</b>$${Math.round(info.unitPrice)} / ${unit}</p>
-                                ${alertBadge}
-                            </div>
-                            <div class="card-actions" id="purchase-actions-${item.id}">
-                                <button class="card-btn edit-btn" onclick="renderEditPurchaseForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirmPurchase(${item.id})">🗑️ 刪除</button>
-                            </div>
+            globalPurchasesData.forEach(item => {
+                html += `
+                    <div class="item-card">
+                        <div>
+                            <h4>${item.item_name} <span>$${item.total_price}</span></h4>
+                            <p><b>日期：</b>${item.date} | <b>數量：</b>${item.quantity} ${item.unit}</p>
                         </div>
-                    `;
-                });
-            } else {
-                html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">此條件下沒有叫貨紀錄。</p>';
-            }
-            containerEl.innerHTML = html;
-        }
-
-        function openPurchaseVendorPicker() {
-            let vendors = ['全部廠商'];
-            globalPurchasesData.forEach(item => { if (item.vendor && !vendors.includes(item.vendor)) vendors.push(item.vendor); });
-            let currentSel = purchaseSearchVendorVal || '全部廠商';
-
-            const overlay = document.createElement('div');
-            overlay.className = 'picker-overlay';
-            overlay.id = 'wheel-picker-overlay';
-            overlay.innerHTML = `
-                <div class="picker-modal">
-                    <h4>🏢 選擇合作廠商篩選</h4>
-                    <div class="picker-wheels-container" style="height: 120px;">
-                        <div class="wheel-column" id="wheel-vendor" onscroll="handleWheelScroll('vendor')" style="padding: 37.5px 0;"></div>
+                        <div class="card-actions admin-only">
+                            <button class="card-btn delete-btn" onclick="deletePurchase(${item.id})">🗑️ 刪除</button>
+                        </div>
                     </div>
-                    <div class="picker-btn-group">
-                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="confirmVendorPicker()">確定選取</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-
-            const col = document.getElementById('wheel-vendor');
-            let html = '<div style="height:37.5px;"></div>';
-            vendors.forEach(v => { html += `<div class="wheel-item" data-val="${v}">${v}</div>`; });
-            html += '<div style="height:37.5px;"></div>';
-            col.innerHTML = html;
-
-            requestAnimationFrame(() => {
-                const items = col.querySelectorAll('.wheel-item');
-                for (let item of items) {
-                    if (item.getAttribute('data-val') === currentSel) {
-                        col.scrollTop = item.offsetTop - (col.clientHeight / 2) + (item.clientHeight / 2);
-                        break;
-                    }
-                }
-                highlightSelected('vendor');
+                `;
             });
-        }
-
-        function confirmVendorPicker() {
-            const col = document.getElementById('wheel-vendor');
-            if (col) {
-                const selItem = col.querySelector('.wheel-item.selected');
-                if (selItem) {
-                    let val = selItem.getAttribute('data-val');
-                    purchaseSearchVendorVal = (val === 'ALL' || val === '全部廠商') ? '' : val;
-                    renderPurchasesList();
-                }
-            }
-            closeWheelPicker();
-        }
-
-        function clearPurchaseSearch() {
-            purchaseSearchVendorVal = '';
-            currentPurchaseFilterMonth = getCurrentYearMonth();
-            const searchInput = document.getElementById('purchase-search-input');
-            if (searchInput) searchInput.value = '';
-            renderPurchasesList();
-        }
-
-        function showDeleteConfirmPurchase(id) {
-            const cardEl = document.getElementById(`purchase-card-${id}`);
-            const actionsEl = document.getElementById(`purchase-actions-${id}`);
-            cardEl.classList.add('confirm-delete-state');
-            actionsEl.innerHTML = `
-                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
-                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deletePurchase(${id})">確定</button>
-                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="renderPurchasesList()">取消</button>
-            `;
+            document.getElementById('pur-cards-container').innerHTML = html;
         }
 
         function renderAddPurchaseForm() {
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '新增叫貨紀錄';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('purchases')">← 回列表</button>`;
-            const todayStr = new Date().toISOString().split('T')[0];
-            contentEl.innerHTML = `
+            if (!isAdmin) return;
+            document.getElementById('page-title').innerText = '新增叫貨紀錄';
+            document.getElementById('page-content').innerHTML = `
                 <div class="form-card-container">
-                    <h3 class="form-header-title">📋 建立每日叫貨紀錄</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group">
-                        <label>日期 (點擊可更改)</label>
-                        <input type="text" id="pur-date" value="${todayStr}" readonly onclick="openDatePicker(setAddPurchaseDate, document.getElementById('pur-date').value)" style="cursor: pointer; background: #fff;">
-                    </div>
-                    <div class="form-group"><label>廠商名稱</label><input type="text" id="pur-vendor" placeholder="例如: 肉品商、蔬菜行"></div>
-                    <div class="form-group"><label>品項名稱</label><input type="text" id="pur-item-name" placeholder="例如: 大甜不辣、雞肉串"></div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <div class="form-group"><label>數量</label><input type="number" step="0.1" id="pur-qty" placeholder="例如: 2"></div>
-                        <div class="form-group"><label>單位</label><input type="text" id="pur-unit" placeholder="例如: 袋、箱、斤"></div>
-                    </div>
-                    <div class="form-group"><label>總金額 ($)</label><input type="number" step="0.01" id="pur-total" placeholder="例如: 460"></div>
-                    <button id="submit-pur-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addPurchase()">確認儲存叫貨紀錄</button>
+                    <h3 class="form-header-title">✨ 記錄叫貨</h3>
+                    <div class="form-group"><label>日期</label><input type="date" id="pur-date" value="${new Date().toISOString().split('T')[0]}"></div>
+                    <div class="form-group"><label>品名</label><input type="text" id="pur-name"></div>
+                    <div class="form-group"><label>數量</label><input type="number" id="pur-qty"></div>
+                    <div class="form-group"><label>單位</label><input type="text" id="pur-unit"></div>
+                    <div class="form-group"><label>總金額</label><input type="number" id="pur-total"></div>
+                    <button class="action-btn" style="width:100%;" onclick="addPurchase()">確認儲存</button>
                 </div>
             `;
         }
-
-        function setAddPurchaseDate(dateStr) { document.getElementById('pur-date').value = dateStr; }
 
         async function addPurchase() {
-            const date = document.getElementById('pur-date').value;
-            const vendor = document.getElementById('pur-vendor').value.trim();
-            const item_name = document.getElementById('pur-item-name').value.trim();
-            const quantity = parseFloat(document.getElementById('pur-qty').value) || 1;
-            const unit = document.getElementById('pur-unit').value.trim() || '份';
-            const total_price = parseFloat(document.getElementById('pur-total').value) || 0;
-            const toast = document.getElementById('form-toast');
-            const submitBtn = document.getElementById('submit-pur-btn');
-
-            if (!date || !item_name || total_price <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、品項名稱與有效總金額！'; toast.style.display = 'block'; return; }
-
-            submitBtn.disabled = true; submitBtn.innerText = '儲存中...';
-            const { error } = await _supabase.from('purchases').insert([{ date, vendor, item_name, quantity, unit, total_price }]);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存叫貨紀錄'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 新增成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('purchases'), 1000); }
-        }
-
-        function renderEditPurchaseForm(id) {
-            const item = globalPurchasesData.find(p => p.id === id);
-            if (!item) return;
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '修改叫貨紀錄';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('purchases')">← 回列表</button>`;
-            contentEl.innerHTML = `
-                <div class="form-card-container">
-                    <h3 class="form-header-title">✏️ 正在修改：${item.item_name}</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group">
-                        <label>日期</label>
-                        <input type="text" id="edit-pur-date" value="${item.date}" readonly onclick="openDatePicker(setEditPurchaseDate, document.getElementById('edit-pur-date').value)" style="cursor: pointer; background: #fff;">
-                    </div>
-                    <div class="form-group"><label>廠商名稱</label><input type="text" id="edit-pur-vendor" value="${item.vendor || ''}"></div>
-                    <div class="form-group"><label>品項名稱</label><input type="text" id="edit-pur-item-name" value="${item.item_name}"></div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <div class="form-group"><label>數量</label><input type="number" step="0.1" id="edit-pur-qty" value="${item.quantity || 1}"></div>
-                        <div class="form-group"><label>單位</label><input type="text" id="edit-pur-unit" value="${item.unit || '份'}"></div>
-                    </div>
-                    <div class="form-group"><label>總金額 ($)</label><input type="number" step="0.01" id="edit-pur-total" value="${item.total_price || 0}"></div>
-                    <button id="update-pur-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updatePurchase(${item.id})">確認更新變更</button>
-                </div>
-            `;
-        }
-
-        function setEditPurchaseDate(dateStr) { document.getElementById('edit-pur-date').value = dateStr; }
-
-        async function updatePurchase(id) {
-            const date = document.getElementById('edit-pur-date').value;
-            const vendor = document.getElementById('edit-pur-vendor').value.trim();
-            const item_name = document.getElementById('edit-pur-item-name').value.trim();
-            const quantity = parseFloat(document.getElementById('edit-pur-qty').value) || 1;
-            const unit = document.getElementById('edit-pur-unit').value.trim() || '份';
-            const total_price = parseFloat(document.getElementById('edit-pur-total').value) || 0;
-            const toast = document.getElementById('form-toast');
-            const updateBtn = document.getElementById('update-pur-btn');
-
-            if (!date || !item_name || total_price <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、品項與有效總金額！'; toast.style.display = 'block'; return; }
-
-            updateBtn.disabled = true; updateBtn.innerText = '更新中...';
-            const { error } = await _supabase.from('purchases').update({ date, vendor, item_name, quantity, unit, total_price }).eq('id', id);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 更新失敗：' + error.message; toast.style.display = 'block'; updateBtn.disabled = false; updateBtn.innerText = '確認更新變更'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 修改成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('purchases'), 1000); }
+            if (!isAdmin) return;
+            let date = document.getElementById('pur-date').value;
+            let item_name = document.getElementById('pur-name').value;
+            let quantity = parseFloat(document.getElementById('pur-qty').value) || 0;
+            let unit = document.getElementById('pur-unit').value;
+            let total_price = parseFloat(document.getElementById('pur-total').value) || 0;
+            await _supabase.from('purchases').insert([{ date, item_name, quantity, unit, total_price }]);
+            openPage('purchases');
         }
 
         async function deletePurchase(id) {
-            const { error } = await _supabase.from('purchases').delete().eq('id', id);
-            if (error) alert('刪除失敗：' + error.message);
-            else renderPurchasesList();
+            if (!isAdmin) return;
+            if (!confirm('確定刪除？')) return;
+            await _supabase.from('purchases').delete().eq('id', id);
+            renderPurchasesList();
         }
 
-
-        // ==================== 店內支出記錄表邏輯 (含設備折舊追蹤) ====================
-        let expenseSearchVendorVal = '';
-        let expenseSearchDepFilterVal = 'ALL'; // 'ALL', 'DEPR', 'NON_DEPR'
-        let expenseSearchDateVal = ''; // 支出記錄表的日期篩選值 (空字串代表看全部)
-
+        // ==================== 模組 5：店內支出記錄表 ====================
         async function renderExpensesList() {
             const contentEl = document.getElementById('page-content');
-            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取支出與設備折舊資料中...</p>';
-            let { data, error } = await _supabase.from('expenses').select('*').order('date', { ascending: false });
-            if (error) { contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>'; return; }
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取支出中...</p>';
+            let { data } = await _supabase.from('expenses').select('*').order('id', { ascending: false });
             globalExpensesData = data || [];
-            displayExpensesList();
-        }
-
-        function displayExpensesList() {
-            const contentEl = document.getElementById('page-content');
-
-            let vendorDisplayStr = expenseSearchVendorVal ? `廠商：${expenseSearchVendorVal}` : '全部廠商';
-            let depDisplayMap = { 'ALL': '全部支出類型', 'DEPR': '僅看折舊設備', 'NON_DEPR': '僅看一般支出' };
-            let depDisplayStr = depDisplayMap[expenseSearchDepFilterVal] || '全部支出類型';
-            let dateDisplayStr = expenseSearchDateVal ? `📅 ${expenseSearchDateVal}` : '📅 選擇日期篩選';
-
-            let dateFilteredData = globalExpensesData.filter(item => {
-                if (!expenseSearchDateVal) return true;
-                return item.date === expenseSearchDateVal;
-            });
-
-            let vendorFilteredData = dateFilteredData.filter(item => {
-                if (!expenseSearchVendorVal) return true;
-                return item.vendor && item.vendor === expenseSearchVendorVal;
-            });
-
-            let filteredData = vendorFilteredData.filter(item => {
-                if (expenseSearchDepFilterVal === 'DEPR') return item.is_depreciable === true;
-                if (expenseSearchDepFilterVal === 'NON_DEPR') return !item.is_depreciable;
-                return true;
-            });
-
-            let totalExpenseAmount = filteredData.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
-
-            let depreciableItems = globalExpensesData.filter(item => item.is_depreciable);
-            let totalAssetOriginal = 0;
-            let totalAccumulatedDepreciation = 0;
-
-            let now = new Date();
-            let depreciationCardsHtml = '';
-
-            if (depreciableItems.length > 0) {
-                depreciableItems.forEach(item => {
-                    let cost = parseFloat(item.amount) || 0;
-                    let years = parseFloat(item.useful_life_years) || 3;
-                    let totalMonths = years * 12;
-                    let monthlyDep = totalMonths > 0 ? cost / totalMonths : 0;
-
-                    let pDate = item.date ? new Date(item.date) : new Date();
-                    let diffMonths = (now.getFullYear() - pDate.getFullYear()) * 12 + (now.getMonth() - pDate.getMonth());
-                    if (diffMonths < 0) diffMonths = 0;
-
-                    let accDep = Math.min(cost, monthlyDep * diffMonths);
-                    let bookValue = Math.max(0, cost - accDep);
-
-                    totalAssetOriginal += cost;
-                    totalAccumulatedDepreciation += accDep;
-
-                    depreciationCardsHtml += `
-                        <div style="background: rgba(255,255,255,0.7); padding: 12px 14px; border-radius: 10px; border: 1px solid #fed7aa; margin-bottom: 8px; font-size: 13.5px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                                <b style="color:#9a3412;">📦 ${item.name}</b>
-                                <span style="color:#c2410c; font-weight:700;">原價 $${cost.toLocaleString()} (${years}年折舊)</span>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; color:var(--text-muted); flex-wrap:wrap; gap:6px;">
-                                <span>每月折舊：$${Math.round(monthlyDep).toLocaleString()} /月</span>
-                                <span style="color:#dc2626;">已折舊：$${Math.round(accDep).toLocaleString()}</span>
-                                <span style="color:#166534; font-weight:700;">剩餘殘值：$${Math.round(bookValue).toLocaleString()}</span>
-                            </div>
+            
+            contentEl.innerHTML = `
+                <div class="controls-bar"><div class="stats-info"><span>共 <b>${globalExpensesData.length}</b> 筆支出紀錄</span></div></div>
+                <div id="exp-cards-container" class="items-grid"></div>
+            `;
+            let html = '';
+            globalExpensesData.forEach(item => {
+                html += `
+                    <div class="item-card">
+                        <div>
+                            <h4>${item.item_name} <span>$${item.total_price}</span></h4>
+                            <p><b>日期：</b>${item.date} | <b>廠商：</b>${item.supplier || '無'}</p>
                         </div>
-                    `;
-                });
-            }
-
-            let html = `
-                <div class="profit-card" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: #fde68a; margin-bottom: 20px;">
-                    <h3 style="margin-top:0; color:#9a3412; font-size:16px; border-bottom:1px solid #fde68a; padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                        <span>📦 營業設備資產與累計折舊專區</span>
-                        <span style="font-size: 13px; color: #78716c;">列管設備：${depreciableItems.length} 項</span>
-                    </h3>
-                    ${depreciableItems.length > 0 ? depreciationCardsHtml : '<p style="color:var(--text-muted); font-size:13.5px; margin: 6px 0;">目前沒有勾選折舊的設備支出。新增支出時可勾選「此為生財器具/設備，需要進行折舊攤提」。</p>'}
-                </div>
-
-                <div class="controls-bar">
-                    <div class="stats-info">
-                        <span>共 <b>${filteredData.length}</b> 筆支出</span>
-                        <span>花費總金額：<b style="color:#dc2626;">$${totalExpenseAmount.toLocaleString()} 元</b></span>
-                    </div>
-                    <div class="search-sort-group">
-                        <input type="text" id="expense-dep-filter-input" class="search-input" value="${depDisplayStr}" readonly onclick="openExpenseDepFilterPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊篩選折舊與一般支出">
-                        <input type="text" id="expense-vendor-filter-input" class="search-input" value="${vendorDisplayStr}" readonly onclick="openExpenseVendorPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇廠商篩選">
-                        <input type="text" id="expense-date-filter-input" class="search-input" value="${dateDisplayStr}" readonly onclick="openDatePicker(setSearchDateQuery, expenseSearchDateVal || new Date().toISOString().split('T')[0])" style="cursor: pointer; background: #fff; width: 140px; font-weight: 600; color: #c2410c;" title="點擊選擇日期篩選">
-                        ${(expenseSearchDateVal || expenseSearchVendorVal || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
-                    </div>
-                </div>
-            `;
-
-            if (filteredData.length > 0) {
-                html += '<div class="items-grid">';
-                filteredData.forEach((item, index) => {
-                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    let depreciationBadge = item.is_depreciable ? `<div style="color:#0284c7; font-weight:700; font-size:12.5px; margin-top:4px;">🏷️ 已啟用折舊 (${item.useful_life_years || 5}年攤提)</div>` : `<div style="color:#78716c; font-weight:600; font-size:12.5px; margin-top:4px;">💡 一般支出 (不折舊)</div>`;
-                    html += `
-                        <div class="item-card ${zebraClass}" id="expense-card-${item.id}">
-                            <div class="card-main-info">
-                                <h4>${item.name} <span class="total-amount-tag">$${item.amount} 元</span></h4>
-                                <p><b>日期：</b>${item.date}</p>
-                                <p><b>數量：</b>${item.quantity || 1}</p>
-                                <p><b>相關廠商：</b>${item.vendor || '無'}</p>
-                                ${depreciationBadge}
-                            </div>
-                            <div class="card-actions" id="expense-actions-${item.id}">
-                                <button class="card-btn edit-btn" onclick="renderEditExpenseForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirmExpense(${item.id})">🗑️ 刪除</button>
-                            </div>
+                        <div class="card-actions admin-only">
+                            <button class="card-btn delete-btn" onclick="deleteExpense(${item.id})">🗑️ 刪除</button>
                         </div>
-                    `;
-                });
-                html += '</div>';
-            } else {
-                html += '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">沒有找到符合條件的支出紀錄。</p>';
-            }
-            contentEl.innerHTML = html;
-        }
-
-        function openExpenseDepFilterPicker() {
-            let options = [
-                { val: 'ALL', label: '全部支出類型' },
-                { val: 'DEPR', label: '僅看折舊設備' },
-                { val: 'NON_DEPR', label: '僅看一般支出' }
-            ];
-
-            const overlay = document.createElement('div');
-            overlay.className = 'picker-overlay';
-            overlay.id = 'wheel-picker-overlay';
-            overlay.innerHTML = `
-                <div class="picker-modal" style="width: 300px;">
-                    <h4>🏷️ 篩選支出與折舊狀態</h4>
-                    <div class="picker-wheels-container" style="height: 120px;">
-                        <div class="wheel-column" id="wheel-exp-dep-filter" onscroll="handleWheelScroll('exp-dep-filter')" style="padding: 37.5px 0;"></div>
                     </div>
-                    <div class="picker-btn-group">
-                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="confirmExpenseDepFilterPicker()">確定選取</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-
-            const col = document.getElementById('wheel-exp-dep-filter');
-            let html = '<div style="height:37.5px;"></div>';
-            options.forEach(opt => {
-                html += `<div class="wheel-item" data-val="${opt.val}">${opt.label}</div>`;
+                `;
             });
-            html += '<div style="height:37.5px;"></div>';
-            col.innerHTML = html;
-
-            requestAnimationFrame(() => {
-                const items = col.querySelectorAll('.wheel-item');
-                for (let item of items) {
-                    if (item.getAttribute('data-val') === expenseSearchDepFilterVal) {
-                        col.scrollTop = item.offsetTop - (col.clientHeight / 2) + (item.clientHeight / 2);
-                        break;
-                    }
-                }
-                highlightSelected('exp-dep-filter');
-            });
+            document.getElementById('exp-cards-container').innerHTML = html;
         }
-
-        function confirmExpenseDepFilterPicker() {
-            const col = document.getElementById('wheel-exp-dep-filter');
-            if (col) {
-                const selItem = col.querySelector('.wheel-item.selected');
-                if (selItem) {
-                    expenseSearchDepFilterVal = selItem.getAttribute('data-val');
-                    displayExpensesList();
-                }
-            }
-            closeWheelPicker();
-        }
-
-        function openExpenseVendorPicker() {
-            let vendors = ['全部廠商'];
-            globalExpensesData.forEach(item => { if (item.vendor && !vendors.includes(item.vendor)) vendors.push(item.vendor); });
-            let currentSel = expenseSearchVendorVal || '全部廠商';
-
-            const overlay = document.createElement('div');
-            overlay.className = 'picker-overlay';
-            overlay.id = 'wheel-picker-overlay';
-            overlay.innerHTML = `
-                <div class="picker-modal">
-                    <h4>🏢 選擇相關廠商篩選</h4>
-                    <div class="picker-wheels-container" style="height: 120px;">
-                        <div class="wheel-column" id="wheel-expense-vendor" onscroll="handleWheelScroll('expense-vendor')" style="padding: 37.5px 0;"></div>
-                    </div>
-                    <div class="picker-btn-group">
-                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="confirmExpenseVendorPicker()">確定選取</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-
-            const col = document.getElementById('wheel-expense-vendor');
-            let html = '<div style="height:37.5px;"></div>';
-            vendors.forEach(v => { html += `<div class="wheel-item" data-val="${v}">${v}</div>`; });
-            html += '<div style="height:37.5px;"></div>';
-            col.innerHTML = html;
-
-            requestAnimationFrame(() => {
-                const items = col.querySelectorAll('.wheel-item');
-                for (let item of items) {
-                    if (item.getAttribute('data-val') === currentSel) {
-                        col.scrollTop = item.offsetTop - (col.clientHeight / 2) + (item.clientHeight / 2);
-                        break;
-                    }
-                }
-                highlightSelected('expense-vendor');
-            });
-        }
-
-        function confirmExpenseVendorPicker() {
-            const col = document.getElementById('wheel-expense-vendor');
-            if (col) {
-                const selItem = col.querySelector('.wheel-item.selected');
-                if (selItem) {
-                    let val = selItem.getAttribute('data-val');
-                    expenseSearchVendorVal = (val === 'ALL' || val === '全部廠商') ? '' : val;
-                    displayExpensesList();
-                }
-            }
-            closeWheelPicker();
-        }
-
-        function setSearchDateQuery(selectedDate) {
-            expenseSearchDateVal = selectedDate;
-            displayExpensesList();
-        }
-
-        function clearExpenseSearch() {
-            expenseSearchVendorVal = '';
-            expenseSearchDepFilterVal = 'ALL';
-            expenseSearchDateVal = '';
-            displayExpensesList();
-        }
-
-        function showDeleteConfirmExpense(id) {
-            const cardEl = document.getElementById(`expense-card-${id}`);
-            const actionsEl = document.getElementById(`expense-actions-${id}`);
-            cardEl.classList.add('confirm-delete-state');
-            actionsEl.innerHTML = `
-                <span style="font-size: 12.5px; font-weight: 700; color: #dc2626; display: flex; align-items: center; flex: 1;">確定刪除？</span>
-                <button class="card-btn" style="background: #ef4444; color: white;" onclick="deleteExpense(${id})">確定</button>
-                <button class="card-btn" style="background: #e2e8f0; color: #334155;" onclick="displayExpensesList()">取消</button>
-            `;
-        }
-
-        // 質感按鈕群組折舊年限變數
-        let selectedDepYears = 5;
 
         function renderAddExpenseForm() {
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '新增店內支出';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('expenses')">← 回列表</button>`;
-            const todayStr = new Date().toISOString().split('T')[0];
-            selectedDepYears = 5;
-
-            contentEl.innerHTML = `
+            if (!isAdmin) return;
+            document.getElementById('page-title').innerText = '新增支出';
+            document.getElementById('page-content').innerHTML = `
                 <div class="form-card-container">
-                    <h3 class="form-header-title">💸 紀錄新店內支出</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group">
-                        <label>日期</label>
-                        <input type="text" id="exp-date" value="${todayStr}" readonly onclick="openDatePicker(setAddExpenseDate, document.getElementById('exp-date').value)" style="cursor: pointer; background: #fff;">
-                    </div>
-                    <div class="form-group"><label>支出項目名稱</label><input type="text" id="exp-name" placeholder="例如: 營業用冰箱、瓦斯桶、竹籤"></div>
-                    <div class="form-group"><label>數量</label><input type="number" step="1" id="exp-qty" value="1" placeholder="請輸入數量"></div>
-                    <div class="form-group"><label>金額 (總金額)</label><input type="number" step="0.01" id="exp-amount" placeholder="請輸入總金額"></div>
-                    <div class="form-group"><label>相關廠商</label><input type="text" id="exp-vendor" placeholder="例如: 餐廳設備行、欣欣瓦斯"></div>
-
-                    <!-- 超質感點擊式折舊開關卡片 -->
-                    <div class="form-group">
-                        <label>折舊攤提設定</label>
-                        <div id="dep-toggle-card" class="depreciation-toggle-card" onclick="toggleDepreciationCard()">
-                            <div class="custom-checkbox-circle"></div>
-                            <div>
-                                <div style="font-weight: 700; color: #9a3412; font-size: 14.5px;">此為生財器具/設備，需要進行折舊攤提</div>
-                                <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 2px;">勾選後系統將自動依年限計算每月資產耗損與殘值</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="depreciation-options-box" style="display: none; background: #fffbeb; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; margin-bottom: 18px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <label style="font-size: 13.5px; font-weight: 700; color: #9a3412; margin: 0;">選擇折舊年限：</label>
-                            <span id="selected-dep-label-badge" class="selected-dep-badge">⭐ 目前選擇：5 年</span>
-                        </div>
-                        <div class="dep-years-grid">
-                            <div class="dep-year-btn" data-years="3" onclick="selectDepYears(3)">3 年</div>
-                            <div class="dep-year-btn active" data-years="5" onclick="selectDepYears(5)">5 年 (推薦)</div>
-                            <div class="dep-year-btn" data-years="8" onclick="selectDepYears(8)">8 年</div>
-                            <div class="dep-year-btn" data-years="10" onclick="selectDepYears(10)">10 年</div>
-                        </div>
-                    </div>
-
-                    <button id="submit-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addExpense()">確認儲存支出</button>
+                    <h3 class="form-header-title">✨ 記錄支出</h3>
+                    <div class="form-group"><label>日期</label><input type="date" id="exp-date" value="${new Date().toISOString().split('T')[0]}"></div>
+                    <div class="form-group"><label>項目名稱</label><input type="text" id="exp-name"></div>
+                    <div class="form-group"><label>金額</label><input type="number" id="exp-total"></div>
+                    <div class="form-group"><label>廠商</label><input type="text" id="exp-supp"></div>
+                    <button class="action-btn" style="width:100%;" onclick="addExpense()">確認儲存</button>
                 </div>
             `;
         }
-
-        function toggleDepreciationCard() {
-            const card = document.getElementById('dep-toggle-card');
-            card.classList.toggle('active');
-            const isDep = card.classList.contains('active');
-            const box = document.getElementById('depreciation-options-box');
-            box.style.display = isDep ? 'block' : 'none';
-        }
-
-        function selectDepYears(years) {
-            selectedDepYears = years;
-            document.querySelectorAll('.dep-year-btn').forEach(btn => {
-                if (parseInt(btn.getAttribute('data-years')) === years) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-            const badge = document.getElementById('selected-dep-label-badge');
-            if (badge) {
-                let recDesc = years === 5 ? ' (推薦)' : '';
-                badge.innerText = `⭐ 目前選擇：${years} 年${recDesc}`;
-            }
-        }
-
-        function setAddExpenseDate(dateStr) { document.getElementById('exp-date').value = dateStr; }
 
         async function addExpense() {
-            const date = document.getElementById('exp-date').value;
-            const name = document.getElementById('exp-name').value.trim();
-            const quantity = parseFloat(document.getElementById('exp-qty').value) || 1;
-            const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
-            const vendor = document.getElementById('exp-vendor').value.trim();
-            const is_depreciable = document.getElementById('dep-toggle-card').classList.contains('active');
-            const useful_life_years = is_depreciable ? selectedDepYears : 0;
-
-            const toast = document.getElementById('form-toast');
-            const submitBtn = document.getElementById('submit-exp-btn');
-
-            if (!date || !name || amount <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、項目名稱與有效金額！'; toast.style.display = 'block'; return; }
-
-            submitBtn.disabled = true; submitBtn.innerText = '儲存中...';
-            const { error } = await _supabase.from('expenses').insert([{ date, name, quantity, amount, vendor, is_depreciable, useful_life_years }]);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存支出'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 新增成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('expenses'), 1000); }
-        }
-
-        function renderEditExpenseForm(id) {
-            const item = globalExpensesData.find(e => e.id === id);
-            if (!item) return;
-            const titleEl = document.getElementById('page-title');
-            const contentEl = document.getElementById('page-content');
-            const actionContainer = document.getElementById('top-action-container');
-            titleEl.innerText = '修改支出紀錄';
-            actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('expenses')">← 回列表</button>`;
-            
-            const isDep = item.is_depreciable || false;
-            selectedDepYears = item.useful_life_years || 5;
-
-            contentEl.innerHTML = `
-                <div class="form-card-container">
-                    <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group">
-                        <label>日期</label>
-                        <input type="text" id="edit-exp-date" value="${item.date}" readonly onclick="openDatePicker(setEditPurchaseDate, document.getElementById('edit-exp-date').value)" style="cursor: pointer; background: #fff;">
-                    </div>
-                    <div class="form-group"><label>支出項目名稱</label><input type="text" id="edit-exp-name" value="${item.name}"></div>
-                    <div class="form-group"><label>數量</label><input type="number" step="1" id="edit-exp-qty" value="${item.quantity || 1}"></div>
-                    <div class="form-group"><label>金額</label><input type="number" step="0.01" id="edit-exp-amount" value="${item.amount}"></div>
-                    <div class="form-group"><label>相關廠商</label><input type="text" id="edit-exp-vendor" value="${item.vendor || ''}"></div>
-
-                    <!-- 超質感點擊式折舊開關卡片 -->
-                    <div class="form-group">
-                        <label>折舊攤提設定</label>
-                        <div id="edit-dep-toggle-card" class="depreciation-toggle-card ${isDep ? 'active' : ''}" onclick="toggleEditDepreciationCard()">
-                            <div class="custom-checkbox-circle"></div>
-                            <div>
-                                <div style="font-weight: 700; color: #9a3412; font-size: 14.5px;">此為生財器具/設備，需要進行折舊攤提</div>
-                                <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 2px;">勾選後系統將自動依年限計算每月資產耗損與殘值</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="edit-depreciation-options-box" style="display: ${isDep ? 'block' : 'none'}; background: #fffbeb; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; margin-bottom: 18px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <label style="font-size: 13.5px; font-weight: 700; color: #9a3412; margin: 0;">選擇折舊年限：</label>
-                            <span id="selected-dep-label-badge" class="selected-dep-badge">⭐ 目前選擇：${selectedDepYears} 年</span>
-                        </div>
-                        <div class="dep-years-grid">
-                            <div class="dep-year-btn ${selectedDepYears===3?'active':''}" data-years="3" onclick="selectDepYears(3)">3 年</div>
-                            <div class="dep-year-btn ${selectedDepYears===5?'active':''}" data-years="5" onclick="selectDepYears(5)">5 年 (推薦)</div>
-                            <div class="dep-year-btn ${selectedDepYears===8?'active':''}" data-years="8" onclick="selectDepYears(8)">8 年</div>
-                            <div class="dep-year-btn ${selectedDepYears===10?'active':''}" data-years="10" onclick="selectDepYears(10)">10 年</div>
-                        </div>
-                    </div>
-
-                    <button id="update-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="updateExpense(${item.id})">確認更新變更</button>
-                </div>
-            `;
-        }
-
-        function toggleEditDepreciationCard() {
-            const card = document.getElementById('edit-dep-toggle-card');
-            card.classList.toggle('active');
-            const isDep = card.classList.contains('active');
-            const box = document.getElementById('edit-depreciation-options-box');
-            box.style.display = isDep ? 'block' : 'none';
-        }
-
-        function setEditPurchaseDate(dateStr) { document.getElementById('edit-exp-date').value = dateStr; }
-
-        async function updateExpense(id) {
-            const date = document.getElementById('edit-exp-date').value;
-            const name = document.getElementById('edit-exp-name').value.trim();
-            const quantity = parseFloat(document.getElementById('edit-exp-qty').value) || 1;
-            const amount = parseFloat(document.getElementById('edit-exp-amount').value) || 0;
-            const vendor = document.getElementById('edit-exp-vendor').value.trim();
-            const is_depreciable = document.getElementById('edit-dep-toggle-card').classList.contains('active');
-            const useful_life_years = is_depreciable ? selectedDepYears : 0;
-
-            const toast = document.getElementById('form-toast');
-            const updateBtn = document.getElementById('update-exp-btn');
-
-            if (!date || !name || amount <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、名稱與金額！'; toast.style.display = 'block'; return; }
-
-            updateBtn.disabled = true; updateBtn.innerText = '更新中...';
-            const { error } = await _supabase.from('expenses').update({ date, name, quantity, amount, vendor, is_depreciable, useful_life_years }).eq('id', id);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 更新失敗：' + error.message; toast.style.display = 'block'; updateBtn.disabled = false; updateBtn.innerText = '確認更新變更'; }
-            else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 修改成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('expenses'), 1000); }
+            if (!isAdmin) return;
+            let date = document.getElementById('exp-date').value;
+            let item_name = document.getElementById('exp-name').value;
+            let total_price = parseFloat(document.getElementById('exp-total').value) || 0;
+            let supplier = document.getElementById('exp-supp').value;
+            await _supabase.from('expenses').insert([{ date, item_name, total_price, supplier }]);
+            openPage('expenses');
         }
 
         async function deleteExpense(id) {
-            const { error } = await _supabase.from('expenses').delete().eq('id', id);
-            if (error) alert('刪除失敗：' + error.message);
-            else renderExpensesList();
+            if (!isAdmin) return;
+            if (!confirm('確定刪除？')) return;
+            await _supabase.from('expenses').delete().eq('id', id);
+            renderExpensesList();
         }
 
-
-        // ==================== 每月損益總表與營運回本試算邏輯 ====================
-        let currentProfitMonth = getCurrentYearMonth();
-
-        async function getMonthSettings(monthStr) {
-            let { data, error } = await _supabase.from('settings').select('*').eq('month', monthStr).single();
-            if (data && data.settings_json) {
-                return data.settings_json;
-            }
-
-            let { data: latestData } = await _supabase.from('settings').select('*').order('id', { ascending: false }).limit(1);
-            if (latestData && latestData.length > 0 && latestData[0].settings_json) {
-                return latestData[0].settings_json;
-            }
-
-            return {
-                workingDays: 26,
-                rent: 0,
-                utilities: 0,
-                fullTimeStaff: 0,
-                partTimeStaff: 0,
-                gas: 0,
-                oil: 0,
-                charcoal: 0,
-                ubereatsAdDaily: 0,
-                foodpandaAdMonthly: 0,
-                initialCapital: 2000000
-            };
-        }
-
+        // ==================== 模組 6：每月損益總表與回本試算（含分月設定與水電拆開） ====================
         async function renderProfitView() {
             const contentEl = document.getElementById('page-content');
-            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算損益與回本目標中...</p>';
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算損益中...</p>';
 
-            let [productsRes, expensesRes, revenuesRes] = await Promise.all([
+            let [productsRes, revenuesRes] = await Promise.all([
                 _supabase.from('products').select('*'),
-                _supabase.from('expenses').select('*'),
                 _supabase.from('revenues').select('*')
             ]);
 
             const products = productsRes.data || [];
-            const expenses = expensesRes.data || [];
             globalRevenuesData = revenuesRes.data || [];
-
             let fixedSettings = await getMonthSettings(currentProfitMonth);
 
             let avgCostRate = 40;
-            if (products.length > 0) {
-                let totalRate = products.reduce((acc, p) => acc + calculateCostRate(p), 0);
-                avgCostRate = totalRate / products.length;
+            let numericProducts = products.filter(p => typeof p.price === 'number' || !isNaN(parseFloat(p.price)));
+            if (numericProducts.length > 0) {
+                let totalRate = numericProducts.reduce((acc, p) => acc + ((p.package_cost / parseFloat(p.price)) * 100 || 0), 0);
+                avgCostRate = totalRate / numericProducts.length;
             }
 
             let totalUbereatsAd = (parseFloat(fixedSettings.ubereatsAdDaily) || 0) * (parseFloat(fixedSettings.workingDays) || 26);
             let totalFoodpandaAd = parseFloat(fixedSettings.foodpandaAdMonthly) || 0;
 
-            let totalFixedCost = (parseFloat(fixedSettings.rent) || 0) + (parseFloat(fixedSettings.utilities) || 0) + 
-                                 (parseFloat(fixedSettings.fullTimeStaff) || 0) + (parseFloat(fixedSettings.partTimeStaff) || 0) + 
-                                 (parseFloat(fixedSettings.gas) || 0) + (parseFloat(fixedSettings.oil) || 0) + 
-                                 (parseFloat(fixedSettings.charcoal) || 0) + totalUbereatsAd + totalFoodpandaAd;
-
-            let monthExpenses = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth));
-            let totalOtherExpenses = monthExpenses.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
-            let grandTotalCost = totalFixedCost + totalOtherExpenses;
+            // 水電獨立計算
+            let totalFixedCost = (parseFloat(fixedSettings.rent) || 0) + 
+                                 (parseFloat(fixedSettings.electricityCost) || 0) + 
+                                 (parseFloat(fixedSettings.waterCost) || 0) + 
+                                 (parseFloat(fixedSettings.fullTimeStaff) || 0) + 
+                                 (parseFloat(fixedSettings.partTimeStaff) || 0) + 
+                                 (parseFloat(fixedSettings.gas) || 0) + 
+                                 (parseFloat(fixedSettings.oil) || 0) + 
+                                 (parseFloat(fixedSettings.charcoal) || 0) + 
+                                 totalUbereatsAd + totalFoodpandaAd;
 
             let grossMarginRate = 1 - (avgCostRate / 100);
-            let monthlyBreakEvenRevenue = grossMarginRate > 0 ? grandTotalCost / grossMarginRate : grandTotalCost * 2;
+            let monthlyBreakEvenRevenue = grossMarginRate > 0 ? totalFixedCost / grossMarginRate : totalFixedCost * 2;
             let dailyBreakEvenRevenue = fixedSettings.workingDays > 0 ? monthlyBreakEvenRevenue / fixedSettings.workingDays : 0;
 
+            let ueRate = (parseFloat(fixedSettings.ubereatsCommissionRate) || 35) / 100;
+            let fpRate = (parseFloat(fixedSettings.foodpandaCommissionRate) || 33) / 100;
+
             let monthRevenues = globalRevenuesData.filter(i => i.date && i.date.startsWith(currentProfitMonth));
-            
-            let profitDaysCount = 0;
-            let lossDaysCount = 0;
-
-            let dayOfWeekNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
-            let weekdayTotals = { 0: {sum:0, count:0}, 1: {sum:0, count:0}, 2: {sum:0, count:0}, 3: {sum:0, count:0}, 4: {sum:0, count:0}, 5: {sum:0, count:0}, 6: {sum:0, count:0} };
-
             let totalActualRevenue = monthRevenues.reduce((acc, i) => {
                 let onsite = parseFloat(i.onsite) || 0;
-                let ubereatsNet = (parseFloat(i.ubereats) || 0) * 0.65;   
-                let foodpandaNet = (parseFloat(i.foodpanda) || 0) * 0.67; 
-                let dayTotal = onsite + ubereatsNet + foodpandaNet;
-
-                if (dayTotal >= dailyBreakEvenRevenue) profitDaysCount++;
-                else lossDaysCount++;
-
-                if (i.date) {
-                    let dObj = new Date(i.date);
-                    if (!isNaN(dObj.getDay())) {
-                        let wDay = dObj.getDay();
-                        weekdayTotals[wDay].sum += dayTotal;
-                        weekdayTotals[wDay].count += 1;
-                    }
-                }
-
-                return acc + dayTotal;
+                let ubereatsNet = (parseFloat(i.ubereats) || 0) * (1 - ueRate);   
+                let foodpandaNet = (parseFloat(i.foodpanda) || 0) * (1 - fpRate); 
+                return acc + (onsite + ubereatsNet + foodpandaNet);
             }, 0);
 
-            let bestDay = '尚無資料';
-            let worstDay = '尚無資料';
-            let maxAvg = -1;
-            let minAvg = Infinity;
-
-            for (let w = 0; w < 7; w++) {
-                if (weekdayTotals[w].count > 0) {
-                    let avg = weekdayTotals[w].sum / weekdayTotals[w].count;
-                    if (avg > maxAvg) {
-                        maxAvg = avg;
-                        bestDay = `${dayOfWeekNames[w]} (平均 $${Math.round(avg).toLocaleString()})`;
-                    }
-                    if (avg < minAvg) {
-                        minAvg = avg;
-                        worstDay = `${dayOfWeekNames[w]} (平均 $${Math.round(avg).toLocaleString()})`;
-                    }
-                }
-            }
-
             let estimatedGrossProfit = totalActualRevenue * grossMarginRate;
-            let netProfit = estimatedGrossProfit - grandTotalCost;
-            let revenueGap = totalActualRevenue - monthlyBreakEvenRevenue;
-
+            let netProfit = estimatedGrossProfit - totalFixedCost;
             const [pYear, pMonth] = currentProfitMonth.split('-');
-            let monthDisplayTitle = `${pYear}年 ${parseInt(pMonth, 10)}月`;
 
-            let html = `
+            contentEl.innerHTML = `
                 <div class="controls-bar" style="margin-bottom: 20px;">
-                    <div class="stats-info"><span>📊 營運與回本試算儀表板 (已自動扣除 Ubereats 35% / foodpanda 33% 抽成)</span></div>
+                    <div class="stats-info">
+                        <span>📊 損益儀表板</span>
+                        <input type="month" class="search-input" value="${currentProfitMonth}" onchange="changeProfitMonth(this.value)">
+                    </div>
                     <div class="search-sort-group">
-                        <input type="text" id="profit-month-search" class="search-input" value="${monthDisplayTitle}" readonly onclick="openYearMonthPicker(changeProfitMonthWheel, '${currentProfitMonth}')" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇年月">
-                        <button class="action-btn" onclick="openRevenueModal()">＋ 記錄今日營業額</button>
+                        <button class="action-btn admin-only" onclick="openFixedSettingsModal()">⚙️ 調整本月固定支出與平台抽成</button>
                     </div>
                 </div>
 
                 <div class="profit-card">
-                    <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ 本月成本與回本門檻設定 (含動態廣告費)</h3>
+                    <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ ${pYear}年${parseInt(pMonth,10)}月 獨立營運與水電參數</h3>
                     <div class="profit-grid-settings">
                         <div>營業天數：<b>${fixedSettings.workingDays} 天</b></div>
                         <div>平均成本率：<b>${avgCostRate.toFixed(1)}%</b></div>
-                        <div>房租：<b>$${(fixedSettings.rent || 0).toLocaleString()} 元</b></div>
-                        <div>水電費：<b>$${(fixedSettings.utilities || 0).toLocaleString()} 元</b></div>
                         <div>正職薪水：<b>$${(fixedSettings.fullTimeStaff || 0).toLocaleString()} 元</b></div>
                         <div>工讀生薪水：<b>$${(fixedSettings.partTimeStaff || 0).toLocaleString()} 元</b></div>
+                        <div>房租：<b>$${(fixedSettings.rent || 0).toLocaleString()} 元</b></div>
+                        <div>電費 (獨立)：<b>$${(fixedSettings.electricityCost || 0).toLocaleString()} 元</b></div>
+                        <div>水費 (獨立)：<b>$${(fixedSettings.waterCost || 0).toLocaleString()} 元</b></div>
                         <div>瓦斯費：<b>$${(fixedSettings.gas || 0).toLocaleString()} 元</b></div>
                         <div>炸油費：<b>$${(fixedSettings.oil || 0).toLocaleString()} 元</b></div>
-                        <div>木碳費：<b>$${(fixedSettings.charcoal || 0).toLocaleString()} 元</b></div>
-                        <div>Ubereats 廣告費（每日）：<b>$${fixedSettings.ubereatsAdDaily || 0} /天</b></div>
-                        <div>foodpanda 廣告費（每月）：<b>$${fixedSettings.foodpandaAdMonthly || 0} /月</b></div>
-                        <div>每月固定總支出：<b>$${grandTotalCost.toLocaleString()} 元</b></div>
-                        <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
+                        <div>木炭費：<b>$${(fixedSettings.charcoal || 0).toLocaleString()} 元</b></div>
+                        <div>UE 當月抽成：<b>${fixedSettings.ubereatsCommissionRate || 35}%</b></div>
+                        <div>FP 當月抽成：<b>${fixedSettings.foodpandaCommissionRate || 33}%</b></div>
+                        <div>UE 廣告費(每日)：<b>$${fixedSettings.ubereatsAdDaily || 0} /天</b></div>
+                        <div>FP 廣告費(每月)：<b>$${fixedSettings.foodpandaAdMonthly || 0} /月</b></div>
+                        <div style="grid-column: 1 / -1;"><b>每月固定總支出：$${totalFixedCost.toLocaleString()} 元</b></div>
+                        <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元 (日均門檻: $${Math.round(dailyBreakEvenRevenue).toLocaleString()} 元)</b></div>
                     </div>
-                    <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 調整固定支出、廣告費與營業天數參數</button>
                 </div>
 
                 <div class="profit-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
-                    <h3 style="margin-top:0; color:#166534; font-size:16px; border-bottom:1px solid #bbf7d0; padding-bottom:8px;">📈 本月實際營運與回本進度 (實收金額計算)</h3>
+                    <h3 style="margin-top:0; color:#166534; font-size:16px; border-bottom:1px solid #bbf7d0; padding-bottom:8px;">📈 本月實收總結算</h3>
                     <div class="profit-row">
                         <span>本月累計實收總營業額</span>
                         <b style="color: #059669; font-size: 18px;">$${Math.round(totalActualRevenue).toLocaleString()} 元</b>
                     </div>
-                    <div class="profit-row">
-                        <span>每日平均回本門檻</span>
-                        <b>$${Math.round(dailyBreakEvenRevenue).toLocaleString()} 元 / 天</b>
-                    </div>
-                    <div class="profit-row">
-                        <span>本月達標天數統計</span>
-                        <b style="color: #1e293b;">🔥 賺錢 ${profitDaysCount} 天 &nbsp;|&nbsp; 💧 賠錢 ${lossDaysCount} 天</b>
-                    </div>
-                    <div class="profit-row">
-                        <span>📅 星期幾營運洞察</span>
-                        <b style="color: #9a3412; font-size: 13.5px;">⭐ 賺最多：${bestDay} &nbsp;|&nbsp; 📉 賺最少：${worstDay}</b>
-                    </div>
-                    <div class="profit-row">
-                        <span>🎯 距離月回本目標營業額差距</span>
-                        <b style="color: #c2410c;">${revenueGap >= 0 ? '超額達標 ＋' : '還差 －'}$${Math.round(Math.abs(revenueGap)).toLocaleString()} 元</b>
-                    </div>
-                    <div class="profit-row total-row" style="color: ${netProfit >= 0 ? '#166534' : '#991b1b'}; border-top-color: #86efac;">
-                        <span>💰 本月實際口袋損益結算 (毛利扣固定支出)</span>
+                    <div class="profit-row total-row" style="color: ${netProfit >= 0 ? '#166534' : '#991b1b'};">
+                        <span>💰 本月實際口袋損益結算</span>
                         <span>${netProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(netProfit)).toLocaleString()} 元</span>
                     </div>
                 </div>
-
-                <h4 style="color:#c2410c; margin: 20px 0 10px 0;">📅 本月每日營業額明細 (含平台實收試算)</h4>
             `;
-
-            if (monthRevenues.length > 0) {
-                html += '<div class="items-grid">';
-                monthRevenues.sort((a,b) => b.date.localeCompare(a.date)).forEach((rev, index) => {
-                    let onsite = parseFloat(rev.onsite) || 0;
-                    let ueInput = parseFloat(rev.ubereats) || 0;
-                    let fpInput = parseFloat(rev.foodpanda) || 0;
-                    let ueNet = ueInput * 0.65;   
-                    let fpNet = fpInput * 0.67; 
-                    let dayNetTotal = onsite + ueNet + fpNet;
-
-                    let diffToBreakEven = dailyBreakEvenRevenue - dayNetTotal;
-                    
-                    let feedbackHtml = '';
-                    if (diffToBreakEven <= 0) {
-                        feedbackHtml = `<span style="color:#059669; font-weight:700;">🔥 太棒了！有賺錢，超額賺取 $${Math.abs(Math.round(diffToBreakEven)).toLocaleString()} 元！</span>`;
-                    } else {
-                        feedbackHtml = `<span style="color:#dc2626; font-weight:700;">💪 距離今日回本還差 $${Math.round(diffToBreakEven).toLocaleString()} 元</span>`;
-                    }
-
-                    let dObj = new Date(rev.date);
-                    let weekDayStr = !isNaN(dObj.getDay()) ? ` (${dayOfWeekNames[dObj.getDay()]})` : '';
-
-                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    html += `
-                        <div class="item-card ${zebraClass}" id="rev-card-${rev.id}">
-                            <div class="card-main-info">
-                                <h4>${rev.date}${weekDayStr} <span style="font-size:15px;">實收總計：$${Math.round(dayNetTotal).toLocaleString()}</span></h4>
-                                <p><b>現場：</b>$${onsite}</p>
-                                <p><b>Ubereats：</b>輸入 $${ueInput} ➔ <b>實收 $${Math.round(ueNet)}</b> (抽35%)</p>
-                                <p><b>foodpanda：</b>輸入 $${fpInput} ➔ <b>實收 $${Math.round(fpNet)}</b> (抽33%)</p>
-                                <p style="margin-top: 8px; font-size: 13px;">${feedbackHtml}</p>
-                            </div>
-                            <div class="card-actions" id="rev-actions-${rev.id}">
-                                <button class="card-btn edit-btn" onclick="openRevenueModal(${rev.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="deleteRevenue(${rev.id})">🗑️ 刪除</button>
-                            </div>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-            } else {
-                html += '<p style="color:var(--text-muted); text-align:center; padding: 20px 0;">本月尚無登錄每日營業額紀錄，點擊上方按鈕開始記錄！</p>';
-            }
-
-            contentEl.innerHTML = html;
         }
 
-        function changeProfitMonthWheel(ymStr) {
-            currentProfitMonth = ymStr;
+        function changeProfitMonth(val) {
+            if (!val) return;
+            currentProfitMonth = val;
             renderProfitView();
         }
 
-        async function openRevenueModal(editId = null) {
-            let revItem = editId ? globalRevenuesData.find(r => r.id === editId) : null;
-            let defaultDate = revItem ? revItem.date : new Date().toISOString().split('T')[0];
-
-            const overlay = document.createElement('div');
-            overlay.className = 'picker-overlay';
-            overlay.id = 'revenue-modal-overlay';
-            overlay.innerHTML = `
-                <div class="picker-modal" style="width: 380px; text-align: left;">
-                    <h4 style="text-align: center; color: #c2410c;">${editId ? '✏️ 修改每日營業額' : '💰 記錄每日營業額'}</h4>
-                    <div id="form-toast" class="toast-msg"></div>
-                    <div class="form-group">
-                        <label>日期 (點擊選擇)</label>
-                        <input type="text" id="rev-date" value="${defaultDate}" readonly onclick="openDatePicker(setRevDate, document.getElementById('rev-date').value)" style="cursor: pointer; background: #fff;">
-                    </div>
-                    <div class="form-group"><label>現場客人營業額</label><input type="number" step="0.01" id="rev-onsite" value="${revItem ? revItem.onsite || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>Ubereats 營業額 (自動扣除 35% 抽成)</label><input type="number" step="0.01" id="rev-ubereats" value="${revItem ? revItem.ubereats || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>foodpanda 營業額 (自動扣除 33% 抽成)</label><input type="number" step="0.01" id="rev-foodpanda" value="${revItem ? revItem.foodpanda || 0 : ''}" placeholder="0"></div>
-                    <div class="picker-btn-group" style="margin-top: 16px;">
-                        <button class="picker-btn picker-cancel" onclick="document.getElementById('revenue-modal-overlay').remove()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="saveRevenue(${editId})">確認儲存</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-        }
-
-        function setRevDate(dateStr) { document.getElementById('rev-date').value = dateStr; }
-
-        async function saveRevenue(editId) {
-            const date = document.getElementById('rev-date').value;
-            const onsite = parseFloat(document.getElementById('rev-onsite').value) || 0;
-            const ubereats = parseFloat(document.getElementById('rev-ubereats').value) || 0;
-            const foodpanda = parseFloat(document.getElementById('rev-foodpanda').value) || 0;
-            const toast = document.getElementById('form-toast');
-
-            if (!date) {
-                toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請選擇日期！'; toast.style.display = 'block'; return;
-            }
-
-            let res;
-            if (editId) {
-                res = await _supabase.from('revenues').update({ date, onsite, ubereats, foodpanda }).eq('id', editId);
-            } else {
-                res = await _supabase.from('revenues').insert([{ date, onsite, ubereats, foodpanda }]);
-            }
-
-            if (res.error) {
-                toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + res.error.message; toast.style.display = 'block';
-            } else {
-                document.getElementById('revenue-modal-overlay').remove();
-                renderProfitView();
-            }
-        }
-
-        async function deleteRevenue(id) {
-            const { error } = await _supabase.from('revenues').delete().eq('id', id);
-            if (error) alert('刪除失敗：' + error.message);
-            else renderProfitView();
-        }
-
         async function openFixedSettingsModal() {
+            if (!isAdmin) { alert('唯讀模式下無法修改！'); return; }
             let fixedSettings = await getMonthSettings(currentProfitMonth);
 
             const overlay = document.createElement('div');
@@ -2442,24 +1005,48 @@
             overlay.id = 'settings-modal-overlay';
             overlay.innerHTML = `
                 <div class="picker-modal" style="width: 380px; text-align: left; max-height: 90vh; overflow-y: auto;">
-                    <h4 style="text-align: center; color: #c2410c;">⚙️ 設定本月 (${currentProfitMonth}) 固定支出與參數</h4>
+                    <h4 style="text-align: center; color: #c2410c;">⚙️ 設定 ${currentProfitMonth} 月獨立參數</h4>
+                    <button class="clear-search-btn" style="width:100%; margin-bottom:12px; background:#fff7ed; color:#c2410c; border-color:#fdba74;" onclick="applyDefaultTemplate()">⚡ 帶入店家預設樣本數據</button>
+                    
                     <div class="form-group"><label>營業天數</label><input type="number" id="set-days" value="${fixedSettings.workingDays}"></div>
-                    <div class="form-group"><label>房租</label><input type="number" id="set-rent" value="${fixedSettings.rent}"></div>
-                    <div class="form-group"><label>水電費</label><input type="number" id="set-util" value="${fixedSettings.utilities}"></div>
                     <div class="form-group"><label>正職薪水</label><input type="number" id="set-full" value="${fixedSettings.fullTimeStaff}"></div>
                     <div class="form-group"><label>工讀生薪水</label><input type="number" id="set-part" value="${fixedSettings.partTimeStaff}"></div>
+                    <div class="form-group"><label>房租</label><input type="number" id="set-rent" value="${fixedSettings.rent}"></div>
+                    <div class="form-group"><label>電費 (獨立)</label><input type="number" id="set-elec" value="${fixedSettings.electricityCost || 0}"></div>
+                    <div class="form-group"><label>水費 (獨立)</label><input type="number" id="set-water" value="${fixedSettings.waterCost || 0}"></div>
                     <div class="form-group"><label>瓦斯費</label><input type="number" id="set-gas" value="${fixedSettings.gas}"></div>
                     <div class="form-group"><label>炸油費</label><input type="number" id="set-oil" value="${fixedSettings.oil}"></div>
-                    <div class="form-group"><label>木碳費</label><input type="number" id="set-charcoal" value="${fixedSettings.charcoal}"></div>
+                    <div class="form-group"><label>木炭費</label><input type="number" id="set-charcoal" value="${fixedSettings.charcoal}"></div>
+                    
+                    <hr style="border:0; border-top:1px dashed #fed7aa; margin:14px 0;">
+                    <div class="form-group"><label>Ubereats 當月抽成 (%)</label><input type="number" id="set-ue-rate" value="${fixedSettings.ubereatsCommissionRate || 35}"></div>
+                    <div class="form-group"><label>foodpanda 當月抽成 (%)</label><input type="number" id="set-fp-rate" value="${fixedSettings.foodpandaCommissionRate || 33}"></div>
                     <div class="form-group"><label>Ubereats 廣告費 (一天單價)</label><input type="number" id="set-ubereats-daily" value="${fixedSettings.ubereatsAdDaily}"></div>
-                    <div class="form-group"><label>foodpanda 廣告費 (每月固定總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
+                    <div class="form-group"><label>foodpanda 廣告費 (每月總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
+                    
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">儲存設定</button>
+                        <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">儲存此月設定</button>
                     </div>
                 </div>
             `;
             document.body.appendChild(overlay);
+        }
+
+        function applyDefaultTemplate() {
+            document.getElementById('set-days').value = 26;
+            document.getElementById('set-full').value = 62000;
+            document.getElementById('set-part').value = 10000;
+            document.getElementById('set-rent').value = 33000;
+            document.getElementById('set-elec').value = 4870;
+            document.getElementById('set-water').value = 220;
+            document.getElementById('set-gas').value = 1650;
+            document.getElementById('set-oil').value = 5700;
+            document.getElementById('set-charcoal').value = 1100;
+            document.getElementById('set-ue-rate').value = 35;
+            document.getElementById('set-fp-rate').value = 33;
+            document.getElementById('set-ubereats-daily').value = 256;
+            document.getElementById('set-foodpanda-monthly').value = 1400;
         }
 
         async function saveFixedSettings() {
@@ -2467,13 +1054,16 @@
             let fixedSettings = {
                 initialCapital: oldSettings.initialCapital || 2000000,
                 workingDays: parseFloat(document.getElementById('set-days').value) || 26,
-                rent: parseFloat(document.getElementById('set-rent').value) || 0,
-                utilities: parseFloat(document.getElementById('set-util').value) || 0,
                 fullTimeStaff: parseFloat(document.getElementById('set-full').value) || 0,
                 partTimeStaff: parseFloat(document.getElementById('set-part').value) || 0,
+                rent: parseFloat(document.getElementById('set-rent').value) || 0,
+                electricityCost: parseFloat(document.getElementById('set-elec').value) || 0,
+                waterCost: parseFloat(document.getElementById('set-water').value) || 0,
                 gas: parseFloat(document.getElementById('set-gas').value) || 0,
                 oil: parseFloat(document.getElementById('set-oil').value) || 0,
                 charcoal: parseFloat(document.getElementById('set-charcoal').value) || 0,
+                ubereatsCommissionRate: parseFloat(document.getElementById('set-ue-rate').value) || 35,
+                foodpandaCommissionRate: parseFloat(document.getElementById('set-fp-rate').value) || 33,
                 ubereatsAdDaily: parseFloat(document.getElementById('set-ubereats-daily').value) || 0,
                 foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0
             };
@@ -2494,361 +1084,38 @@
             }
         }
 
-
-        // ==================== 💎 全店創業資本與回本追蹤專屬頁面邏輯 ====================
+        // ==================== 模組 7：全店創業資本與回本追蹤 ====================
         async function renderCapitalView() {
             const contentEl = document.getElementById('page-content');
-            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算全店總資本與回本進度中...</p>';
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算資本追蹤中...</p>';
+            let settings = await getMonthSettings(currentProfitMonth);
+            let initialCapital = settings.initialCapital || 2000000;
 
-            let [productsRes, allRevenuesRes, allExpensesRes] = await Promise.all([
-                _supabase.from('products').select('*'),
-                _supabase.from('revenues').select('*'),
-                _supabase.from('expenses').select('*')
-            ]);
-
-            const products = productsRes.data || [];
-            let allRevList = allRevenuesRes.data || [];
-            let allExpList = allExpensesRes.data || [];
-
-            let fixedSettings = await getMonthSettings(currentProfitMonth);
-            let initialCapital = parseFloat(fixedSettings.initialCapital) || 2000000;
-
-            let avgCostRate = 40;
-            if (products.length > 0) {
-                let totalRate = products.reduce((acc, p) => acc + calculateCostRate(p), 0);
-                avgCostRate = totalRate / products.length;
-            }
-            let grossMarginRate = 1 - (avgCostRate / 100);
-
-            let monthSet = new Set();
-            allRevList.forEach(r => { if(r.date) monthSet.add(r.date.substring(0, 7)); });
-            allExpList.forEach(e => { if(e.date) monthSet.add(e.date.substring(0, 7)); });
-            if (monthSet.size === 0) monthSet.add(currentProfitMonth);
-
-            let grandLifetimeNetProfit = 0;
-            for (let ym of monthSet) {
-                let mSettings = await getMonthSettings(ym);
-                let mDays = parseFloat(mSettings.workingDays) || 26;
-                let mFix = (parseFloat(mSettings.rent)||0) + (parseFloat(mSettings.utilities)||0) + (parseFloat(mSettings.fullTimeStaff)||0) + (parseFloat(mSettings.partTimeStaff)||0) + (parseFloat(mSettings.gas)||0) + (parseFloat(mSettings.oil)||0) + (parseFloat(mSettings.charcoal)||0) + ((parseFloat(mSettings.ubereatsAdDaily)||0)*mDays) + (parseFloat(mSettings.foodpandaAdMonthly)||0);
-                
-                let mExp = allExpList.filter(e => e.date && e.date.startsWith(ym)).reduce((acc, e) => acc + (parseFloat(e.amount)||0), 0);
-                let mRev = allRevList.filter(r => r.date && r.date.startsWith(ym)).reduce((acc, r) => acc + (parseFloat(r.onsite)||0) + ((parseFloat(r.ubereats)||0)*0.65) + ((parseFloat(r.foodpanda)||0)*0.67), 0);
-                
-                let mNet = (mRev * grossMarginRate) - (mFix + mExp);
-                grandLifetimeNetProfit += mNet;
-            }
-
-            let now = new Date();
-            let totalAccumulatedDepreciation = 0;
-            let depreciableItems = allExpList.filter(e => e.is_depreciable);
-            
-            depreciableItems.forEach(item => {
-                let cost = parseFloat(item.amount) || 0;
-                let years = parseFloat(item.useful_life_years) || 5;
-                let totalMonths = years * 12;
-                let monthlyDep = totalMonths > 0 ? cost / totalMonths : 0;
-
-                let pDate = item.date ? new Date(item.date) : new Date();
-                let diffMonths = (now.getFullYear() - pDate.getFullYear()) * 12 + (now.getMonth() - pDate.getMonth());
-                if (diffMonths < 0) diffMonths = 0;
-
-                let accDep = Math.min(cost, monthlyDep * diffMonths);
-                totalAccumulatedDepreciation += accDep;
-            });
-
-            let adjustedNetProfit = grandLifetimeNetProfit - totalAccumulatedDepreciation;
-            let currentRemainingCapital = initialCapital + adjustedNetProfit;
-            let capitalReturnRate = initialCapital > 0 ? (adjustedNetProfit / initialCapital) * 100 : 0;
-
-            let depreciationDetailsHtml = '';
-            if (depreciableItems.length > 0) {
-                depreciationDetailsHtml = `
-                    <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; border-radius: 10px; border: 1px solid #fed7aa; margin-top: 12px; font-size: 14px;">
-                        <b style="color: #9a3412; display: block; margin-bottom: 6px;">🏷️ 已計入資本追蹤的設備折舊細節：</b>
-                        <div style="color: #78716c; display: flex; justify-content: space-between;">
-                            <span>列管設備總原價：$${depreciableItems.reduce((a,c)=>a+(parseFloat(c.amount)||0),0).toLocaleString()}</span>
-                            <span style="color: #dc2626; font-weight: 700;">總累計折舊扣除：-$${Math.round(totalAccumulatedDepreciation).toLocaleString()}</span>
-                        </div>
-                    </div>
-                `;
-            }
-
-            let html = `
-                <div class="controls-bar" style="margin-bottom: 20px;">
-                    <div class="stats-info"><span>💎 追蹤您投入的創業本金、跨月累積淨利、設備折舊與整體回本健康度</span></div>
-                    <div>
-                        <button class="action-btn" onclick="openCapitalSettingsModal()">⚙️ 設定初始投入資本金額</button>
-                    </div>
-                </div>
-
-                <div class="profit-card" style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); border-color: #fecaca; box-shadow: 0 10px 25px rgba(220, 38, 38, 0.08);">
-                    <h3 style="margin-top:0; color:#991b1b; font-size:18px; border-bottom:1px solid #fecaca; padding-bottom:10px;">👑 全店創業資本總覽</h3>
-                    <div class="profit-grid-settings" style="grid-template-columns: 1fr;">
-                        <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; font-size: 15px;">
-                            <span>初始投入資本額 (自己設定)：</span>
-                            <b style="font-size: 18px; color: #991b1b;">$${initialCapital.toLocaleString()} 元</b>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; font-size: 15px;">
-                            <span>目前剩餘資本池 (本金 ＋ 調整後損益)：</span>
-                            <b style="font-size: 20px; color: ${currentRemainingCapital >= initialCapital ? '#166534' : '#dc2626'};">$${Math.round(currentRemainingCapital).toLocaleString()} 元</b>
-                        </div>
-                    </div>
-                    ${depreciationDetailsHtml}
-                </div>
-
-                <div class="profit-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
-                    <h3 style="margin-top:0; color:#166534; font-size:18px; border-bottom:1px solid #bbf7d0; padding-bottom:10px;">📊 跨月累積賺賠與回本達成率 (已扣除設備折舊)</h3>
-                    <div class="profit-row" style="font-size: 16px;">
-                        <span>全店累積淨利 / 累積虧損總額 (含折舊)</span>
-                        <b style="color: ${adjustedNetProfit >= 0 ? '#166534' : '#991b1b'}; font-size: 18px;">
-                            ${adjustedNetProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(adjustedNetProfit)).toLocaleString()} 元
-                        </b>
-                    </div>
-                    <div class="profit-row" style="font-size: 16px;">
-                        <span>本金回本率 / 報酬率</span>
-                        <b style="color: ${capitalReturnRate >= 0 ? '#166534' : '#991b1b'}; font-size: 18px;">
-                            ${capitalReturnRate >= 0 ? '＋' : '－'}${Math.abs(capitalReturnRate).toFixed(1)}%
-                        </b>
-                    </div>
-                    <div class="profit-row total-row" style="color: #166534; border-top-color: #86efac;">
-                        <span>💡 財務健康度狀態</span>
-                        <span>${adjustedNetProfit >= 0 ? '🔥 本金已全數回本並開始獲利！' : '💪 努力打拼中，持續累積營收回本！'}</span>
+            contentEl.innerHTML = `
+                <div class="profit-card">
+                    <h3 style="margin-top:0; color:#c2410c;">💎 創業本金與回本進度</h3>
+                    <div class="profit-row"><span>初始創業資本額</span><b>$${initialCapital.toLocaleString()} 元</b></div>
+                    <div class="profit-row admin-only" style="margin-top:10px;">
+                        <button class="action-btn" onclick="updateCapitalPrompt()">修改初始資本額</button>
                     </div>
                 </div>
             `;
-            contentEl.innerHTML = html;
         }
 
-        async function openCapitalSettingsModal() {
-            let fixedSettings = await getMonthSettings(currentProfitMonth);
-            let currentCap = fixedSettings.initialCapital || 2000000;
-
-            const overlay = document.createElement('div');
-            overlay.className = 'picker-overlay';
-            overlay.id = 'capital-modal-overlay';
-            overlay.innerHTML = `
-                <div class="picker-modal" style="width: 380px; text-align: left;">
-                    <h4 style="text-align: center; color: #c2410c;">💎 設定創業初始投入資本</h4>
-                    <div class="form-group">
-                        <label>輸入您的總投入資金 ($)</label>
-                        <input type="number" id="modal-initial-capital" value="${currentCap}" placeholder="例如: 2000000">
-                    </div>
-                    <div class="picker-btn-group" style="margin-top: 16px;">
-                        <button class="picker-btn picker-cancel" onclick="document.getElementById('capital-modal-overlay').remove()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="saveCapitalSettings()">確認儲存</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-        }
-
-        async function saveCapitalSettings() {
-            let newCap = parseFloat(document.getElementById('modal-initial-capital').value) || 2000000;
-            let fixedSettings = await getMonthSettings(currentProfitMonth);
-            fixedSettings.initialCapital = newCap;
-
-            let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).single();
-            let res;
-            if (existing) {
-                res = await _supabase.from('settings').update({ settings_json: fixedSettings }).eq('month', currentProfitMonth);
-            } else {
-                res = await _supabase.from('settings').insert([{ month: currentProfitMonth, settings_json: fixedSettings }]);
-            }
-
-            if (res.error) {
-                alert('儲存失敗：' + res.error.message);
-            } else {
-                document.getElementById('capital-modal-overlay').remove();
+        async function updateCapitalPrompt() {
+            if (!isAdmin) return;
+            let val = prompt('請輸入新的初始創業資本額：');
+            if (val && !isNaN(val)) {
+                let settings = await getMonthSettings(currentProfitMonth);
+                settings.initialCapital = parseFloat(val);
+                let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).single();
+                if (existing) {
+                    await _supabase.from('settings').update({ settings_json: settings }).eq('month', currentProfitMonth);
+                } else {
+                    await _supabase.from('settings').insert([{ month: currentProfitMonth, settings_json: settings }]);
+                }
                 renderCapitalView();
             }
-        }
-
-
-        // ==================== 滾輪選擇器核心邏輯 ====================
-        let currentWheelCallback = null;
-        let isYearMonthOnlyMode = false;
-
-        function openDatePicker(callback, initialDateStr) {
-            isYearMonthOnlyMode = false;
-            currentWheelCallback = callback;
-            let initDate = new Date();
-            if (initialDateStr && !isNaN(new Date(initialDateStr))) initDate = new Date(initialDateStr);
-            
-            let initYear = initDate.getFullYear();
-            let initMonth = initDate.getMonth() + 1;
-            let initDay = initDate.getDate();
-
-            const overlay = document.createElement('div');
-            overlay.className = 'picker-overlay';
-            overlay.id = 'wheel-picker-overlay';
-            overlay.innerHTML = `
-                <div class="picker-modal">
-                    <h4>📅 選擇日期</h4>
-                    <div class="picker-wheels-container">
-                        <div class="wheel-column" id="wheel-year" onscroll="handleWheelScroll('year')"></div>
-                        <div class="wheel-column" id="wheel-month" onscroll="handleWheelScroll('month')"></div>
-                        <div class="wheel-column" id="wheel-day" onscroll="handleWheelScroll('day')"></div>
-                    </div>
-                    <div class="picker-btn-group">
-                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="confirmWheelPicker()">確定選取</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            populateWheelColumns(initYear, initMonth, initDay, false);
-        }
-
-        function openYearMonthPicker(callback, initialYmStr) {
-            isYearMonthOnlyMode = true;
-            currentWheelCallback = callback;
-            let nowY = new Date().getFullYear();
-            let initYear = nowY;
-            let initMonth = new Date().getMonth() + 1;
-            if (initialYmStr && initialYmStr.includes('-')) {
-                let parts = initialYmStr.split('-');
-                initYear = parseInt(parts[0], 10) || nowY;
-                initMonth = parseInt(parts[1], 10) || 1;
-            }
-
-            const overlay = document.createElement('div');
-            overlay.className = 'picker-overlay';
-            overlay.id = 'wheel-picker-overlay';
-            overlay.innerHTML = `
-                <div class="picker-modal" style="width: 280px;">
-                    <h4>📅 選擇年月</h4>
-                    <div class="picker-wheels-container" style="justify-content: space-around;">
-                        <div class="wheel-column" id="wheel-year" onscroll="handleWheelScroll('year')"></div>
-                        <div class="wheel-column" id="wheel-month" onscroll="handleWheelScroll('month')"></div>
-                    </div>
-                    <div class="picker-btn-group" style="margin-top: 15px;">
-                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="confirmWheelPicker()">確定選取</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            populateWheelColumns(initYear, initMonth, 1, true);
-        }
-
-        function populateWheelColumns(selYear, selMonth, selDay, ymOnly) {
-            const yearCol = document.getElementById('wheel-year');
-            const monthCol = document.getElementById('wheel-month');
-
-            let currentActualYear = new Date().getFullYear();
-            let startYear = currentActualYear - 50;
-            let endYear = currentActualYear + 50;
-
-            let yearHtml = '<div style="height:47.5px;"></div>';
-            for (let y = startYear; y <= endYear; y++) {
-                yearHtml += `<div class="wheel-item" data-val="${y}">${y}年</div>`;
-            }
-            yearHtml += '<div style="height:47.5px;"></div>';
-            yearCol.innerHTML = yearHtml;
-
-            let monthHtml = '<div style="height:47.5px;"></div>';
-            for (let m = 1; m <= 12; m++) {
-                let mStr = m < 10 ? '0' + m : m;
-                monthHtml += `<div class="wheel-item" data-val="${m}">${mStr}月</div>`;
-            }
-            monthHtml += '<div style="height:47.5px;"></div>';
-            monthCol.innerHTML = monthHtml;
-
-            if (!ymOnly) {
-                updateDaysWheel(selYear, selMonth, selDay);
-            }
-
-            requestAnimationFrame(() => {
-                scrollToValue('year', selYear);
-                scrollToValue('month', selMonth);
-                if (!ymOnly) scrollToValue('day', selDay);
-            });
-        }
-
-        function updateDaysWheel(year, month, selectedDay) {
-            const dayCol = document.getElementById('wheel-day');
-            if (!dayCol) return;
-            const daysInMonth = new Date(year, month, 0).getDate();
-            if (selectedDay > daysInMonth) selectedDay = daysInMonth;
-
-            let dayHtml = '<div style="height:47.5px;"></div>';
-            for (let d = 1; d <= daysInMonth; d++) {
-                let dStr = d < 10 ? '0' + d : d;
-                dayHtml += `<div class="wheel-item" data-val="${d}">${dStr}日</div>`;
-            }
-            dayHtml += '<div style="height:47.5px;"></div>';
-            dayCol.innerHTML = dayHtml;
-            scrollToValue('day', selectedDay);
-        }
-
-        function scrollToValue(type, val) {
-            const col = document.getElementById(`wheel-${type}`);
-            if (!col) return;
-            const items = col.querySelectorAll('.wheel-item');
-            for (let item of items) {
-                if (parseInt(item.getAttribute('data-val')) === parseInt(val)) {
-                    col.scrollTop = item.offsetTop - (col.clientHeight / 2) + (item.clientHeight / 2);
-                    break;
-                }
-            }
-            highlightSelected(type);
-        }
-
-        function handleWheelScroll(type) {
-            highlightSelected(type);
-            if (!isYearMonthOnlyMode && (type === 'year' || type === 'month')) {
-                const y = getSelectedValue('year');
-                const m = getSelectedValue('month');
-                const currentDay = getSelectedValue('day');
-                updateDaysWheel(y, m, currentDay);
-            }
-        }
-
-        function highlightSelected(type) {
-            const col = document.getElementById(`wheel-${type}`);
-            if (!col) return;
-            const items = col.querySelectorAll('.wheel-item');
-            let containerCenter = col.scrollTop + (col.clientHeight / 2);
-            let closestItem = null;
-            let minDiff = 9999;
-
-            items.forEach(item => {
-                let itemCenter = item.offsetTop + (item.clientHeight / 2);
-                let diff = Math.abs(containerCenter - itemCenter);
-                if (diff < minDiff) { minDiff = diff; closestItem = item; }
-            });
-
-            items.forEach(item => item.classList.remove('selected'));
-            if (closestItem) closestItem.classList.add('selected');
-        }
-
-        function getSelectedValue(type) {
-            const col = document.getElementById(`wheel-${type}`);
-            if (!col) return 1;
-            const selectedItem = col.querySelector('.wheel-item.selected');
-            return selectedItem ? selectedItem.getAttribute('data-val') : 1;
-        }
-
-        function confirmWheelPicker() {
-            const y = getSelectedValue('year');
-            const m = getSelectedValue('month');
-            const mStr = m < 10 ? '0' + m : m;
-
-            if (isYearMonthOnlyMode) {
-                let formattedYm = `${y}-${mStr}`;
-                if (currentWheelCallback) currentWheelCallback(formattedYm);
-            } else {
-                const d = getSelectedValue('day');
-                const dStr = d < 10 ? '0' + d : d;
-                let formattedDate = `${y}-${mStr}-${dStr}`;
-                if (currentWheelCallback) currentWheelCallback(formattedDate);
-            }
-            closeWheelPicker();
-        }
-
-        function closeWheelPicker() {
-            const overlay = document.getElementById('wheel-picker-overlay');
-            if (overlay) overlay.remove();
         }
     </script>
 </body>
