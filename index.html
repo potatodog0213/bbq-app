@@ -681,44 +681,116 @@
         .menu-item-pick b { white-space:nowrap; color:#6b422b; }
         .menu-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
         .menu-actions button { flex:1; min-width:110px; }
-        .menu-preview-shell { overflow:auto; background:#e9dfd2; padding:14px; border-radius:14px; }
-        .print-menu { width:100%; max-width:720px; min-height:920px; margin:0 auto; box-sizing:border-box; padding:28px 30px 22px; background:rgb(254, 244, 232); color:#49301f; font-family:"Noto Serif TC","Songti TC","PMingLiU",serif; box-shadow:0 4px 18px #7a4d2a22; display:flex; flex-direction:column; }
-        .print-menu-head { display:flex; align-items:center; gap:16px; border-bottom:2px solid #d7c3a9; padding-bottom:14px; }
-        .print-menu-mascot { width:118px; height:118px; object-fit:contain; border-radius:8px; mix-blend-mode:multiply; }
-        .print-menu-brand { flex:1; text-align:center; }
-        .print-menu-brand h1 { font-size:44px; letter-spacing:5px; margin:0; font-weight:900; color:#4b3020; }
-        .print-menu-brand h2 { font-size:30px; letter-spacing:8px; margin:2px 0 0; font-weight:900; color:#4b3020; }
-        .print-menu-sub { font-size:12px; letter-spacing:2px; margin-top:7px; }
-        .print-menu-items { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; margin-top:18px; min-height:530px; flex:1 0 auto; }
-        .print-menu-col { padding:0 12px; border-right:1px solid #d7c3a9; }
+        .menu-preview-shell { overflow:auto; background:#e9dfd2; padding:14px; border-radius:14px; width:100%; box-sizing:border-box; }
+        .print-menu {
+            width:100%; max-width:720px; min-height:920px; margin:0 auto;
+            box-sizing:border-box; padding:28px 30px 22px;
+            background:rgb(254, 244, 232); color:#49301f;
+            font-family:"Noto Serif TC","Songti TC","PMingLiU",serif;
+            box-shadow:0 4px 18px #7a4d2a22;
+            display:flex; flex-direction:column;
+        }
+        .print-menu-items {
+            display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+            gap:0; margin-top:18px; min-height:530px; flex:1 0 auto;
+        }
+        .print-menu-col { padding:0 12px; border-right:1px solid #d7c3a9; min-width:0; }
         .print-menu-col:first-child { padding-left:0; }
         .print-menu-col:last-child { border-right:0; padding-right:0; }
-        .print-menu-row { display:flex; justify-content:space-between; align-items:baseline; gap:6px; font-size:19px; line-height:1.75; font-weight:700; letter-spacing:1px; }
+        .print-menu-row {
+            display:flex; justify-content:space-between; align-items:baseline;
+            gap:6px; font-size:19px; line-height:1.75; font-weight:800; letter-spacing:1px;
+        }
         .print-menu-row span:first-child { overflow-wrap:anywhere; }
         .print-menu-row span:last-child { white-space:nowrap; }
-        .print-menu-footer { display:grid; grid-template-columns:1.35fr 1fr; grid-template-rows:auto auto; gap:8px 14px; align-items:center; border-top:0; padding-top:10px; margin-top:auto; }
-        .print-menu-brand-block { display:flex; align-items:center; gap:10px; min-width:0; }
-        .print-menu-brand-block .print-menu-mascot { width:112px; height:112px; flex:0 0 112px; }
-        .print-menu-brand-block .print-menu-brand { text-align:center; }
-        .print-menu-contact { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
-        .print-menu-address { grid-column:1 / -1; font-size:16px; line-height:1.5; font-weight:800; padding-top:3px; }
-        .print-menu-info { font-size:15px; line-height:1.65; font-weight:700; text-align:left; width:100%; }
+        /* 底部品牌區：左側吉祥物與店名、右側營業資訊與 LINE QR、左下地址 */
+        .print-menu-footer {
+            display:grid;
+            grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);
+            grid-template-rows:auto auto;
+            column-gap:16px; row-gap:4px;
+            align-items:center; border-top:0; padding-top:10px; margin-top:auto;
+        }
+        .print-menu-brand-block {
+            grid-column:1; grid-row:1;
+            display:flex; align-items:center; justify-content:flex-start;
+            gap:12px; min-width:0;
+        }
+        .print-menu-brand-block .print-menu-mascot {
+            width:112px; height:112px; flex:0 0 112px;
+            object-fit:contain; border-radius:8px; mix-blend-mode:multiply;
+        }
+        .print-menu-brand-block .print-menu-brand { flex:1; min-width:0; text-align:center; }
+        .print-menu-brand h1 {
+            font-size:44px; letter-spacing:5px; margin:0;
+            font-weight:900; color:#4b3020; white-space:nowrap;
+        }
+        .print-menu-brand h2 {
+            font-size:30px; letter-spacing:8px; margin:2px 0 0;
+            font-weight:900; color:#4b3020; white-space:nowrap;
+        }
+        .print-menu-contact {
+            grid-column:2; grid-row:1;
+            display:grid; grid-template-columns:minmax(0,1fr) 104px;
+            gap:8px; align-items:center; min-width:0;
+        }
+        .print-menu-info {
+            font-size:15px; line-height:1.65; font-weight:800;
+            text-align:left; width:100%; min-width:0;
+        }
         .print-menu-info strong { font-size:20px; letter-spacing:2px; }
-        .print-menu-qr { display:flex; align-items:center; justify-content:flex-end; gap:10px; }
-        .print-menu-qr-box { width:104px; min-width:104px; text-align:center; font-size:11px; font-weight:700; }
-        .print-menu-qr-box > div { width:92px; height:92px; margin:0 auto 4px; padding:4px; background:#fff; }
-        .print-menu-qr-box canvas, .print-menu-qr-box img { width:92px !important; height:92px !important; }
+        .print-menu-qr { display:flex; align-items:center; justify-content:center; }
+        .print-menu-qr-box {
+            width:104px; min-width:104px; text-align:center;
+            font-size:11px; font-weight:800;
+        }
+        .print-menu-qr-box > div {
+            width:92px; height:92px; margin:0 auto 4px;
+            padding:4px; background:#fff;
+        }
+        .print-menu-qr-box canvas, .print-menu-qr-box img {
+            width:92px !important; height:92px !important;
+        }
+        .print-menu-address {
+            grid-column:1; grid-row:2;
+            font-size:16px; line-height:1.5; font-weight:900;
+            padding-top:3px; white-space:normal;
+        }
         .menu-maker-hint { color:#7c6b5b; font-size:12px; line-height:1.6; margin-top:8px; }
         @media(max-width:900px) { .menu-maker-wrap { grid-template-columns:1fr; } }
         @media(max-width:560px) {
-            .print-menu { min-width:580px; min-height:800px; padding:20px; }
-            .print-menu-brand-block .print-menu-mascot { width:90px; height:90px; flex-basis:90px; }
-            .print-menu-address { font-size:14px; }
-            .print-menu-row { font-size:16px; }
-            .print-menu-brand h1 { font-size:35px; }
-            .print-menu-brand h2 { font-size:25px; }
-            .print-menu-mascot { width:90px; height:90px; }
-            .print-menu-items { min-height:460px; }
+            .menu-preview-shell { padding:6px; overflow:visible; }
+            .print-menu {
+                width:100%; min-width:0; min-height:720px;
+                padding:14px 12px 12px; box-shadow:none;
+            }
+            .print-menu-items { min-height:390px; margin-top:12px; }
+            .print-menu-col { padding:0 6px; }
+            .print-menu-row { font-size:clamp(10px, 3vw, 15px); line-height:1.8; letter-spacing:0; gap:3px; }
+            .print-menu-footer {
+                grid-template-columns:minmax(0,1.02fr) minmax(0,1fr);
+                column-gap:6px; row-gap:5px; padding-top:8px;
+            }
+            .print-menu-brand-block { gap:5px; }
+            .print-menu-brand-block .print-menu-mascot {
+                width:clamp(52px, 19vw, 76px);
+                height:clamp(52px, 19vw, 76px);
+                flex:0 0 clamp(52px, 19vw, 76px);
+            }
+            .print-menu-brand h1 { font-size:clamp(19px, 7vw, 28px); letter-spacing:2px; }
+            .print-menu-brand h2 { font-size:clamp(16px, 5.5vw, 23px); letter-spacing:4px; }
+            .print-menu-contact {
+                grid-template-columns:minmax(0,1fr) 62px;
+                gap:3px;
+            }
+            .print-menu-info { font-size:clamp(8px, 2.5vw, 11px); line-height:1.55; }
+            .print-menu-info strong { font-size:12px; }
+            .print-menu-qr-box { width:62px; min-width:62px; font-size:8px; }
+            .print-menu-qr-box > div { width:56px; height:56px; padding:2px; }
+            .print-menu-qr-box canvas, .print-menu-qr-box img {
+                width:56px !important; height:56px !important;
+            }
+            .print-menu-address { font-size:clamp(9px, 2.8vw, 12px); line-height:1.4; }
         }
         @media print {
             @page { size:A4 portrait; margin:8mm; }
