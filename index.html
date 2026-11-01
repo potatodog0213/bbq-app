@@ -694,14 +694,6 @@
                     <div class="arrow">›</div>
                 </div>
 
-                <div class="menu-card" onclick="openPage('menu')">
-                    <div class="menu-card-content">
-                        <h3>🍢 菜單自動產生器</h3>
-                        <span>依販售品項與售價產生可列印菜單，並可新增自訂 QR Code</span>
-                    </div>
-                    <div class="arrow">›</div>
-                </div>
-
                 <div class="menu-card" onclick="openPage('materials')">
                     <div class="menu-card-content">
                         <h3>📦 原物料與耗材價格表</h3>
@@ -795,9 +787,6 @@
                 titleEl.innerText = '販售品項成本表';
                 actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddProductForm()">＋ 新增品項</button>`;
                 renderProductsList();
-            } else if (pageName === 'menu') {
-                titleEl.innerText = '菜單自動產生器';
-                renderMenuBuilder();
             } else if (pageName === 'materials') {
                 titleEl.innerText = '原物料與耗材價格表';
                 actionContainer.innerHTML = `<button class="action-btn" onclick="renderAddMaterialForm()">＋ 新增原物料</button>`;
@@ -1108,11 +1097,11 @@
                                 <p><b>總成本：</b>$${item.package_cost} &nbsp;|&nbsp; <span class="cost-rate">成本率：${costRate}%</span></p>
                                 <div class="platform-breakeven-box">
                                     <div>
-                                        <span style="color:#059669; font-weight:700;">Ubereats 建議售價 (抽${Math.round(commissionRates.ubereats * 100)}%)：</span>
+                                        <span style="color:#059669; font-weight:700;">Ubereats 建議售價 (抽35%)：</span>
                                         <b style="color:#059669; font-size:14px;">$${ubereatsTargetPrice} 元</b>
                                     </div>
                                     <div>
-                                        <span style="color:#d97706; font-weight:700;">foodpanda 建議售價 (抽${Math.round(commissionRates.foodpanda * 100)}%)：</span>
+                                        <span style="color:#d97706; font-weight:700;">foodpanda 建議售價 (抽33%)：</span>
                                         <b style="color:#d97706; font-size:14px;">$${foodpandaTargetPrice} 元</b>
                                     </div>
                                 </div>
@@ -2153,47 +2142,29 @@
         // ==================== 每月損益總表與營運回本試算邏輯 ====================
         let currentProfitMonth = getCurrentYearMonth();
 
-        function defaultMonthSettings(monthStr) {
-            const ueCommission = monthStr >= '2026-08' ? 35 : 0;
+        async function getMonthSettings(monthStr) {
+            let { data, error } = await _supabase.from('settings').select('*').eq('month', monthStr).single();
+            if (data && data.settings_json) {
+                return data.settings_json;
+            }
+
+            let { data: latestData } = await _supabase.from('settings').select('*').order('id', { ascending: false }).limit(1);
+            if (latestData && latestData.length > 0 && latestData[0].settings_json) {
+                return latestData[0].settings_json;
+            }
+
             return {
                 workingDays: 26,
-                rent: 33000,
-                water: 220,
-                electricity: 4870,
-                utilities: 4870,
-                fullTimeStaff: 62000,
-                partTimeStaff: 10000,
-                gas: 1650,
-                oil: 5700,
-                charcoal: 1100,
-                ubereatsAdDaily: 256,
-                foodpandaAdMonthly: 1400,
-                ubereatsCommission: ueCommission,
-                foodpandaCommission: 33,
+                rent: 0,
+                utilities: 0,
+                fullTimeStaff: 0,
+                partTimeStaff: 0,
+                gas: 0,
+                oil: 0,
+                charcoal: 0,
+                ubereatsAdDaily: 0,
+                foodpandaAdMonthly: 0,
                 initialCapital: 2000000
-            };
-        }
-
-        async function getMonthSettings(monthStr) {
-            const { data, error } = await _supabase.from('settings').select('*').eq('month', monthStr).maybeSingle();
-            if (error) console.error('讀取月份設定失敗：', error.message);
-            if (data && data.settings_json) {
-                const saved = data.settings_json;
-                const defaults = defaultMonthSettings(monthStr);
-                // 舊資料的 utilities 原本代表水電合計，先完整保留舊總額並放到電費欄位，避免舊資料金額消失。
-                if (saved.electricity === undefined && saved.utilities !== undefined) saved.electricity = Number(saved.utilities) || 0;
-                if (saved.water === undefined) saved.water = 0;
-                return { ...defaults, ...saved };
-            }
-            // 不再套用「最近一個月」的設定，避免改一個月影響其他月份。
-            return defaultMonthSettings(monthStr);
-        }
-
-        function getCommissionRates(settings, monthStr) {
-            const defaults = defaultMonthSettings(monthStr);
-            return {
-                ubereats: Math.max(0, Math.min(100, Number(settings.ubereatsCommission ?? defaults.ubereatsCommission) || 0)) / 100,
-                foodpanda: Math.max(0, Math.min(100, Number(settings.foodpandaCommission ?? defaults.foodpandaCommission) || 0)) / 100
             };
         }
 
@@ -2222,7 +2193,7 @@
             let totalUbereatsAd = (parseFloat(fixedSettings.ubereatsAdDaily) || 0) * (parseFloat(fixedSettings.workingDays) || 26);
             let totalFoodpandaAd = parseFloat(fixedSettings.foodpandaAdMonthly) || 0;
 
-            let totalFixedCost = (parseFloat(fixedSettings.rent) || 0) + (parseFloat(fixedSettings.water) || 0) + (parseFloat(fixedSettings.electricity) || 0) + 
+            let totalFixedCost = (parseFloat(fixedSettings.rent) || 0) + (parseFloat(fixedSettings.utilities) || 0) + 
                                  (parseFloat(fixedSettings.fullTimeStaff) || 0) + (parseFloat(fixedSettings.partTimeStaff) || 0) + 
                                  (parseFloat(fixedSettings.gas) || 0) + (parseFloat(fixedSettings.oil) || 0) + 
                                  (parseFloat(fixedSettings.charcoal) || 0) + totalUbereatsAd + totalFoodpandaAd;
@@ -2236,7 +2207,6 @@
             let dailyBreakEvenRevenue = fixedSettings.workingDays > 0 ? monthlyBreakEvenRevenue / fixedSettings.workingDays : 0;
 
             let monthRevenues = globalRevenuesData.filter(i => i.date && i.date.startsWith(currentProfitMonth));
-            const commissionRates = getCommissionRates(fixedSettings, currentProfitMonth);
             
             let profitDaysCount = 0;
             let lossDaysCount = 0;
@@ -2246,8 +2216,8 @@
 
             let totalActualRevenue = monthRevenues.reduce((acc, i) => {
                 let onsite = parseFloat(i.onsite) || 0;
-                let ubereatsNet = (parseFloat(i.ubereats) || 0) * (1 - commissionRates.ubereats);
-                let foodpandaNet = (parseFloat(i.foodpanda) || 0) * (1 - commissionRates.foodpanda); 
+                let ubereatsNet = (parseFloat(i.ubereats) || 0) * 0.65;   
+                let foodpandaNet = (parseFloat(i.foodpanda) || 0) * 0.67; 
                 let dayTotal = onsite + ubereatsNet + foodpandaNet;
 
                 if (dayTotal >= dailyBreakEvenRevenue) profitDaysCount++;
@@ -2293,7 +2263,7 @@
 
             let html = `
                 <div class="controls-bar" style="margin-bottom: 20px;">
-                    <div class="stats-info"><span>📊 營運與回本試算儀表板 (已依本月設定扣除外送平台抽成)</span></div>
+                    <div class="stats-info"><span>📊 營運與回本試算儀表板 (已自動扣除 Ubereats 35% / foodpanda 33% 抽成)</span></div>
                     <div class="search-sort-group">
                         <input type="text" id="profit-month-search" class="search-input" value="${monthDisplayTitle}" readonly onclick="openYearMonthPicker(changeProfitMonthWheel, '${currentProfitMonth}')" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇年月">
                         <button class="action-btn" onclick="openRevenueModal()">＋ 記錄今日營業額</button>
@@ -2306,8 +2276,7 @@
                         <div>營業天數：<b>${fixedSettings.workingDays} 天</b></div>
                         <div>平均成本率：<b>${avgCostRate.toFixed(1)}%</b></div>
                         <div>房租：<b>$${(fixedSettings.rent || 0).toLocaleString()} 元</b></div>
-                        <div>水費：<b>$${(fixedSettings.water || 0).toLocaleString()} 元</b></div>
-                        <div>電費：<b>$${(fixedSettings.electricity || 0).toLocaleString()} 元</b></div>
+                        <div>水電費：<b>$${(fixedSettings.utilities || 0).toLocaleString()} 元</b></div>
                         <div>正職薪水：<b>$${(fixedSettings.fullTimeStaff || 0).toLocaleString()} 元</b></div>
                         <div>工讀生薪水：<b>$${(fixedSettings.partTimeStaff || 0).toLocaleString()} 元</b></div>
                         <div>瓦斯費：<b>$${(fixedSettings.gas || 0).toLocaleString()} 元</b></div>
@@ -2315,8 +2284,6 @@
                         <div>木碳費：<b>$${(fixedSettings.charcoal || 0).toLocaleString()} 元</b></div>
                         <div>Ubereats 廣告費（每日）：<b>$${fixedSettings.ubereatsAdDaily || 0} /天</b></div>
                         <div>foodpanda 廣告費（每月）：<b>$${fixedSettings.foodpandaAdMonthly || 0} /月</b></div>
-                        <div>Ubereats 當月抽成：<b>${fixedSettings.ubereatsCommission ?? defaultMonthSettings(currentProfitMonth).ubereatsCommission}%</b></div>
-                        <div>foodpanda 當月抽成：<b>${fixedSettings.foodpandaCommission ?? 33}%</b></div>
                         <div>每月固定總支出：<b>$${grandTotalCost.toLocaleString()} 元</b></div>
                         <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
                     </div>
@@ -2360,8 +2327,8 @@
                     let onsite = parseFloat(rev.onsite) || 0;
                     let ueInput = parseFloat(rev.ubereats) || 0;
                     let fpInput = parseFloat(rev.foodpanda) || 0;
-                    let ueNet = ueInput * (1 - commissionRates.ubereats);
-                    let fpNet = fpInput * (1 - commissionRates.foodpanda);
+                    let ueNet = ueInput * 0.65;   
+                    let fpNet = fpInput * 0.67; 
                     let dayNetTotal = onsite + ueNet + fpNet;
 
                     let diffToBreakEven = dailyBreakEvenRevenue - dayNetTotal;
@@ -2382,8 +2349,8 @@
                             <div class="card-main-info">
                                 <h4>${rev.date}${weekDayStr} <span style="font-size:15px;">實收總計：$${Math.round(dayNetTotal).toLocaleString()}</span></h4>
                                 <p><b>現場：</b>$${onsite}</p>
-                                <p><b>Ubereats：</b>輸入 $${ueInput} ➔ <b>實收 $${Math.round(ueNet)}</b> (抽${Math.round(commissionRates.ubereats * 100)}%)</p>
-                                <p><b>foodpanda：</b>輸入 $${fpInput} ➔ <b>實收 $${Math.round(fpNet)}</b> (抽${Math.round(commissionRates.foodpanda * 100)}%)</p>
+                                <p><b>Ubereats：</b>輸入 $${ueInput} ➔ <b>實收 $${Math.round(ueNet)}</b> (抽35%)</p>
+                                <p><b>foodpanda：</b>輸入 $${fpInput} ➔ <b>實收 $${Math.round(fpNet)}</b> (抽33%)</p>
                                 <p style="margin-top: 8px; font-size: 13px;">${feedbackHtml}</p>
                             </div>
                             <div class="card-actions" id="rev-actions-${rev.id}">
@@ -2422,8 +2389,8 @@
                         <input type="text" id="rev-date" value="${defaultDate}" readonly onclick="openDatePicker(setRevDate, document.getElementById('rev-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
                     <div class="form-group"><label>現場客人營業額</label><input type="number" step="0.01" id="rev-onsite" value="${revItem ? revItem.onsite || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>Ubereats 營業額 (依本月抽成設定計算實收)</label><input type="number" step="0.01" id="rev-ubereats" value="${revItem ? revItem.ubereats || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>foodpanda 營業額 (依本月抽成設定計算實收)</label><input type="number" step="0.01" id="rev-foodpanda" value="${revItem ? revItem.foodpanda || 0 : ''}" placeholder="0"></div>
+                    <div class="form-group"><label>Ubereats 營業額 (自動扣除 35% 抽成)</label><input type="number" step="0.01" id="rev-ubereats" value="${revItem ? revItem.ubereats || 0 : ''}" placeholder="0"></div>
+                    <div class="form-group"><label>foodpanda 營業額 (自動扣除 33% 抽成)</label><input type="number" step="0.01" id="rev-foodpanda" value="${revItem ? revItem.foodpanda || 0 : ''}" placeholder="0"></div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('revenue-modal-overlay').remove()">取消</button>
                         <button class="picker-btn picker-confirm" onclick="saveRevenue(${editId})">確認儲存</button>
@@ -2478,8 +2445,7 @@
                     <h4 style="text-align: center; color: #c2410c;">⚙️ 設定本月 (${currentProfitMonth}) 固定支出與參數</h4>
                     <div class="form-group"><label>營業天數</label><input type="number" id="set-days" value="${fixedSettings.workingDays}"></div>
                     <div class="form-group"><label>房租</label><input type="number" id="set-rent" value="${fixedSettings.rent}"></div>
-                    <div class="form-group"><label>水費</label><input type="number" id="set-water" value="${fixedSettings.water}"></div>
-                    <div class="form-group"><label>電費</label><input type="number" id="set-electricity" value="${fixedSettings.electricity}"></div>
+                    <div class="form-group"><label>水電費</label><input type="number" id="set-util" value="${fixedSettings.utilities}"></div>
                     <div class="form-group"><label>正職薪水</label><input type="number" id="set-full" value="${fixedSettings.fullTimeStaff}"></div>
                     <div class="form-group"><label>工讀生薪水</label><input type="number" id="set-part" value="${fixedSettings.partTimeStaff}"></div>
                     <div class="form-group"><label>瓦斯費</label><input type="number" id="set-gas" value="${fixedSettings.gas}"></div>
@@ -2487,8 +2453,6 @@
                     <div class="form-group"><label>木碳費</label><input type="number" id="set-charcoal" value="${fixedSettings.charcoal}"></div>
                     <div class="form-group"><label>Ubereats 廣告費 (一天單價)</label><input type="number" id="set-ubereats-daily" value="${fixedSettings.ubereatsAdDaily}"></div>
                     <div class="form-group"><label>foodpanda 廣告費 (每月固定總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
-                    <div class="form-group"><label>Ubereats 當月抽成 (%)</label><input type="number" min="0" max="100" step="0.1" id="set-ubereats-commission" value="${fixedSettings.ubereatsCommission ?? defaultMonthSettings(currentProfitMonth).ubereatsCommission}"></div>
-                    <div class="form-group"><label>foodpanda 當月抽成 (%)</label><input type="number" min="0" max="100" step="0.1" id="set-foodpanda-commission" value="${fixedSettings.foodpandaCommission ?? 33}"></div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
                         <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">儲存設定</button>
@@ -2504,18 +2468,14 @@
                 initialCapital: oldSettings.initialCapital || 2000000,
                 workingDays: parseFloat(document.getElementById('set-days').value) || 26,
                 rent: parseFloat(document.getElementById('set-rent').value) || 0,
-                water: parseFloat(document.getElementById('set-water').value) || 0,
-                electricity: parseFloat(document.getElementById('set-electricity').value) || 0,
-                utilities: parseFloat(document.getElementById('set-electricity').value) || 0,
+                utilities: parseFloat(document.getElementById('set-util').value) || 0,
                 fullTimeStaff: parseFloat(document.getElementById('set-full').value) || 0,
                 partTimeStaff: parseFloat(document.getElementById('set-part').value) || 0,
                 gas: parseFloat(document.getElementById('set-gas').value) || 0,
                 oil: parseFloat(document.getElementById('set-oil').value) || 0,
                 charcoal: parseFloat(document.getElementById('set-charcoal').value) || 0,
                 ubereatsAdDaily: parseFloat(document.getElementById('set-ubereats-daily').value) || 0,
-                foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0,
-                ubereatsCommission: Math.max(0, Math.min(100, parseFloat(document.getElementById('set-ubereats-commission').value) || 0)),
-                foodpandaCommission: Math.max(0, Math.min(100, parseFloat(document.getElementById('set-foodpanda-commission').value) || 0))
+                foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0
             };
             
             let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).single();
@@ -2534,72 +2494,6 @@
             }
         }
 
-
-        // ==================== 菜單自動產生器 ====================
-        async function renderMenuBuilder() {
-            const el = document.getElementById('page-content');
-            const { data, error } = await _supabase.from('products').select('*').order('id', { ascending: true });
-            if (error) { el.innerHTML = `<p style="color:#b91c1c">讀取販售品項失敗：${escapeMenuText(error.message)}</p>`; return; }
-            globalProductsData = data || [];
-            const saved = JSON.parse(localStorage.getItem('malingji_menu_qr') || '[]');
-            el.innerHTML = `
-              <div class="profit-card" style="margin-bottom:16px">
-                <h3>菜單設定</h3>
-                <p style="color:var(--text-muted)">菜單品項直接讀取「販售品項成本表」中的名稱與售價。編輯商品或售價後，重新開啟此頁即可更新。自訂 QR Code 目前儲存在這台瀏覽器，不會改動既有資料庫。</p>
-                <div class="form-group"><label>菜單標題</label><input id="menu-title-input" value="馬鈴吉碳烤"></div>
-                <div class="form-group"><label>菜單副標題（可留空）</label><input id="menu-subtitle-input" value="現場點餐・歡迎光臨"></div>
-                <hr style="border:0;border-top:1px solid #e5e7eb;margin:18px 0">
-                <h4>新增自訂 QR Code（例如 LINE、線上點餐、地圖；不預設 IG）</h4>
-                <div class="form-group"><label>QR Code 名稱</label><input id="menu-qr-label" placeholder="例如：LINE 官方帳號"></div>
-                <div class="form-group"><label>網址或文字</label><input id="menu-qr-value" placeholder="https://..." ></div>
-                <button class="action-btn" onclick="addMenuQr()">＋ 新增 QR Code</button>
-                <div id="menu-qr-list" style="margin-top:12px"></div>
-              </div>
-              <div class="profit-card"><div id="printable-menu">
-                <h1 id="render-menu-title" style="text-align:center;margin-bottom:4px">馬鈴吉碳烤</h1>
-                <p id="render-menu-subtitle" style="text-align:center;margin-top:0"></p>
-                <div id="render-menu-products" class="menu-products-print"></div>
-                <div id="render-menu-qrs" class="menu-qrs-print"></div>
-                <p style="text-align:center;margin-top:24px">營業時間 17:30～24:00　公休日：星期三</p>
-              </div><button class="action-btn" style="width:100%;margin-top:16px" onclick="printMenu()">🖨️ 列印／另存 PDF 菜單</button></div>
-              <style>
-                .menu-products-print{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 22px;margin-top:22px}
-                .menu-product-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #d6c7b7;padding:8px 2px;font-size:17px}
-                .menu-qrs-print{display:flex;flex-wrap:wrap;gap:18px;justify-content:center;margin-top:24px}
-                .menu-qr-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px;border:1px solid #e5e7eb;border-radius:10px;min-width:120px}
-                .menu-qr-card img{width:120px;height:120px}
-                @media print{body *{visibility:hidden!important}#printable-menu,#printable-menu *{visibility:visible!important}#printable-menu{position:absolute;left:0;top:0;width:100%;padding:12mm;box-sizing:border-box;background:white;color:#2b2118}button,.profit-card>p{display:none!important}.menu-products-print{grid-template-columns:repeat(2,minmax(0,1fr))}}
-              </style>`;
-            document.getElementById('render-menu-title').textContent = document.getElementById('menu-title-input').value;
-            document.getElementById('render-menu-subtitle').textContent = document.getElementById('menu-subtitle-input').value;
-            document.getElementById('menu-title-input').addEventListener('input', e => document.getElementById('render-menu-title').textContent=e.target.value);
-            document.getElementById('menu-subtitle-input').addEventListener('input', e => document.getElementById('render-menu-subtitle').textContent=e.target.value);
-            document.getElementById('render-menu-products').innerHTML = globalProductsData.map(p => `<div class="menu-product-row"><span>${escapeMenuText(p.name || '未命名品項')}</span><b>$${Number(p.price || 0).toLocaleString()}</b></div>`).join('') || '<p>目前販售品項表沒有資料。</p>';
-            renderMenuQrList(saved);
-        }
-        function escapeMenuText(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-        function addMenuQr() {
-            const label = document.getElementById('menu-qr-label').value.trim();
-            const value = document.getElementById('menu-qr-value').value.trim();
-            if (!label || !value) { alert('請輸入 QR Code 名稱及網址／文字。'); return; }
-            const items = JSON.parse(localStorage.getItem('malingji_menu_qr') || '[]');
-            items.push({id: Date.now(), label, value});
-            localStorage.setItem('malingji_menu_qr', JSON.stringify(items));
-            document.getElementById('menu-qr-label').value=''; document.getElementById('menu-qr-value').value='';
-            renderMenuQrList(items);
-        }
-        function removeMenuQr(id) {
-            const items = JSON.parse(localStorage.getItem('malingji_menu_qr') || '[]').filter(x => x.id !== id);
-            localStorage.setItem('malingji_menu_qr', JSON.stringify(items)); renderMenuQrList(items);
-        }
-        function renderMenuQrList(items) {
-            const list = document.getElementById('menu-qr-list');
-            const output = document.getElementById('render-menu-qrs');
-            if (!list || !output) return;
-            list.innerHTML = items.map(x => `<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #eee"><span>${escapeMenuText(x.label)} — ${escapeMenuText(x.value)}</span><button class="clear-search-btn" onclick="removeMenuQr(${x.id})">刪除</button></div>`).join('') || '<p>尚未新增 QR Code。</p>';
-            output.innerHTML = items.map(x => `<div class="menu-qr-card"><img alt="${escapeMenuText(x.label)} QR Code" src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(x.value)}"><b>${escapeMenuText(x.label)}</b></div>`).join('');
-        }
-        function printMenu() { window.print(); }
 
         // ==================== 💎 全店創業資本與回本追蹤專屬頁面邏輯 ====================
         async function renderCapitalView() {
@@ -2635,11 +2529,10 @@
             for (let ym of monthSet) {
                 let mSettings = await getMonthSettings(ym);
                 let mDays = parseFloat(mSettings.workingDays) || 26;
-                let mFix = (parseFloat(mSettings.rent)||0) + (parseFloat(mSettings.water)||0) + (parseFloat(mSettings.electricity ?? mSettings.utilities)||0) + (parseFloat(mSettings.fullTimeStaff)||0) + (parseFloat(mSettings.partTimeStaff)||0) + (parseFloat(mSettings.gas)||0) + (parseFloat(mSettings.oil)||0) + (parseFloat(mSettings.charcoal)||0) + ((parseFloat(mSettings.ubereatsAdDaily)||0)*mDays) + (parseFloat(mSettings.foodpandaAdMonthly)||0);
+                let mFix = (parseFloat(mSettings.rent)||0) + (parseFloat(mSettings.utilities)||0) + (parseFloat(mSettings.fullTimeStaff)||0) + (parseFloat(mSettings.partTimeStaff)||0) + (parseFloat(mSettings.gas)||0) + (parseFloat(mSettings.oil)||0) + (parseFloat(mSettings.charcoal)||0) + ((parseFloat(mSettings.ubereatsAdDaily)||0)*mDays) + (parseFloat(mSettings.foodpandaAdMonthly)||0);
                 
                 let mExp = allExpList.filter(e => e.date && e.date.startsWith(ym)).reduce((acc, e) => acc + (parseFloat(e.amount)||0), 0);
-                let mRates = getCommissionRates(mSettings, ym);
-                let mRev = allRevList.filter(r => r.date && r.date.startsWith(ym)).reduce((acc, r) => acc + (parseFloat(r.onsite)||0) + ((parseFloat(r.ubereats)||0)*(1-mRates.ubereats)) + ((parseFloat(r.foodpanda)||0)*(1-mRates.foodpanda)), 0);
+                let mRev = allRevList.filter(r => r.date && r.date.startsWith(ym)).reduce((acc, r) => acc + (parseFloat(r.onsite)||0) + ((parseFloat(r.ubereats)||0)*0.65) + ((parseFloat(r.foodpanda)||0)*0.67), 0);
                 
                 let mNet = (mRev * grossMarginRate) - (mFix + mExp);
                 grandLifetimeNetProfit += mNet;
