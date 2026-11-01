@@ -2989,9 +2989,7 @@
                         <label>菜單備註</label><input id="menu-notice" value="${menuEscape(st.notice)}" oninput="saveMenuSettings()">
                         <div class="menu-actions">
                             <button class="action-btn" onclick="refreshMenuProducts()">↻ 同步販售品項</button>
-                            <button class="action-btn" onclick="printMenu()">列印／另存 PDF</button>
                         </div>
-                        <p class="menu-maker-hint">菜單採用原版米白底、深咖啡色粗體字、三欄直式品項、底部店家資訊與 LINE QR Code；不會放入 IG QR Code。</p>
                     </section>
                     <section>
                         <div class="menu-preview-shell" id="menu-print-area">
@@ -3063,14 +3061,6 @@
                     qr.innerHTML = '<div style="width:92px;height:92px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:10px;color:#8a6b50;background:#fff8ee;border:1px dashed #cdb79b;box-sizing:border-box;">請設定<br>LINE 連結</div>';
                 }
             }
-        }
-        function printMenu() {
-            if (!menuSelectedIds.size) { alert('請至少選擇一個販售品項再列印。'); return; }
-            const st = menuSettings();
-            if (!st.lineUrl) {
-                if (!confirm('尚未設定 LINE 官方帳號連結，仍要列印不含有效 QR Code 的菜單嗎？')) return;
-            }
-            window.print();
         }
 
     </script>
