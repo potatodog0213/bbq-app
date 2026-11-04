@@ -1657,6 +1657,7 @@
         }
 
         function setEditPurchaseDate(dateStr) { document.getElementById('edit-pur-date').value = dateStr; }
+        function setEditExpenseDate(dateStr) { document.getElementById('edit-exp-date').value = dateStr; }
 
         async function updatePurchase(id) {
             const date = document.getElementById('edit-pur-date').value;
@@ -1721,9 +1722,12 @@
                 return true;
             });
 
-            let totalExpenseAmount = filteredData.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
+            let expenseRows = filteredData.filter(item => (item.transaction_type || 'expense') === 'expense');
+            let incomeRows = filteredData.filter(item => item.transaction_type === 'income');
+            let totalExpenseAmount = expenseRows.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
+            let totalIncomeAmount = incomeRows.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
 
-            let depreciableItems = globalExpensesData.filter(item => item.is_depreciable);
+            let depreciableItems = globalExpensesData.filter(item => (item.transaction_type || 'expense') === 'expense' && item.is_depreciable);
             let totalAssetOriginal = 0;
             let totalAccumulatedDepreciation = 0;
 
@@ -1774,8 +1778,9 @@
 
                 <div class="controls-bar">
                     <div class="stats-info">
-                        <span>共 <b>${filteredData.length}</b> 筆支出</span>
-                        <span>花費總金額：<b style="color:#dc2626;">$${totalExpenseAmount.toLocaleString()} 元</b></span>
+                        <span>共 <b>${filteredData.length}</b> 筆收支紀錄</span>
+                        <span>支出：<b style="color:#dc2626;">$${totalExpenseAmount.toLocaleString()} 元</b></span>
+                        <span>收入：<b style="color:#166534;">$${totalIncomeAmount.toLocaleString()} 元</b></span>
                     </div>
                     <div class="search-sort-group">
                         <input type="text" id="expense-dep-filter-input" class="search-input" value="${depDisplayStr}" readonly onclick="openExpenseDepFilterPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊篩選折舊與一般支出">
@@ -1790,11 +1795,12 @@
                 html += '<div class="items-grid">';
                 filteredData.forEach((item, index) => {
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    let depreciationBadge = item.is_depreciable ? `<div style="color:#0284c7; font-weight:700; font-size:12.5px; margin-top:4px;">🏷️ 已啟用折舊 (${item.useful_life_years || 5}年攤提)</div>` : `<div style="color:#78716c; font-weight:600; font-size:12.5px; margin-top:4px;">💡 一般支出 (不折舊)</div>`;
+                    let isIncome = item.transaction_type === 'income';
+                    let depreciationBadge = isIncome ? `<div style="color:#166534; font-weight:700; font-size:12.5px; margin-top:4px;">💰 額外收入</div>` : item.is_depreciable ? `<div style="color:#0284c7; font-weight:700; font-size:12.5px; margin-top:4px;">🏷️ 已啟用折舊 (${item.useful_life_years || 5}年攤提)</div>` : `<div style="color:#78716c; font-weight:600; font-size:12.5px; margin-top:4px;">💡 一般支出 (不折舊)</div>`;
                     html += `
                         <div class="item-card ${zebraClass}" id="expense-card-${item.id}">
                             <div class="card-main-info">
-                                <h4>${item.name} <span class="total-amount-tag">$${item.amount} 元</span></h4>
+                                <h4>${isIncome ? '🟢 ' : '🔴 '}${item.name} <span class="total-amount-tag">$${item.amount} 元</span></h4>
                                 <p><b>日期：</b>${item.date}</p>
                                 <p><b>數量：</b>${item.quantity || 1}</p>
                                 <p><b>相關廠商：</b>${item.vendor || '無'}</p>
@@ -1962,17 +1968,18 @@
                 <div class="form-card-container">
                     <h3 class="form-header-title">💸 紀錄新店內支出</h3>
                     <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group"><label>收支類型</label><select id="exp-type" onchange="toggleExpenseTypeFields(false)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"><option value="expense">支出</option><option value="income">收入</option></select></div>
                     <div class="form-group">
                         <label>日期</label>
                         <input type="text" id="exp-date" value="${todayStr}" readonly onclick="openDatePicker(setAddExpenseDate, document.getElementById('exp-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
-                    <div class="form-group"><label>支出項目名稱</label><input type="text" id="exp-name" placeholder="例如: 營業用冰箱、瓦斯桶、竹籤"></div>
+                    <div class="form-group"><label>項目名稱</label><input type="text" id="exp-name" placeholder="例如: 營業用冰箱、瓦斯桶、竹籤"></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="exp-qty" value="1" placeholder="請輸入數量"></div>
                     <div class="form-group"><label>金額 (總金額)</label><input type="number" step="0.01" id="exp-amount" placeholder="請輸入總金額"></div>
                     <div class="form-group"><label>相關廠商</label><input type="text" id="exp-vendor" placeholder="例如: 餐廳設備行、欣欣瓦斯"></div>
 
                     <!-- 超質感點擊式折舊開關卡片 -->
-                    <div class="form-group">
+                    <div class="form-group" id="add-depreciation-group">
                         <label>折舊攤提設定</label>
                         <div id="dep-toggle-card" class="depreciation-toggle-card" onclick="toggleDepreciationCard()">
                             <div class="custom-checkbox-circle"></div>
@@ -1999,6 +2006,14 @@
                     <button id="submit-exp-btn" class="action-btn" style="width:100%; padding:13px; margin-top:8px; font-size:16px; border-radius:10px;" onclick="addExpense()">確認儲存支出</button>
                 </div>
             `;
+        }
+
+        function toggleExpenseTypeFields(isEdit) {
+            const type = document.getElementById(isEdit ? 'edit-exp-type' : 'exp-type')?.value || 'expense';
+            const group = document.getElementById(isEdit ? 'edit-depreciation-group' : 'add-depreciation-group');
+            if (group) group.style.display = type === 'income' ? 'none' : 'block';
+            const card = document.getElementById(isEdit ? 'edit-dep-toggle-card' : 'dep-toggle-card');
+            if (type === 'income' && card) { card.classList.remove('active'); const box = document.getElementById(isEdit ? 'edit-depreciation-options-box' : 'depreciation-options-box'); if (box) box.style.display = 'none'; }
         }
 
         function toggleDepreciationCard() {
@@ -2033,7 +2048,8 @@
             const quantity = parseFloat(document.getElementById('exp-qty').value) || 1;
             const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
             const vendor = document.getElementById('exp-vendor').value.trim();
-            const is_depreciable = document.getElementById('dep-toggle-card').classList.contains('active');
+            const transaction_type = document.getElementById('exp-type').value;
+            const is_depreciable = transaction_type === 'expense' && document.getElementById('dep-toggle-card').classList.contains('active');
             const useful_life_years = is_depreciable ? selectedDepYears : 0;
 
             const toast = document.getElementById('form-toast');
@@ -2042,8 +2058,8 @@
             if (!date || !name || amount <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、項目名稱與有效金額！'; toast.style.display = 'block'; return; }
 
             submitBtn.disabled = true; submitBtn.innerText = '儲存中...';
-            const { error } = await _supabase.from('expenses').insert([{ date, name, quantity, amount, vendor, is_depreciable, useful_life_years }]);
-            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存支出'; }
+            const { error } = await _supabase.from('expenses').insert([{ date, name, quantity, amount, vendor, transaction_type, is_depreciable, useful_life_years }]);
+            if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 儲存失敗：' + error.message; toast.style.display = 'block'; submitBtn.disabled = false; submitBtn.innerText = '確認儲存紀錄'; }
             else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 新增成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('expenses'), 1000); }
         }
 
@@ -2056,16 +2072,18 @@
             titleEl.innerText = '修改支出紀錄';
             actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('expenses')">← 回列表</button>`;
             
-            const isDep = item.is_depreciable || false;
+            const isIncome = item.transaction_type === 'income';
+            const isDep = !isIncome && (item.is_depreciable || false);
             selectedDepYears = item.useful_life_years || 5;
 
             contentEl.innerHTML = `
                 <div class="form-card-container">
                     <h3 class="form-header-title">✏️ 正在修改：${item.name}</h3>
                     <div id="form-toast" class="toast-msg"></div>
+                    <div class="form-group"><label>收支類型</label><select id="edit-exp-type" onchange="toggleExpenseTypeFields(true)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"><option value="expense" ${!isIncome ? 'selected' : ''}>支出</option><option value="income" ${isIncome ? 'selected' : ''}>收入</option></select></div>
                     <div class="form-group">
                         <label>日期</label>
-                        <input type="text" id="edit-exp-date" value="${item.date}" readonly onclick="openDatePicker(setEditPurchaseDate, document.getElementById('edit-exp-date').value)" style="cursor: pointer; background: #fff;">
+                        <input type="text" id="edit-exp-date" value="${item.date}" readonly onclick="openDatePicker(setEditExpenseDate, document.getElementById('edit-exp-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
                     <div class="form-group"><label>支出項目名稱</label><input type="text" id="edit-exp-name" value="${item.name}"></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="edit-exp-qty" value="${item.quantity || 1}"></div>
@@ -2073,7 +2091,7 @@
                     <div class="form-group"><label>相關廠商</label><input type="text" id="edit-exp-vendor" value="${item.vendor || ''}"></div>
 
                     <!-- 超質感點擊式折舊開關卡片 -->
-                    <div class="form-group">
+                    <div class="form-group" id="edit-depreciation-group" style="display:${isIncome ? 'none' : 'block'};">
                         <label>折舊攤提設定</label>
                         <div id="edit-dep-toggle-card" class="depreciation-toggle-card ${isDep ? 'active' : ''}" onclick="toggleEditDepreciationCard()">
                             <div class="custom-checkbox-circle"></div>
@@ -2110,7 +2128,6 @@
             box.style.display = isDep ? 'block' : 'none';
         }
 
-        function setEditPurchaseDate(dateStr) { document.getElementById('edit-exp-date').value = dateStr; }
 
         async function updateExpense(id) {
             const date = document.getElementById('edit-exp-date').value;
@@ -2118,7 +2135,8 @@
             const quantity = parseFloat(document.getElementById('edit-exp-qty').value) || 1;
             const amount = parseFloat(document.getElementById('edit-exp-amount').value) || 0;
             const vendor = document.getElementById('edit-exp-vendor').value.trim();
-            const is_depreciable = document.getElementById('edit-dep-toggle-card').classList.contains('active');
+            const transaction_type = document.getElementById('edit-exp-type').value;
+            const is_depreciable = transaction_type === 'expense' && document.getElementById('edit-dep-toggle-card').classList.contains('active');
             const useful_life_years = is_depreciable ? selectedDepYears : 0;
 
             const toast = document.getElementById('form-toast');
@@ -2127,7 +2145,7 @@
             if (!date || !name || amount <= 0) { toast.className = 'toast-msg toast-error'; toast.innerText = '⚠️ 請填寫完整日期、名稱與金額！'; toast.style.display = 'block'; return; }
 
             updateBtn.disabled = true; updateBtn.innerText = '更新中...';
-            const { error } = await _supabase.from('expenses').update({ date, name, quantity, amount, vendor, is_depreciable, useful_life_years }).eq('id', id);
+            const { error } = await _supabase.from('expenses').update({ date, name, quantity, amount, vendor, transaction_type, is_depreciable, useful_life_years }).eq('id', id);
             if (error) { toast.className = 'toast-msg toast-error'; toast.innerText = '❌ 更新失敗：' + error.message; toast.style.display = 'block'; updateBtn.disabled = false; updateBtn.innerText = '確認更新變更'; }
             else { toast.className = 'toast-msg toast-success'; toast.innerText = '✅ 修改成功！正在返回列表...'; toast.style.display = 'block'; setTimeout(() => openPage('expenses'), 1000); }
         }
@@ -2142,30 +2160,57 @@
         // ==================== 每月損益總表與營運回本試算邏輯 ====================
         let currentProfitMonth = getCurrentYearMonth();
 
+        const DEFAULT_MONTH_SETTINGS = {
+            workingDays: 26,
+            rent: 0,
+            utilities: 0,
+            fullTimeStaff: 0,
+            partTimeStaff: 0,
+            gas: 0,
+            oil: 0,
+            charcoal: 0,
+            ubereatsAdDaily: 0,
+            foodpandaAdMonthly: 0,
+            initialCapital: 2000000
+        };
+
+        // 只讀取該月份真正保存的設定；歷史月份缺資料時絕不套用最新月份。
         async function getMonthSettings(monthStr) {
-            let { data, error } = await _supabase.from('settings').select('*').eq('month', monthStr).single();
-            if (data && data.settings_json) {
-                return data.settings_json;
-            }
+            const { data, error } = await _supabase
+                .from('settings')
+                .select('*')
+                .eq('month', monthStr)
+                .maybeSingle();
 
-            let { data: latestData } = await _supabase.from('settings').select('*').order('id', { ascending: false }).limit(1);
-            if (latestData && latestData.length > 0 && latestData[0].settings_json) {
-                return latestData[0].settings_json;
+            if (error) {
+                console.error('讀取月份設定失敗：', monthStr, error);
+                return null;
             }
+            return data && data.settings_json ? data.settings_json : null;
+        }
 
-            return {
-                workingDays: 26,
-                rent: 0,
-                utilities: 0,
-                fullTimeStaff: 0,
-                partTimeStaff: 0,
-                gas: 0,
-                oil: 0,
-                charcoal: 0,
-                ubereatsAdDaily: 0,
-                foodpandaAdMonthly: 0,
-                initialCapital: 2000000
-            };
+        // 表單使用的預設值；這只方便新增/編輯，不代表歷史月份真的有這些成本。
+        async function getMonthSettingsForEditing(monthStr) {
+            const saved = await getMonthSettings(monthStr);
+            return { ...DEFAULT_MONTH_SETTINGS, ...(saved || {}) };
+        }
+
+        // 初始投入本金是全店層級的參數，跨月份沿用最近一次明確保存的本金值；
+        // 這不會把最新月份的房租、人事等固定成本回填到歷史月份。
+        async function getGlobalInitialCapital() {
+            const { data, error } = await _supabase
+                .from('settings')
+                .select('month,settings_json')
+                .order('month', { ascending: false })
+                .limit(100);
+            if (error) {
+                console.error('讀取初始投入本金失敗：', error);
+                return 2000000;
+            }
+            const savedRow = (data || []).find(row =>
+                row.settings_json && Number(row.settings_json.initialCapital) > 0
+            );
+            return savedRow ? Number(savedRow.settings_json.initialCapital) : 2000000;
         }
 
         async function renderProfitView() {
@@ -2182,7 +2227,7 @@
             const expenses = expensesRes.data || [];
             globalRevenuesData = revenuesRes.data || [];
 
-            let fixedSettings = await getMonthSettings(currentProfitMonth);
+            let fixedSettings = await getMonthSettingsForEditing(currentProfitMonth);
 
             let avgCostRate = 40;
             if (products.length > 0) {
@@ -2198,9 +2243,11 @@
                                  (parseFloat(fixedSettings.gas) || 0) + (parseFloat(fixedSettings.oil) || 0) + 
                                  (parseFloat(fixedSettings.charcoal) || 0) + totalUbereatsAd + totalFoodpandaAd;
 
-            let monthExpenses = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth));
+            let monthExpenses = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth) && (i.transaction_type || 'expense') === 'expense');
+            let monthExtraIncome = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth) && i.transaction_type === 'income');
             let totalOtherExpenses = monthExpenses.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
-            let grandTotalCost = totalFixedCost + totalOtherExpenses;
+            let totalExtraIncome = monthExtraIncome.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
+            let grandTotalCost = totalFixedCost + totalOtherExpenses - totalExtraIncome;
 
             let grossMarginRate = 1 - (avgCostRate / 100);
             let monthlyBreakEvenRevenue = grossMarginRate > 0 ? grandTotalCost / grossMarginRate : grandTotalCost * 2;
@@ -2435,7 +2482,7 @@
         }
 
         async function openFixedSettingsModal() {
-            let fixedSettings = await getMonthSettings(currentProfitMonth);
+            let fixedSettings = await getMonthSettingsForEditing(currentProfitMonth);
 
             const overlay = document.createElement('div');
             overlay.className = 'picker-overlay';
@@ -2463,7 +2510,7 @@
         }
 
         async function saveFixedSettings() {
-            let oldSettings = await getMonthSettings(currentProfitMonth);
+            let oldSettings = await getMonthSettingsForEditing(currentProfitMonth);
             let fixedSettings = {
                 initialCapital: oldSettings.initialCapital || 2000000,
                 workingDays: parseFloat(document.getElementById('set-days').value) || 26,
@@ -2475,10 +2522,11 @@
                 oil: parseFloat(document.getElementById('set-oil').value) || 0,
                 charcoal: parseFloat(document.getElementById('set-charcoal').value) || 0,
                 ubereatsAdDaily: parseFloat(document.getElementById('set-ubereats-daily').value) || 0,
-                foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0
+                foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0,
+                fixedCostsConfigured: true
             };
             
-            let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).single();
+            let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).maybeSingle();
             let res;
             if (existing) {
                 res = await _supabase.from('settings').update({ settings_json: fixedSettings }).eq('month', currentProfitMonth);
@@ -2498,130 +2546,232 @@
         // ==================== 💎 全店創業資本與回本追蹤專屬頁面邏輯 ====================
         async function renderCapitalView() {
             const contentEl = document.getElementById('page-content');
-            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">計算全店總資本與回本進度中...</p>';
+            contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:30px 0;">正在核對全店營運損益、已付款叫貨與現金流...</p>';
 
-            let [productsRes, allRevenuesRes, allExpensesRes] = await Promise.all([
+            const [productsRes, revenuesRes, expensesRes, purchasesRes, settingsRes] = await Promise.all([
                 _supabase.from('products').select('*'),
                 _supabase.from('revenues').select('*'),
-                _supabase.from('expenses').select('*')
+                _supabase.from('expenses').select('*'),
+                _supabase.from('purchases').select('*'),
+                _supabase.from('settings').select('month,settings_json')
             ]);
 
+            const failed = [productsRes, revenuesRes, expensesRes, purchasesRes, settingsRes].find(r => r.error);
+            if (failed) {
+                contentEl.innerHTML = `<p style="color:#dc2626;padding:20px;">讀取回本追蹤資料失敗：${failed.error.message}</p>`;
+                return;
+            }
+
             const products = productsRes.data || [];
-            let allRevList = allRevenuesRes.data || [];
-            let allExpList = allExpensesRes.data || [];
-
-            let fixedSettings = await getMonthSettings(currentProfitMonth);
-            let initialCapital = parseFloat(fixedSettings.initialCapital) || 2000000;
-
-            let avgCostRate = 40;
-            if (products.length > 0) {
-                let totalRate = products.reduce((acc, p) => acc + calculateCostRate(p), 0);
-                avgCostRate = totalRate / products.length;
-            }
-            let grossMarginRate = 1 - (avgCostRate / 100);
-
-            let monthSet = new Set();
-            allRevList.forEach(r => { if(r.date) monthSet.add(r.date.substring(0, 7)); });
-            allExpList.forEach(e => { if(e.date) monthSet.add(e.date.substring(0, 7)); });
-            if (monthSet.size === 0) monthSet.add(currentProfitMonth);
-
-            let grandLifetimeNetProfit = 0;
-            for (let ym of monthSet) {
-                let mSettings = await getMonthSettings(ym);
-                let mDays = parseFloat(mSettings.workingDays) || 26;
-                let mFix = (parseFloat(mSettings.rent)||0) + (parseFloat(mSettings.utilities)||0) + (parseFloat(mSettings.fullTimeStaff)||0) + (parseFloat(mSettings.partTimeStaff)||0) + (parseFloat(mSettings.gas)||0) + (parseFloat(mSettings.oil)||0) + (parseFloat(mSettings.charcoal)||0) + ((parseFloat(mSettings.ubereatsAdDaily)||0)*mDays) + (parseFloat(mSettings.foodpandaAdMonthly)||0);
-                
-                let mExp = allExpList.filter(e => e.date && e.date.startsWith(ym)).reduce((acc, e) => acc + (parseFloat(e.amount)||0), 0);
-                let mRev = allRevList.filter(r => r.date && r.date.startsWith(ym)).reduce((acc, r) => acc + (parseFloat(r.onsite)||0) + ((parseFloat(r.ubereats)||0)*0.65) + ((parseFloat(r.foodpanda)||0)*0.67), 0);
-                
-                let mNet = (mRev * grossMarginRate) - (mFix + mExp);
-                grandLifetimeNetProfit += mNet;
-            }
-
-            let now = new Date();
-            let totalAccumulatedDepreciation = 0;
-            let depreciableItems = allExpList.filter(e => e.is_depreciable);
-            
-            depreciableItems.forEach(item => {
-                let cost = parseFloat(item.amount) || 0;
-                let years = parseFloat(item.useful_life_years) || 5;
-                let totalMonths = years * 12;
-                let monthlyDep = totalMonths > 0 ? cost / totalMonths : 0;
-
-                let pDate = item.date ? new Date(item.date) : new Date();
-                let diffMonths = (now.getFullYear() - pDate.getFullYear()) * 12 + (now.getMonth() - pDate.getMonth());
-                if (diffMonths < 0) diffMonths = 0;
-
-                let accDep = Math.min(cost, monthlyDep * diffMonths);
-                totalAccumulatedDepreciation += accDep;
+            const revenues = revenuesRes.data || [];
+            const expenses = expensesRes.data || [];
+            const purchases = purchasesRes.data || [];
+            const settingsRows = settingsRes.data || [];
+            const settingsByMonth = {};
+            settingsRows.forEach(row => {
+                if (row.month && row.settings_json) settingsByMonth[String(row.month)] = row.settings_json;
             });
 
-            let adjustedNetProfit = grandLifetimeNetProfit - totalAccumulatedDepreciation;
-            let currentRemainingCapital = initialCapital + adjustedNetProfit;
-            let capitalReturnRate = initialCapital > 0 ? (adjustedNetProfit / initialCapital) * 100 : 0;
+            const currentMonthKey = getCurrentYearMonth();
+            const currentSettings = settingsByMonth[currentProfitMonth] || {};
+            const initialCapital = Math.max(0, await getGlobalInitialCapital());
 
-            let depreciationDetailsHtml = '';
-            if (depreciableItems.length > 0) {
-                depreciationDetailsHtml = `
-                    <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; border-radius: 10px; border: 1px solid #fed7aa; margin-top: 12px; font-size: 14px;">
-                        <b style="color: #9a3412; display: block; margin-bottom: 6px;">🏷️ 已計入資本追蹤的設備折舊細節：</b>
-                        <div style="color: #78716c; display: flex; justify-content: space-between;">
-                            <span>列管設備總原價：$${depreciableItems.reduce((a,c)=>a+(parseFloat(c.amount)||0),0).toLocaleString()}</span>
-                            <span style="color: #dc2626; font-weight: 700;">總累計折舊扣除：-$${Math.round(totalAccumulatedDepreciation).toLocaleString()}</span>
-                        </div>
-                    </div>
-                `;
+            const monthNumber = ym => {
+                const match = /^(\d{4})-(\d{2})$/.exec(String(ym || ''));
+                return match ? Number(match[1]) * 12 + Number(match[2]) - 1 : null;
+            };
+            const validMonth = value => /^\d{4}-\d{2}$/.test(String(value || '').substring(0, 7))
+                ? String(value).substring(0, 7) : '';
+
+            const monthCandidates = [
+                ...revenues.map(x => validMonth(x.date)),
+                ...expenses.map(x => validMonth(x.date)),
+                ...purchases.map(x => validMonth(x.date)),
+                ...settingsRows
+                    .filter(x => x.settings_json && x.settings_json.fixedCostsConfigured === true)
+                    .map(x => validMonth(x.month))
+            ].filter(Boolean).filter(ym => ym <= currentMonthKey);
+
+            // 計算時保留完整月份區間，讓沒有其他交易的月份仍會計入設備折舊；
+            // 畫面明細則只顯示實際有紀錄的月份。
+            const recordedMonthKeys = [...new Set(monthCandidates)].sort((a, b) => a.localeCompare(b));
+            const monthKeys = [];
+            if (recordedMonthKeys.length) {
+                const firstMonth = recordedMonthKeys[0];
+                for (let n = monthNumber(firstMonth), last = monthNumber(currentMonthKey); n !== null && n <= last; n++) {
+                    const year = Math.floor(n / 12);
+                    const month = n % 12 + 1;
+                    monthKeys.push(`${year}-${String(month).padStart(2, '0')}`);
+                }
             }
 
-            let html = `
-                <div class="controls-bar" style="margin-bottom: 20px;">
-                    <div class="stats-info"><span>💎 追蹤您投入的創業本金、跨月累積淨利、設備折舊與整體回本健康度</span></div>
-                    <div>
-                        <button class="action-btn" onclick="openCapitalSettingsModal()">⚙️ 設定初始投入資本金額</button>
+            // 產品成本率僅是「目前商品成本率平均值」估算，並非歷史銷售組合加權成本。
+            let averageProductCostRate = 40;
+            if (products.length) {
+                averageProductCostRate = products.reduce((sum, p) => sum + (Number(calculateCostRate(p)) || 0), 0) / products.length;
+            }
+            averageProductCostRate = Math.max(0, Math.min(100, averageProductCostRate));
+            const estimatedGrossMarginRate = 1 - averageProductCostRate / 100;
+
+            const sum = (items, getter) => items.reduce((total, item) => total + (Number(getter(item)) || 0), 0);
+            const monthRows = [];
+            let cumulativeOperatingProfit = 0;
+            let cumulativeCashMovement = 0;
+            let cumulativePurchases = 0;
+            let cumulativeDepreciation = 0;
+            let totalEquipmentCost = 0;
+            let totalEquipmentBookValue = 0;
+
+            const depreciableItems = expenses.filter(e =>
+                (e.transaction_type || 'expense') === 'expense' &&
+                e.is_depreciable === true &&
+                (Number(e.amount) || 0) > 0
+            );
+
+            // 設備採購當月不列入營運費用，依耐用年限逐月提列折舊。
+            const depreciationByMonth = Object.fromEntries(monthKeys.map(ym => [ym, 0]));
+            depreciableItems.forEach(item => {
+                const cost = Number(item.amount) || 0;
+                const years = Math.max(1, Number(item.useful_life_years) || 5);
+                const usefulMonths = years * 12;
+                const purchaseMonth = validMonth(item.date) || currentMonthKey;
+                if (purchaseMonth > currentMonthKey) return;
+                totalEquipmentCost += cost;
+
+                // 購買月份列為第 1 個月；累計折舊依購買月至本月的實際月數計算。
+                const elapsedToCurrent = monthNumber(currentMonthKey) - monthNumber(purchaseMonth) + 1;
+                const depreciatedMonthsToCurrent = Math.min(usefulMonths, Math.max(0, elapsedToCurrent));
+                cumulativeDepreciation += (cost / usefulMonths) * depreciatedMonthsToCurrent;
+
+                // 每月損益只在該月明細列示該月折舊。
+                for (const ym of monthKeys) {
+                    const elapsed = monthNumber(ym) - monthNumber(purchaseMonth);
+                    if (elapsed >= 0 && elapsed < usefulMonths) {
+                        depreciationByMonth[ym] += cost / usefulMonths;
+                    }
+                }
+            });
+
+            for (const ym of monthKeys) {
+                const monthRevenues = revenues.filter(x => validMonth(x.date) === ym);
+                const monthExpenses = expenses.filter(x => validMonth(x.date) === ym);
+                const monthPurchases = purchases.filter(x => validMonth(x.date) === ym);
+                const settings = settingsByMonth[ym] || null;
+                const hasSettings = !!settings && settings.fixedCostsConfigured !== false;
+
+
+                const workingDays = Math.max(0, Number(settings?.workingDays) || 0);
+                const fixedCost = hasSettings
+                    ? (Number(settings.rent) || 0) +
+                      (Number(settings.utilities) || 0) +
+                      (Number(settings.fullTimeStaff) || 0) +
+                      (Number(settings.partTimeStaff) || 0) +
+                      (Number(settings.gas) || 0) +
+                      (Number(settings.oil) || 0) +
+                      (Number(settings.charcoal) || 0) +
+                      ((Number(settings.ubereatsAdDaily) || 0) * workingDays) +
+                      (Number(settings.foodpandaAdMonthly) || 0)
+                    : 0;
+
+                const netRevenue = sum(monthRevenues, r =>
+                    (Number(r.onsite) || 0) +
+                    (Number(r.ubereats) || 0) * 0.65 +
+                    (Number(r.foodpanda) || 0) * 0.67
+                );
+
+                const purchasePaid = sum(monthPurchases, p => p.total_price);
+                const extraIncome = sum(monthExpenses.filter(e => e.transaction_type === 'income'), e => e.amount);
+                const ordinaryExpenses = sum(monthExpenses.filter(e =>
+                    (e.transaction_type || 'expense') === 'expense' && e.is_depreciable !== true
+                ), e => e.amount);
+                const allCashExpenses = sum(monthExpenses.filter(e =>
+                    (e.transaction_type || 'expense') === 'expense'
+                ), e => e.amount);
+
+                const depreciation = depreciationByMonth[ym] || 0;
+                const grossProfitEstimate = netRevenue * estimatedGrossMarginRate;
+                const operatingProfitEstimate = grossProfitEstimate - fixedCost - ordinaryExpenses + extraIncome - depreciation;
+
+                // 現金流：叫貨全額視為已付款；設備採購在付款當月全額列現金流出，不再扣折舊。
+                const cashMovement = netRevenue - purchasePaid - allCashExpenses + extraIncome - fixedCost;
+
+                cumulativeOperatingProfit += operatingProfitEstimate;
+                cumulativeCashMovement += cashMovement;
+                cumulativePurchases += purchasePaid;
+
+                monthRows.push({
+                    month: ym, netRevenue, purchasePaid, fixedCost, ordinaryExpenses,
+                    extraIncome, depreciation, operatingProfitEstimate, cashMovement, hasSettings
+                });
+            }
+
+            totalEquipmentBookValue = Math.max(0, totalEquipmentCost - cumulativeDepreciation);
+            const recoveryProgress = initialCapital > 0
+                ? Math.max(0, Math.min(100, cumulativeOperatingProfit / initialCapital * 100)) : 0;
+            const remainingToRecover = Math.max(0, initialCapital - cumulativeOperatingProfit);
+            const returnRate = initialCapital > 0 ? cumulativeOperatingProfit / initialCapital * 100 : 0;
+
+            const money = value => `$${Math.round(value || 0).toLocaleString('zh-TW')} 元`;
+            const monthlyRowsHtml = monthRows.filter(row => recordedMonthKeys.includes(row.month)).map(row => `
+                <tr>
+                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;white-space:nowrap;">${row.month}</td>
+                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.netRevenue).toLocaleString('zh-TW')}</td>
+                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.purchasePaid).toLocaleString('zh-TW')}</td>
+                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.operatingProfitEstimate >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.operatingProfitEstimate).toLocaleString('zh-TW')}</td>
+                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.cashMovement >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.cashMovement).toLocaleString('zh-TW')}</td>
+                </tr>
+            `).join('');
+
+            contentEl.innerHTML = `
+                <div class="controls-bar" style="margin-bottom:20px;">
+                    <div class="stats-info"><span>💎 創業資本、營運損益與實際付款現金流分開追蹤</span></div>
+                    <div><button class="action-btn" onclick="openCapitalSettingsModal()">⚙️ 設定初始投入資本金額</button></div>
+                </div>
+
+                <div class="profit-card">
+                    <h3 style="margin-top:0;color:#9a3412;font-size:18px;">👑 創業本金與營運回本</h3>
+                    <div class="profit-row"><span>初始投入資本額（創業初期拿出的資金）</span><b>${money(initialCapital)}</b></div>
+                    <div class="profit-row"><span>累積營運淨利／虧損（估算）</span><b style="color:${cumulativeOperatingProfit >= 0 ? '#166534' : '#b91c1c'};">${cumulativeOperatingProfit >= 0 ? '+' : '−'}${money(Math.abs(cumulativeOperatingProfit))}</b></div>
+                    <div class="profit-row"><span>本金回收進度</span><b>${recoveryProgress.toFixed(1)}%</b></div>
+                    <div style="height:12px;background:#fed7aa;border-radius:99px;overflow:hidden;margin:8px 0 14px;"><div style="height:100%;width:${recoveryProgress}%;background:#ea580c;"></div></div>
+                    <div class="profit-row"><span>${remainingToRecover > 0 ? '距離累積獲利回收本金尚差' : '超額回收本金'}</span><b>${money(remainingToRecover > 0 ? remainingToRecover : Math.max(0, cumulativeOperatingProfit - initialCapital))}</b></div>
+                    <div class="profit-row"><span>累積損益報酬率</span><b>${returnRate >= 0 ? '+' : ''}${returnRate.toFixed(1)}%</b></div>
+                </div>
+
+                <div class="profit-card" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);border-color:#bfdbfe;">
+                    <h3 style="margin-top:0;color:#1d4ed8;font-size:18px;">💵 累積現金流（已付款叫貨納入）</h3>
+                    <div class="profit-row"><span>累積已付款叫貨金額</span><b>${money(cumulativePurchases)}</b></div>
+                    <div class="profit-row"><span>累積現金流淨額（營收－已付款叫貨－已記錄支出－設定固定成本＋額外收入）</span><b style="color:${cumulativeCashMovement >= 0 ? '#166534' : '#b91c1c'};">${cumulativeCashMovement >= 0 ? '+' : '−'}${money(Math.abs(cumulativeCashMovement))}</b></div>
+                </div>
+
+                <div class="profit-card" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border-color:#bbf7d0;">
+                    <h3 style="margin-top:0;color:#166534;font-size:18px;">🏷️ 設備資產與折舊</h3>
+                    <div class="profit-row"><span>列管設備原始總價</span><b>${money(totalEquipmentCost)}</b></div>
+                    <div class="profit-row"><span>累計折舊（只進營運損益）</span><b>−${money(cumulativeDepreciation)}</b></div>
+                    <div class="profit-row"><span>設備估算帳面剩餘價值</span><b>${money(totalEquipmentBookValue)}</b></div>
+                </div>
+
+                <div class="profit-card">
+                    <h3 style="margin-top:0;color:#9a3412;font-size:17px;">📅 每月明細</h3>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:540px;">
+                            <thead><tr style="color:#9a3412;background:#fff7ed;">
+                                <th style="text-align:left;padding:9px 6px;">月份</th>
+                                <th style="text-align:right;padding:9px 6px;">實收營收</th>
+                                <th style="text-align:right;padding:9px 6px;">已付款叫貨</th>
+                                <th style="text-align:right;padding:9px 6px;">營運損益估算</th>
+                                <th style="text-align:right;padding:9px 6px;">現金流變動</th>
+                            </tr></thead>
+                            <tbody>${monthlyRowsHtml || '<tr><td colspan="5" style="padding:16px;text-align:center;">尚無資料</td></tr>'}</tbody>
+                        </table>
                     </div>
                 </div>
 
-                <div class="profit-card" style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); border-color: #fecaca; box-shadow: 0 10px 25px rgba(220, 38, 38, 0.08);">
-                    <h3 style="margin-top:0; color:#991b1b; font-size:18px; border-bottom:1px solid #fecaca; padding-bottom:10px;">👑 全店創業資本總覽</h3>
-                    <div class="profit-grid-settings" style="grid-template-columns: 1fr;">
-                        <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; font-size: 15px;">
-                            <span>初始投入資本額 (自己設定)：</span>
-                            <b style="font-size: 18px; color: #991b1b;">$${initialCapital.toLocaleString()} 元</b>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.8); padding: 14px 18px; font-size: 15px;">
-                            <span>目前剩餘資本池 (本金 ＋ 調整後損益)：</span>
-                            <b style="font-size: 20px; color: ${currentRemainingCapital >= initialCapital ? '#166534' : '#dc2626'};">$${Math.round(currentRemainingCapital).toLocaleString()} 元</b>
-                        </div>
-                    </div>
-                    ${depreciationDetailsHtml}
-                </div>
-
-                <div class="profit-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
-                    <h3 style="margin-top:0; color:#166534; font-size:18px; border-bottom:1px solid #bbf7d0; padding-bottom:10px;">📊 跨月累積賺賠與回本達成率 (已扣除設備折舊)</h3>
-                    <div class="profit-row" style="font-size: 16px;">
-                        <span>全店累積淨利 / 累積虧損總額 (含折舊)</span>
-                        <b style="color: ${adjustedNetProfit >= 0 ? '#166534' : '#991b1b'}; font-size: 18px;">
-                            ${adjustedNetProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(adjustedNetProfit)).toLocaleString()} 元
-                        </b>
-                    </div>
-                    <div class="profit-row" style="font-size: 16px;">
-                        <span>本金回本率 / 報酬率</span>
-                        <b style="color: ${capitalReturnRate >= 0 ? '#166534' : '#991b1b'}; font-size: 18px;">
-                            ${capitalReturnRate >= 0 ? '＋' : '－'}${Math.abs(capitalReturnRate).toFixed(1)}%
-                        </b>
-                    </div>
-                    <div class="profit-row total-row" style="color: #166534; border-top-color: #86efac;">
-                        <span>💡 財務健康度狀態</span>
-                        <span>${adjustedNetProfit >= 0 ? '🔥 本金已全數回本並開始獲利！' : '💪 努力打拼中，持續累積營收回本！'}</span>
-                    </div>
-                </div>
             `;
-            contentEl.innerHTML = html;
         }
 
         async function openCapitalSettingsModal() {
-            let fixedSettings = await getMonthSettings(currentProfitMonth);
-            let currentCap = fixedSettings.initialCapital || 2000000;
+            let currentCap = await getGlobalInitialCapital();
 
             const overlay = document.createElement('div');
             overlay.className = 'picker-overlay';
@@ -2630,7 +2780,7 @@
                 <div class="picker-modal" style="width: 380px; text-align: left;">
                     <h4 style="text-align: center; color: #c2410c;">💎 設定創業初始投入資本</h4>
                     <div class="form-group">
-                        <label>輸入您的總投入資金 ($)</label>
+                        <label>創業初期實際拿出的總資金（含叫貨、設備等開店支出）</label>
                         <input type="number" id="modal-initial-capital" value="${currentCap}" placeholder="例如: 2000000">
                     </div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
@@ -2644,14 +2794,15 @@
 
         async function saveCapitalSettings() {
             let newCap = parseFloat(document.getElementById('modal-initial-capital').value) || 2000000;
-            let fixedSettings = await getMonthSettings(currentProfitMonth);
+            let fixedSettings = await getMonthSettingsForEditing(currentProfitMonth);
             fixedSettings.initialCapital = newCap;
 
-            let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).single();
+            let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).maybeSingle();
             let res;
             if (existing) {
                 res = await _supabase.from('settings').update({ settings_json: fixedSettings }).eq('month', currentProfitMonth);
             } else {
+                fixedSettings.fixedCostsConfigured = false;
                 res = await _supabase.from('settings').insert([{ month: currentProfitMonth, settings_json: fixedSettings }]);
             }
 
