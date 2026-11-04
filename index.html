@@ -1742,10 +1742,11 @@
                     let monthlyDep = totalMonths > 0 ? cost / totalMonths : 0;
 
                     let pDate = item.date ? new Date(item.date) : new Date();
+                    // 折舊規則：購買月份即列為第 1 個月；未來購買月份尚不提列。
                     let diffMonths = (now.getFullYear() - pDate.getFullYear()) * 12 + (now.getMonth() - pDate.getMonth());
-                    if (diffMonths < 0) diffMonths = 0;
+                    let elapsedMonths = diffMonths >= 0 ? diffMonths + 1 : 0;
 
-                    let accDep = Math.min(cost, monthlyDep * diffMonths);
+                    let accDep = Math.min(cost, monthlyDep * elapsedMonths);
                     let bookValue = Math.max(0, cost - accDep);
 
                     totalAssetOriginal += cost;
@@ -2587,22 +2588,16 @@
                 ...revenues.map(x => validMonth(x.date)),
                 ...expenses.map(x => validMonth(x.date)),
                 ...purchases.map(x => validMonth(x.date)),
-                ...settingsRows
-                    .filter(x => x.settings_json && x.settings_json.fixedCostsConfigured === true)
-                    .map(x => validMonth(x.month))
+                ...settingsRows.map(x => validMonth(x.month))
             ].filter(Boolean).filter(ym => ym <= currentMonthKey);
 
-            // 計算時保留完整月份區間，讓沒有其他交易的月份仍會計入設備折舊；
-            // 畫面明細則只顯示實際有紀錄的月份。
-            const recordedMonthKeys = [...new Set(monthCandidates)].sort((a, b) => a.localeCompare(b));
+            if (!monthCandidates.length) monthCandidates.push(currentMonthKey);
+            const firstMonth = monthCandidates.reduce((a, b) => a < b ? a : b);
             const monthKeys = [];
-            if (recordedMonthKeys.length) {
-                const firstMonth = recordedMonthKeys[0];
-                for (let n = monthNumber(firstMonth), last = monthNumber(currentMonthKey); n !== null && n <= last; n++) {
-                    const year = Math.floor(n / 12);
-                    const month = n % 12 + 1;
-                    monthKeys.push(`${year}-${String(month).padStart(2, '0')}`);
-                }
+            for (let n = monthNumber(firstMonth), last = monthNumber(currentMonthKey); n !== null && n <= last; n++) {
+                const year = Math.floor(n / 12);
+                const month = n % 12 + 1;
+                monthKeys.push(`${year}-${String(month).padStart(2, '0')}`);
             }
 
             // 產品成本率僅是「目前商品成本率平均值」估算，並非歷史銷售組合加權成本。
@@ -2615,6 +2610,7 @@
 
             const sum = (items, getter) => items.reduce((total, item) => total + (Number(getter(item)) || 0), 0);
             const monthRows = [];
+            const missingSettingsMonths = [];
             let cumulativeOperatingProfit = 0;
             let cumulativeCashMovement = 0;
             let cumulativePurchases = 0;
@@ -2638,12 +2634,6 @@
                 if (purchaseMonth > currentMonthKey) return;
                 totalEquipmentCost += cost;
 
-                // 購買月份列為第 1 個月；累計折舊依購買月至本月的實際月數計算。
-                const elapsedToCurrent = monthNumber(currentMonthKey) - monthNumber(purchaseMonth) + 1;
-                const depreciatedMonthsToCurrent = Math.min(usefulMonths, Math.max(0, elapsedToCurrent));
-                cumulativeDepreciation += (cost / usefulMonths) * depreciatedMonthsToCurrent;
-
-                // 每月損益只在該月明細列示該月折舊。
                 for (const ym of monthKeys) {
                     const elapsed = monthNumber(ym) - monthNumber(purchaseMonth);
                     if (elapsed >= 0 && elapsed < usefulMonths) {
@@ -2659,6 +2649,7 @@
                 const settings = settingsByMonth[ym] || null;
                 const hasSettings = !!settings && settings.fixedCostsConfigured !== false;
 
+                if (!hasSettings) missingSettingsMonths.push(ym);
 
                 const workingDays = Math.max(0, Number(settings?.workingDays) || 0);
                 const fixedCost = hasSettings
@@ -2698,6 +2689,7 @@
                 cumulativeOperatingProfit += operatingProfitEstimate;
                 cumulativeCashMovement += cashMovement;
                 cumulativePurchases += purchasePaid;
+                cumulativeDepreciation += depreciation;
 
                 monthRows.push({
                     month: ym, netRevenue, purchasePaid, fixedCost, ordinaryExpenses,
@@ -2712,9 +2704,13 @@
             const returnRate = initialCapital > 0 ? cumulativeOperatingProfit / initialCapital * 100 : 0;
 
             const money = value => `$${Math.round(value || 0).toLocaleString('zh-TW')} 元`;
-            const monthlyRowsHtml = monthRows.filter(row => recordedMonthKeys.includes(row.month)).map(row => `
+            const statusText = missingSettingsMonths.length
+                ? `有 ${missingSettingsMonths.length} 個月份缺少固定成本設定，累積營運損益目前是「未完整估算」`
+                : '目前納入的月份皆有固定成本設定；商品成本仍採目前商品成本率估算';
+
+            const monthlyRowsHtml = monthRows.slice().reverse().map(row => `
                 <tr>
-                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;white-space:nowrap;">${row.month}</td>
+                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;white-space:nowrap;">${row.month}${row.hasSettings ? '' : ' ⚠️'}</td>
                     <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.netRevenue).toLocaleString('zh-TW')}</td>
                     <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.purchasePaid).toLocaleString('zh-TW')}</td>
                     <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.operatingProfitEstimate >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.operatingProfitEstimate).toLocaleString('zh-TW')}</td>
@@ -2722,26 +2718,40 @@
                 </tr>
             `).join('');
 
+            const missingSettingsHtml = missingSettingsMonths.length ? `
+                <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:14px 16px;margin:0 0 18px;">
+                    <b style="color:#9a3412;">⚠️ 歷史固定成本設定不完整</b>
+                    <p style="margin:7px 0;color:#7c2d12;font-size:13px;line-height:1.7;">
+                        以下月份沒有保存獨立設定：${missingSettingsMonths.join('、')}。
+                        系統沒有把其他月份的房租、人事或廣告費套用到這些月份；因此目前累積營運損益會低估這些月份的成本，不能視為最終正確獲利。
+                        請補齊各月份設定後再判讀回本進度。
+                    </p>
+                </div>` : '';
+
             contentEl.innerHTML = `
                 <div class="controls-bar" style="margin-bottom:20px;">
                     <div class="stats-info"><span>💎 創業資本、營運損益與實際付款現金流分開追蹤</span></div>
                     <div><button class="action-btn" onclick="openCapitalSettingsModal()">⚙️ 設定初始投入資本金額</button></div>
                 </div>
 
+                ${missingSettingsHtml}
+
                 <div class="profit-card">
                     <h3 style="margin-top:0;color:#9a3412;font-size:18px;">👑 創業本金與營運回本</h3>
-                    <div class="profit-row"><span>初始投入資本額（創業初期拿出的資金）</span><b>${money(initialCapital)}</b></div>
+                    <div class="profit-row"><span>初始投入資本額</span><b>${money(initialCapital)}</b></div>
                     <div class="profit-row"><span>累積營運淨利／虧損（估算）</span><b style="color:${cumulativeOperatingProfit >= 0 ? '#166534' : '#b91c1c'};">${cumulativeOperatingProfit >= 0 ? '+' : '−'}${money(Math.abs(cumulativeOperatingProfit))}</b></div>
                     <div class="profit-row"><span>本金回收進度</span><b>${recoveryProgress.toFixed(1)}%</b></div>
                     <div style="height:12px;background:#fed7aa;border-radius:99px;overflow:hidden;margin:8px 0 14px;"><div style="height:100%;width:${recoveryProgress}%;background:#ea580c;"></div></div>
                     <div class="profit-row"><span>${remainingToRecover > 0 ? '距離累積獲利回收本金尚差' : '超額回收本金'}</span><b>${money(remainingToRecover > 0 ? remainingToRecover : Math.max(0, cumulativeOperatingProfit - initialCapital))}</b></div>
                     <div class="profit-row"><span>累積損益報酬率</span><b>${returnRate >= 0 ? '+' : ''}${returnRate.toFixed(1)}%</b></div>
+                    <p style="font-size:12px;color:#78716c;line-height:1.7;margin:12px 0 0;">${statusText}。此處是營運獲利回收本金的估算，不是銀行帳戶餘額。</p>
                 </div>
 
                 <div class="profit-card" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);border-color:#bfdbfe;">
                     <h3 style="margin-top:0;color:#1d4ed8;font-size:18px;">💵 累積現金流（已付款叫貨納入）</h3>
                     <div class="profit-row"><span>累積已付款叫貨金額</span><b>${money(cumulativePurchases)}</b></div>
                     <div class="profit-row"><span>累積現金流淨額（營收－已付款叫貨－已記錄支出－設定固定成本＋額外收入）</span><b style="color:${cumulativeCashMovement >= 0 ? '#166534' : '#b91c1c'};">${cumulativeCashMovement >= 0 ? '+' : '−'}${money(Math.abs(cumulativeCashMovement))}</b></div>
+                    <p style="font-size:12px;color:#1e40af;line-height:1.7;margin:12px 0 0;">這是依現有紀錄推算的累積現金流變動，不等於目前銀行餘額；尚未包含未登錄交易、借款本金、股東追加/抽回資金及其他未記錄項目。</p>
                 </div>
 
                 <div class="profit-card" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border-color:#bbf7d0;">
@@ -2749,10 +2759,11 @@
                     <div class="profit-row"><span>列管設備原始總價</span><b>${money(totalEquipmentCost)}</b></div>
                     <div class="profit-row"><span>累計折舊（只進營運損益）</span><b>−${money(cumulativeDepreciation)}</b></div>
                     <div class="profit-row"><span>設備估算帳面剩餘價值</span><b>${money(totalEquipmentBookValue)}</b></div>
+                    <p style="font-size:12px;color:#166534;line-height:1.7;margin:12px 0 0;">設備購買金額在現金流中於付款月份全額扣除；營運損益則依耐用年限逐月折舊，兩者分開，不會重複扣款。</p>
                 </div>
 
                 <div class="profit-card">
-                    <h3 style="margin-top:0;color:#9a3412;font-size:17px;">📅 每月明細</h3>
+                    <h3 style="margin-top:0;color:#9a3412;font-size:17px;">📅 每月明細（新月份在前）</h3>
                     <div style="overflow-x:auto;">
                         <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:540px;">
                             <thead><tr style="color:#9a3412;background:#fff7ed;">
@@ -2765,8 +2776,17 @@
                             <tbody>${monthlyRowsHtml || '<tr><td colspan="5" style="padding:16px;text-align:center;">尚無資料</td></tr>'}</tbody>
                         </table>
                     </div>
+                    <p style="font-size:12px;color:#78716c;line-height:1.7;margin:12px 0 0;">⚠️ 標記月份代表沒有該月固定成本設定。現金流公式把設定固定成本視為當月付款估算；若同一筆房租、人事或其他固定費用也已登錄在「店內支出」，請避免重複記錄。</p>
                 </div>
 
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.8;padding:0 4px 16px;">
+                    <b>計算原則與資料限制</b><br>
+                    1. 營運損益：實收營收 ×（1－目前商品平均成本率）－固定成本－一般支出＋額外收入－設備折舊。<br>
+                    2. 現金流：實收營收－每日已付款叫貨－所有已記錄支出（含設備購買）＋額外收入－設定固定成本。<br>
+                    3. 叫貨紀錄視為已付款，依叫貨日期列入現金流；不直接重複列為當期營運費用。尚未售出的食材屬庫存，應由存貨盤點與實際耗用資料計算銷貨成本。<br>
+                    4. 商品成本率目前使用商品資料的平均成本率，未依歷史銷售品項加權；若要精確損益，需有每月銷售品項數量與期初/期末庫存。<br>
+                    5. 固定成本只採用各月份自己保存的設定；缺少設定的月份會列警示，不會拿最新設定回填。設備折舊按購買月份起算，購買當月列第一個月。
+                </div>
             `;
         }
 
@@ -2780,7 +2800,7 @@
                 <div class="picker-modal" style="width: 380px; text-align: left;">
                     <h4 style="text-align: center; color: #c2410c;">💎 設定創業初始投入資本</h4>
                     <div class="form-group">
-                        <label>創業初期實際拿出的總資金（含叫貨、設備等開店支出）</label>
+                        <label>輸入您的總投入資金 ($)</label>
                         <input type="number" id="modal-initial-capital" value="${currentCap}" placeholder="例如: 2000000">
                     </div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
