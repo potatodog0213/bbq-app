@@ -1795,6 +1795,13 @@
         let expenseSearchDepFilterVal = 'ALL'; // 'ALL', 'DEPR', 'NON_DEPR'
         let expenseSearchDateVal = ''; // YYYY-MM；空字串代表看全部
         let expenseAmountSortVal = 'none'; // none, asc, desc
+        let expenseKeywordSearchVal = ''; // 僅搜尋支出項目名稱與相關廠商，不影響資料庫
+
+        function escapeExpenseSearchAttribute(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[char]);
+        }
 
         async function renderExpensesList() {
             const contentEl = document.getElementById('page-content');
@@ -1823,6 +1830,9 @@
                 if (expenseSearchDepFilterVal === 'NON_DEPR') return !item.is_depreciable;
                 return true;
             });
+
+            // 關鍵字不在此重繪資料；改由 applyExpenseKeywordFilter() 篩選既有卡片，避免中文輸入法組字時輸入框被替換。
+
             if (expenseAmountSortVal === 'asc') filteredData.sort((a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0));
             else if (expenseAmountSortVal === 'desc') filteredData.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
 
@@ -1884,27 +1894,27 @@
 
                 <div class="controls-bar">
                     <div class="stats-info">
-                        <span>共 <b>${filteredData.length}</b> 筆收支紀錄</span>
-                        <span>支出：<b style="color:#dc2626;">$${totalExpenseAmount.toLocaleString()} 元</b></span>
-                        <span>收入：<b style="color:#166534;">$${totalIncomeAmount.toLocaleString()} 元</b></span>
+                        <span>共 <b id="expense-visible-count">${filteredData.length}</b> 筆收支紀錄</span>
+                        <span>支出：<b id="expense-visible-total" style="color:#dc2626;">$${totalExpenseAmount.toLocaleString()} 元</b></span>
+                        <span>收入：<b id="income-visible-total" style="color:#166534;">$${totalIncomeAmount.toLocaleString()} 元</b></span>
                     </div>
                     <div class="search-sort-group">
+                        <input type="text" id="expense-keyword-search-input" class="search-input" value="${escapeExpenseSearchAttribute(expenseKeywordSearchVal)}" placeholder="🔎 搜尋支出項目名稱／相關廠商" oninput="setExpenseKeywordSearch(this.value)" oncompositionend="setExpenseKeywordSearch(this.value)" style="background:#fff; width:220px; max-width:100%;" title="僅搜尋支出項目名稱與相關廠商">
                         <input type="text" id="expense-dep-filter-input" class="search-input" value="${depDisplayStr}" readonly onclick="openExpenseDepFilterPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊篩選支出類型與折舊狀態">
                         <input type="text" id="expense-amount-sort-input" class="search-input" value="${sortDisplayStr}" readonly onclick="openExpenseAmountSortPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="依實際金額排序">
                         <input type="text" id="expense-date-filter-input" class="search-input" value="${dateDisplayStr}" readonly onclick="openYearMonthPicker(setSearchDateQuery, expenseSearchDateVal || getCurrentYearMonth())" style="cursor: pointer; background: #fff; width: 140px; font-weight: 600; color: #c2410c;" title="點擊選擇年月篩選">
-                        ${(expenseSearchDateVal || expenseAmountSortVal !== 'none' || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
+                        ${(expenseKeywordSearchVal || expenseSearchDateVal || expenseAmountSortVal !== 'none' || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
                     </div>
                 </div>
             `;
 
-            if (filteredData.length > 0) {
-                html += '<div class="items-grid">';
-                filteredData.forEach((item, index) => {
+            html += '<div id="expense-cards-container" class="items-grid">';
+            filteredData.forEach((item, index) => {
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
                     let isIncome = item.transaction_type === 'income';
                     let depreciationBadge = isIncome ? `<div style="color:#166534; font-weight:700; font-size:12.5px; margin-top:4px;">💰 額外收入</div>` : item.is_depreciable ? `<div style="color:#0284c7; font-weight:700; font-size:12.5px; margin-top:4px;">🏷️ 已啟用折舊 (${item.useful_life_years || 5}年攤提)</div>` : `<div style="color:#78716c; font-weight:600; font-size:12.5px; margin-top:4px;">💡 一般支出 (不折舊)</div>`;
                     html += `
-                        <div class="item-card ${zebraClass}" id="expense-card-${item.id}">
+                        <div class="item-card ${zebraClass}" id="expense-card-${item.id}" data-expense-name="${escapeExpenseSearchAttribute(item.name)}" data-expense-vendor="${escapeExpenseSearchAttribute(item.vendor || '')}" data-expense-amount="${Number(item.amount) || 0}" data-expense-type="${isIncome ? 'income' : 'expense'}">
                             <div class="card-main-info">
                                 <h4>${isIncome ? '🟢 ' : '🔴 '}${item.name} <span class="total-amount-tag">$${item.amount} 元</span></h4>
                                 <p><b>日期：</b>${item.date}</p>
@@ -1918,12 +1928,11 @@
                             </div>
                         </div>
                     `;
-                });
-                html += '</div>';
-            } else {
-                html += '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">沒有找到符合條件的支出紀錄。</p>';
-            }
+            });
+            html += '</div>';
+            html += '<p id="expense-no-keyword-results" style="display:none; color:var(--text-muted); text-align:center; padding:30px 0;">沒有找到符合條件的支出紀錄。</p>';
             contentEl.innerHTML = html;
+            applyExpenseKeywordFilter();
         }
 
         function openExpenseDepFilterPicker() {
@@ -2029,7 +2038,51 @@
             displayExpensesList();
         }
 
+        function setExpenseKeywordSearch(value) {
+            // 與「販售品項成本表」相同：只更新卡片顯示，不重建 page-content，
+            // 保留原本搜尋輸入框 DOM，避免中文注音／倉頡輸入法組字被中斷。
+            expenseKeywordSearchVal = String(value ?? '');
+            applyExpenseKeywordFilter();
+        }
+
+        function applyExpenseKeywordFilter() {
+            const container = document.getElementById('expense-cards-container');
+            if (!container) return;
+
+            const keyword = String(expenseKeywordSearchVal ?? '').trim().toLocaleLowerCase();
+            const cards = Array.from(container.querySelectorAll('.item-card[id^="expense-card-"]'));
+            let visibleCount = 0;
+            let visibleExpenseTotal = 0;
+            let visibleIncomeTotal = 0;
+
+            cards.forEach(card => {
+                // 只搜尋明確指定的兩個可見欄位：支出項目名稱、相關廠商。
+                const name = String(card.dataset.expenseName ?? '').toLocaleLowerCase();
+                const vendor = String(card.dataset.expenseVendor ?? '').toLocaleLowerCase();
+                const matched = !keyword || name.includes(keyword) || vendor.includes(keyword);
+                card.style.display = matched ? '' : 'none';
+
+                if (matched) {
+                    visibleCount++;
+                    const amount = Number(card.dataset.expenseAmount) || 0;
+                    if (card.dataset.expenseType === 'income') visibleIncomeTotal += amount;
+                    else visibleExpenseTotal += amount;
+                }
+            });
+
+            const noResults = document.getElementById('expense-no-keyword-results');
+            if (noResults) noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+
+            const countEl = document.getElementById('expense-visible-count');
+            const expenseTotalEl = document.getElementById('expense-visible-total');
+            const incomeTotalEl = document.getElementById('income-visible-total');
+            if (countEl) countEl.textContent = String(visibleCount);
+            if (expenseTotalEl) expenseTotalEl.textContent = '$' + visibleExpenseTotal.toLocaleString() + ' 元';
+            if (incomeTotalEl) incomeTotalEl.textContent = '$' + visibleIncomeTotal.toLocaleString() + ' 元';
+        }
+
         function clearExpenseSearch() {
+            expenseKeywordSearchVal = '';
             expenseSearchDepFilterVal = 'ALL';
             expenseSearchDateVal = '';
             expenseAmountSortVal = 'none';
