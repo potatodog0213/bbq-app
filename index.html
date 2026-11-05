@@ -427,7 +427,30 @@
         }
         .toast-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .toast-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .app-toast {
+            position: fixed; z-index: 10050; top: 24px; left: 50%; transform: translateX(-50%);
+            width: min(440px, calc(100vw - 32px)); display: flex; align-items: flex-start; gap: 12px;
+            padding: 15px 18px; border-radius: 16px; background: rgba(255,255,255,.97);
+            box-shadow: 0 14px 42px rgba(41,37,36,.18); border: 1px solid #fed7aa;
+            animation: appToastIn .24s ease-out; backdrop-filter: blur(10px);
+        }
+        .app-toast.success { border-color: #bbf7d0; }
+        .app-toast.error { border-color: #fecaca; }
+        .app-toast .toast-icon { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; display:grid; place-items:center; font-size:18px; font-weight:800; background:#dcfce7; color:#15803d; }
+        .app-toast.error .toast-icon { background:#fee2e2; color:#b91c1c; }
+        .app-toast .toast-title { font-size:14px; font-weight:800; color:#292524; margin:0 0 3px; }
+        .app-toast .toast-detail { font-size:12px; line-height:1.55; color:#78716c; margin:0; }
+        .app-toast .toast-close { margin-left:auto; border:0; background:transparent; color:#a8a29e; font-size:20px; cursor:pointer; padding:0 2px; }
+        @keyframes appToastIn { from { opacity:0; transform:translate(-50%,-10px); } to { opacity:1; transform:translate(-50%,0); } }
+        .cost-setting-modal { width:min(680px, calc(100vw - 28px)) !important; max-height:92vh; overflow:auto; padding:24px !important; border-radius:20px !important; }
+        .cost-setting-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .cost-setting-field { background:#fffaf5; border:1px solid #f3e4d5; border-radius:12px; padding:11px 12px; }
+        .cost-setting-field label { display:block; color:#57534e; font-size:12px; font-weight:700; margin-bottom:7px; }
+        .cost-setting-field input { width:100%; box-sizing:border-box; border:1px solid #e7d8ca; border-radius:9px; padding:10px 11px; font-size:15px; background:#fff; }
+        .cost-setting-section-title { font-size:14px; font-weight:800; color:#9a3412; margin:18px 0 10px; display:flex; align-items:center; gap:7px; }
+        .cost-setting-hint { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:11px 13px; border-radius:11px; font-size:12px; line-height:1.65; margin-top:13px; }
+        .cost-setting-preview { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:12px 14px; margin-top:12px; color:#166534; font-size:13px; }
+        @media(max-width:560px) { .cost-setting-grid { grid-template-columns:1fr; } .cost-setting-modal { padding:18px !important; } }
         
         .items-grid {
             display: grid;
@@ -816,6 +839,20 @@
             document.getElementById('home-view').style.display = 'block';
         }
 
+        function showAppToast(title, detail = '', type = 'success') {
+            const oldToast = document.getElementById('app-toast-notice');
+            if (oldToast) oldToast.remove();
+            const toast = document.createElement('div');
+            toast.id = 'app-toast-notice';
+            toast.className = `app-toast ${type}`;
+            toast.setAttribute('role', 'status');
+            toast.innerHTML = `<div class="toast-icon">${type === 'success' ? '✓' : '!'}</div><div style="min-width:0;flex:1;"><p class="toast-title"></p><p class="toast-detail"></p></div><button class="toast-close" aria-label="關閉提示" onclick="this.parentElement.remove()">×</button>`;
+            toast.querySelector('.toast-title').textContent = title;
+            toast.querySelector('.toast-detail').textContent = detail;
+            document.body.appendChild(toast);
+            window.setTimeout(() => { if (toast.isConnected) toast.remove(); }, 3600);
+        }
+
         function getDetailedTimestamp() {
             const now = new Date();
             const y = now.getFullYear();
@@ -834,6 +871,64 @@
             return `${y}-${m}`;
         }
 
+        // 平台抽成比例沿用既有 settings.settings_json 儲存，不新增或修改資料表欄位。
+        const DEFAULT_PLATFORM_RATES = { ubereatsCommissionRate: 0, foodpandaCommissionRate: 0 };
+        let globalPlatformRates = { ...DEFAULT_PLATFORM_RATES };
+
+        function platformRatesFromRows(rows) {
+            const row = (rows || []).slice().sort((a, b) => String(b.month || '').localeCompare(String(a.month || ''))).find(r => r.settings_json &&
+                (r.settings_json.ubereatsCommissionRate !== undefined ||
+                 r.settings_json.foodpandaCommissionRate !== undefined));
+            return row ? {
+                ubereatsCommissionRate: Math.max(0, Math.min(100, Number(row.settings_json.ubereatsCommissionRate) || 0)),
+                foodpandaCommissionRate: Math.max(0, Math.min(100, Number(row.settings_json.foodpandaCommissionRate) || 0))
+            } : { ...DEFAULT_PLATFORM_RATES };
+        }
+
+        async function getPlatformRates() {
+            const { data, error } = await _supabase.from('settings').select('month,settings_json').order('month', { ascending: false });
+            if (error) {
+                console.error('讀取平台抽成比例失敗：', error);
+                return globalPlatformRates;
+            }
+            globalPlatformRates = platformRatesFromRows(data || []);
+            return globalPlatformRates;
+        }
+
+        async function savePlatformRates() {
+            const ue = Number(document.getElementById('platform-ubereats-rate')?.value);
+            const fp = Number(document.getElementById('platform-foodpanda-rate')?.value);
+            if (!Number.isFinite(ue) || !Number.isFinite(fp) || ue < 0 || ue > 100 || fp < 0 || fp > 100) {
+                alert('請輸入 0 至 100 之間的抽成百分比。');
+                return;
+            }
+
+            // 僅將全域平台比例寫入「本月」既有 settings_json，保留其他月份原始設定。
+            const month = getCurrentYearMonth();
+            const { data: existing, error: readError } = await _supabase
+                .from('settings').select('month,settings_json').eq('month', month).maybeSingle();
+            if (readError) { alert('讀取本月設定失敗：' + readError.message); return; }
+
+            const rates = { ubereatsCommissionRate: ue, foodpandaCommissionRate: fp };
+            let result;
+            if (existing) {
+                result = await _supabase.from('settings')
+                    .update({ settings_json: { ...(existing.settings_json || {}), ...rates } })
+                    .eq('month', month);
+            } else {
+                result = await _supabase.from('settings').insert([{
+                    month,
+                    settings_json: { ...DEFAULT_MONTH_SETTINGS, ...rates, fixedCostsConfigured: false }
+                }]);
+            }
+            if (result.error) { alert('儲存平台抽成失敗：' + result.error.message); return; }
+
+            globalPlatformRates = rates;
+            showAppToast('平台抽成比例已儲存', '損益總表與全店回本追蹤已套用新比例。', 'success');
+            if (currentPage === 'products') renderProductsList();
+            else if (currentPage === 'profit') renderProfitView();
+            else if (currentPage === 'capital') renderCapitalView();
+        }
 
         // ==================== 配方與過程表邏輯 ====================
         async function renderRecipesList() {
@@ -1025,8 +1120,19 @@
             let { data, error } = await _supabase.from('products').select('*').order('id', { ascending: false });
             if (error) { contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>'; return; }
             globalProductsData = data || [];
+            const platformRates = await getPlatformRates();
+
             
             contentEl.innerHTML = `
+                <div class="profit-card" style="margin-bottom:18px;">
+                    <h3 style="margin-top:0;color:#9a3412;font-size:16px;">⚙️ 外送平台抽成設定</h3>
+                    <p style="font-size:13px;color:var(--text-muted);margin-top:0;">兩個平台獨立設定，比例儲存在既有 settings.settings_json 中，不新增或修改資料表欄位。</p>
+                    <div class="profit-grid-settings">
+                        <div style="display:block;"><label for="platform-ubereats-rate">UberEats 抽成比例（%）</label><input class="search-input" style="width:100%;box-sizing:border-box;margin-top:6px;" type="number" min="0" max="100" step="0.01" id="platform-ubereats-rate" value="${platformRates.ubereatsCommissionRate}"></div>
+                        <div style="display:block;"><label for="platform-foodpanda-rate">foodpanda 抽成比例（%）</label><input class="search-input" style="width:100%;box-sizing:border-box;margin-top:6px;" type="number" min="0" max="100" step="0.01" id="platform-foodpanda-rate" value="${platformRates.foodpandaCommissionRate}"></div>
+                    </div>
+                    <button class="action-btn" style="width:100%;" onclick="savePlatformRates()">儲存平台抽成比例</button>
+                </div>
                 <div class="controls-bar">
                     <div class="stats-info"><span id="product-stats-label">載入中...</span></div>
                     <div class="search-sort-group">
@@ -1084,10 +1190,12 @@
                     let costRate = calculateCostRate(item).toFixed(1);
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
                     
-                    // 以「現場售價」推算平台應賣多少錢才能維持同等毛利 (四捨五入)
                     let currentPrice = parseFloat(item.price) || 0;
-                    let ubereatsTargetPrice = Math.round(currentPrice / 0.65);
-                    let foodpandaTargetPrice = Math.round(currentPrice / 0.67);
+                    let productCost = parseFloat(item.package_cost) || 0;
+                    let ueRate = (Number(globalPlatformRates.ubereatsCommissionRate) || 0) / 100;
+                    let fpRate = (Number(globalPlatformRates.foodpandaCommissionRate) || 0) / 100;
+                    let ueFee = currentPrice * ueRate;
+                    let fpFee = currentPrice * fpRate;
 
                     html += `
                         <div class="item-card ${zebraClass}" id="card-${item.id}">
@@ -1095,15 +1203,14 @@
                                 <h4>${item.name} <span>現場售價：$${item.price} 元</span></h4>
                                 <p><b>食材單價：</b>$${item.ingredient_cost}</p>
                                 <p><b>總成本：</b>$${item.package_cost} &nbsp;|&nbsp; <span class="cost-rate">成本率：${costRate}%</span></p>
+                                <p><b>原本商品毛利：</b>$${(currentPrice - productCost).toFixed(2)} 元</p>
                                 <div class="platform-breakeven-box">
-                                    <div>
-                                        <span style="color:#059669; font-weight:700;">Ubereats 建議售價 (抽35%)：</span>
-                                        <b style="color:#059669; font-size:14px;">$${ubereatsTargetPrice} 元</b>
-                                    </div>
-                                    <div>
-                                        <span style="color:#d97706; font-weight:700;">foodpanda 建議售價 (抽33%)：</span>
-                                        <b style="color:#d97706; font-size:14px;">$${foodpandaTargetPrice} 元</b>
-                                    </div>
+                                    <div><b style="color:#059669;">UberEats（${ueRate * 100}%）抽成</b><span>$${ueFee.toFixed(2)}</span></div>
+                                    <div><span>扣抽成後收入</span><b>$${(currentPrice - ueFee).toFixed(2)}</b></div>
+                                    <div><span>扣除食材／包材成本後收益</span><b style="color:#059669;">$${(currentPrice - ueFee - productCost).toFixed(2)}</b></div>
+                                    <div style="border-top:1px dashed #fed7aa;padding-top:6px;margin-top:6px;"><b style="color:#d97706;">foodpanda（${fpRate * 100}%）抽成</b><span>$${fpFee.toFixed(2)}</span></div>
+                                    <div><span>扣抽成後收入</span><b>$${(currentPrice - fpFee).toFixed(2)}</b></div>
+                                    <div><span>扣除食材／包材成本後收益</span><b style="color:#d97706;">$${(currentPrice - fpFee - productCost).toFixed(2)}</b></div>
                                 </div>
                                 <p style="margin-top:6px;"><b>備註：</b>${item.note || '無'}</p>
                             </div>
@@ -1685,9 +1792,9 @@
 
 
         // ==================== 店內支出記錄表邏輯 (含設備折舊追蹤) ====================
-        let expenseSearchVendorVal = '';
         let expenseSearchDepFilterVal = 'ALL'; // 'ALL', 'DEPR', 'NON_DEPR'
-        let expenseSearchDateVal = ''; // 支出記錄表的日期篩選值 (空字串代表看全部)
+        let expenseSearchDateVal = ''; // YYYY-MM；空字串代表看全部
+        let expenseAmountSortVal = 'none'; // none, asc, desc
 
         async function renderExpensesList() {
             const contentEl = document.getElementById('page-content');
@@ -1701,26 +1808,23 @@
         function displayExpensesList() {
             const contentEl = document.getElementById('page-content');
 
-            let vendorDisplayStr = expenseSearchVendorVal ? `廠商：${expenseSearchVendorVal}` : '全部廠商';
+            let sortDisplayStr = expenseAmountSortVal === 'asc' ? '金額低到高' : expenseAmountSortVal === 'desc' ? '金額高到低' : '金額排序';
             let depDisplayMap = { 'ALL': '全部支出類型', 'DEPR': '僅看折舊設備', 'NON_DEPR': '僅看一般支出' };
             let depDisplayStr = depDisplayMap[expenseSearchDepFilterVal] || '全部支出類型';
-            let dateDisplayStr = expenseSearchDateVal ? `📅 ${expenseSearchDateVal}` : '📅 選擇日期篩選';
+            let dateDisplayStr = expenseSearchDateVal ? `📅 ${expenseSearchDateVal.replace('-', '年 ')}月` : '📅 選擇年月';
 
             let dateFilteredData = globalExpensesData.filter(item => {
                 if (!expenseSearchDateVal) return true;
-                return item.date === expenseSearchDateVal;
+                return String(item.date || '').startsWith(expenseSearchDateVal);
             });
 
-            let vendorFilteredData = dateFilteredData.filter(item => {
-                if (!expenseSearchVendorVal) return true;
-                return item.vendor && item.vendor === expenseSearchVendorVal;
-            });
-
-            let filteredData = vendorFilteredData.filter(item => {
+            let filteredData = dateFilteredData.filter(item => {
                 if (expenseSearchDepFilterVal === 'DEPR') return item.is_depreciable === true;
                 if (expenseSearchDepFilterVal === 'NON_DEPR') return !item.is_depreciable;
                 return true;
             });
+            if (expenseAmountSortVal === 'asc') filteredData.sort((a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0));
+            else if (expenseAmountSortVal === 'desc') filteredData.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
 
             let expenseRows = filteredData.filter(item => (item.transaction_type || 'expense') === 'expense');
             let incomeRows = filteredData.filter(item => item.transaction_type === 'income');
@@ -1759,7 +1863,8 @@
                                 <span style="color:#c2410c; font-weight:700;">原價 $${cost.toLocaleString()} (${years}年折舊)</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; color:var(--text-muted); flex-wrap:wrap; gap:6px;">
-                                <span>每月折舊：$${Math.round(monthlyDep).toLocaleString()} /月</span>
+                                <span>每年折舊：$${Math.round(cost / years).toLocaleString()} /年</span>
+                        <span>每月折舊：$${Math.round(monthlyDep).toLocaleString()} /月</span>
                                 <span style="color:#dc2626;">已折舊：$${Math.round(accDep).toLocaleString()}</span>
                                 <span style="color:#166534; font-weight:700;">剩餘殘值：$${Math.round(bookValue).toLocaleString()}</span>
                             </div>
@@ -1784,10 +1889,10 @@
                         <span>收入：<b style="color:#166534;">$${totalIncomeAmount.toLocaleString()} 元</b></span>
                     </div>
                     <div class="search-sort-group">
-                        <input type="text" id="expense-dep-filter-input" class="search-input" value="${depDisplayStr}" readonly onclick="openExpenseDepFilterPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊篩選折舊與一般支出">
-                        <input type="text" id="expense-vendor-filter-input" class="search-input" value="${vendorDisplayStr}" readonly onclick="openExpenseVendorPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇廠商篩選">
-                        <input type="text" id="expense-date-filter-input" class="search-input" value="${dateDisplayStr}" readonly onclick="openDatePicker(setSearchDateQuery, expenseSearchDateVal || new Date().toISOString().split('T')[0])" style="cursor: pointer; background: #fff; width: 140px; font-weight: 600; color: #c2410c;" title="點擊選擇日期篩選">
-                        ${(expenseSearchDateVal || expenseSearchVendorVal || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
+                        <input type="text" id="expense-dep-filter-input" class="search-input" value="${depDisplayStr}" readonly onclick="openExpenseDepFilterPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊篩選支出類型與折舊狀態">
+                        <input type="text" id="expense-amount-sort-input" class="search-input" value="${sortDisplayStr}" readonly onclick="openExpenseAmountSortPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="依實際金額排序">
+                        <input type="text" id="expense-date-filter-input" class="search-input" value="${dateDisplayStr}" readonly onclick="openYearMonthPicker(setSearchDateQuery, expenseSearchDateVal || getCurrentYearMonth())" style="cursor: pointer; background: #fff; width: 140px; font-weight: 600; color: #c2410c;" title="點擊選擇年月篩選">
+                        ${(expenseSearchDateVal || expenseAmountSortVal !== 'none' || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
                     </div>
                 </div>
             `;
@@ -1877,68 +1982,57 @@
             closeWheelPicker();
         }
 
-        function openExpenseVendorPicker() {
-            let vendors = ['全部廠商'];
-            globalExpensesData.forEach(item => { if (item.vendor && !vendors.includes(item.vendor)) vendors.push(item.vendor); });
-            let currentSel = expenseSearchVendorVal || '全部廠商';
-
+        function openExpenseAmountSortPicker() {
+            const options = [
+                { val: 'none', label: '不排序（原始順序）' },
+                { val: 'asc', label: '金額低到高' },
+                { val: 'desc', label: '金額高到低' }
+            ];
             const overlay = document.createElement('div');
             overlay.className = 'picker-overlay';
             overlay.id = 'wheel-picker-overlay';
             overlay.innerHTML = `
-                <div class="picker-modal">
-                    <h4>🏢 選擇相關廠商篩選</h4>
-                    <div class="picker-wheels-container" style="height: 120px;">
-                        <div class="wheel-column" id="wheel-expense-vendor" onscroll="handleWheelScroll('expense-vendor')" style="padding: 37.5px 0;"></div>
+                <div class="picker-modal" style="width:300px;">
+                    <h4>💰 選擇金額排序</h4>
+                    <div class="picker-wheels-container" style="height:120px;">
+                        <div class="wheel-column" id="wheel-expense-amount-sort" onscroll="handleWheelScroll('expense-amount-sort')" style="padding:37.5px 0;"></div>
                     </div>
                     <div class="picker-btn-group">
                         <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="confirmExpenseVendorPicker()">確定選取</button>
+                        <button class="picker-btn picker-confirm" onclick="confirmExpenseAmountSortPicker()">確定選取</button>
                     </div>
-                </div>
-            `;
+                </div>`;
             document.body.appendChild(overlay);
-
-            const col = document.getElementById('wheel-expense-vendor');
-            let html = '<div style="height:37.5px;"></div>';
-            vendors.forEach(v => { html += `<div class="wheel-item" data-val="${v}">${v}</div>`; });
-            html += '<div style="height:37.5px;"></div>';
-            col.innerHTML = html;
-
+            const col = document.getElementById('wheel-expense-amount-sort');
+            col.innerHTML = '<div style="height:37.5px;"></div>' +
+                options.map(o => `<div class="wheel-item" data-val="${o.val}">${o.label}</div>`).join('') +
+                '<div style="height:37.5px;"></div>';
             requestAnimationFrame(() => {
-                const items = col.querySelectorAll('.wheel-item');
-                for (let item of items) {
-                    if (item.getAttribute('data-val') === currentSel) {
-                        col.scrollTop = item.offsetTop - (col.clientHeight / 2) + (item.clientHeight / 2);
-                        break;
-                    }
-                }
-                highlightSelected('expense-vendor');
+                const selected = [...col.querySelectorAll('.wheel-item')].find(x => x.dataset.val === expenseAmountSortVal);
+                if (selected) col.scrollTop = selected.offsetTop - col.clientHeight / 2 + selected.clientHeight / 2;
+                highlightSelected('expense-amount-sort');
             });
         }
 
-        function confirmExpenseVendorPicker() {
-            const col = document.getElementById('wheel-expense-vendor');
-            if (col) {
-                const selItem = col.querySelector('.wheel-item.selected');
-                if (selItem) {
-                    let val = selItem.getAttribute('data-val');
-                    expenseSearchVendorVal = (val === 'ALL' || val === '全部廠商') ? '' : val;
-                    displayExpensesList();
-                }
+        function confirmExpenseAmountSortPicker() {
+            const col = document.getElementById('wheel-expense-amount-sort');
+            const selected = col?.querySelector('.wheel-item.selected');
+            if (selected) {
+                expenseAmountSortVal = selected.dataset.val;
+                displayExpensesList();
             }
             closeWheelPicker();
         }
 
-        function setSearchDateQuery(selectedDate) {
-            expenseSearchDateVal = selectedDate;
+        function setSearchDateQuery(selectedMonth) {
+            expenseSearchDateVal = String(selectedMonth || '').substring(0, 7);
             displayExpensesList();
         }
 
         function clearExpenseSearch() {
-            expenseSearchVendorVal = '';
             expenseSearchDepFilterVal = 'ALL';
             expenseSearchDateVal = '';
+            expenseAmountSortVal = 'none';
             displayExpensesList();
         }
 
@@ -2158,15 +2252,27 @@
         }
 
 
+        // 依店內支出項目名稱分開歸類；無法辨識的支出仍計入店內支出總額。
+        function classifyOperatingExpenseName(name) {
+            const n = String(name || '').replace(/\s/g, '').toLowerCase();
+            if (/房租|租金/.test(n)) return 'rent';
+            if (/水費|自來水|水電水/.test(n)) return 'water';
+            if (/電費|電費帳單|台電|水電電/.test(n)) return 'electricity';
+            if (/正職.*(薪|工資)|正職薪資|正職薪水/.test(n)) return 'fulltime';
+            if (/工讀.*(薪|工資)|工讀薪資|工讀薪水|兼職.*(薪|工資)/.test(n)) return 'parttime';
+            return 'other';
+        }
+
+        // 押金／訂金屬資金占用或預付款：付款時納入現金流，不直接當作當月營運費用。
+        function isDepositOrPrepaymentExpense(name) {
+            return /押金|訂金/.test(String(name || '').replace(/\s/g, ''));
+        }
+
         // ==================== 每月損益總表與營運回本試算邏輯 ====================
         let currentProfitMonth = getCurrentYearMonth();
 
         const DEFAULT_MONTH_SETTINGS = {
             workingDays: 26,
-            rent: 0,
-            utilities: 0,
-            fullTimeStaff: 0,
-            partTimeStaff: 0,
             gas: 0,
             oil: 0,
             charcoal: 0,
@@ -2174,6 +2280,23 @@
             foodpandaAdMonthly: 0,
             initialCapital: 2000000
         };
+
+
+        // UberEats 廣告費按日設定；每月金額 = 每日廣告費 × 使用者設定的營業天數。
+        // 舊資料若只有月金額，依原營業天數換算成每日金額，維持歷史數值。
+        function getMonthlyAdCosts(settings) {
+            const s = settings || {};
+            const days = Math.max(0, Number(s.workingDays ?? 26) || 0);
+            const daily = s.ubereatsAdDaily !== undefined
+                ? (Number(s.ubereatsAdDaily) || 0)
+                : (Number(s.ubereatsAdMonthly) || 0) / Math.max(1, days);
+            return {
+                ubereatsDaily: Math.max(0, daily),
+                ubereats: Math.max(0, daily) * days,
+                foodpanda: Math.max(0, Number(s.foodpandaAdMonthly) || 0),
+                workingDays: days
+            };
+        }
 
         // 只讀取該月份真正保存的設定；歷史月份缺資料時絕不套用最新月份。
         async function getMonthSettings(monthStr) {
@@ -2227,34 +2350,72 @@
             const products = productsRes.data || [];
             const expenses = expensesRes.data || [];
             globalRevenuesData = revenuesRes.data || [];
+            const platformRates = await getPlatformRates();
+            const ueRate = platformRates.ubereatsCommissionRate / 100;
+            const fpRate = platformRates.foodpandaCommissionRate / 100;
 
             let fixedSettings = await getMonthSettingsForEditing(currentProfitMonth);
 
-            let avgCostRate = 40;
-            if (products.length > 0) {
-                let totalRate = products.reduce((acc, p) => acc + calculateCostRate(p), 0);
-                avgCostRate = totalRate / products.length;
-            }
+            const hasMonthlySettings = fixedSettings.fixedCostsConfigured !== false;
+            const monthlyAds = hasMonthlySettings ? getMonthlyAdCosts(fixedSettings) : { ubereats: 0, foodpanda: 0 };
+            let totalUbereatsAd = monthlyAds.ubereats;
+            let totalFoodpandaAd = monthlyAds.foodpanda;
 
-            let totalUbereatsAd = (parseFloat(fixedSettings.ubereatsAdDaily) || 0) * (parseFloat(fixedSettings.workingDays) || 26);
-            let totalFoodpandaAd = parseFloat(fixedSettings.foodpandaAdMonthly) || 0;
+            // 本月設定只包含瓦斯、木炭、炸油及平台廣告；房租/薪資/水電等一律由 expenses 店內支出表讀取。
+            let totalFixedCost = hasMonthlySettings
+                ? (parseFloat(fixedSettings.gas) || 0) + (parseFloat(fixedSettings.oil) || 0) +
+                  (parseFloat(fixedSettings.charcoal) || 0) + totalUbereatsAd + totalFoodpandaAd
+                : 0;
 
-            let totalFixedCost = (parseFloat(fixedSettings.rent) || 0) + (parseFloat(fixedSettings.utilities) || 0) + 
-                                 (parseFloat(fixedSettings.fullTimeStaff) || 0) + (parseFloat(fixedSettings.partTimeStaff) || 0) + 
-                                 (parseFloat(fixedSettings.gas) || 0) + (parseFloat(fixedSettings.oil) || 0) + 
-                                 (parseFloat(fixedSettings.charcoal) || 0) + totalUbereatsAd + totalFoodpandaAd;
-
-            let monthExpenses = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth) && (i.transaction_type || 'expense') === 'expense');
-            let monthExtraIncome = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth) && i.transaction_type === 'income');
-            let totalOtherExpenses = monthExpenses.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
+            let monthExpenseRows = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth));
+            let monthExpenses = monthExpenseRows.filter(i => (i.transaction_type || 'expense') === 'expense' && i.is_depreciable !== true && !isDepositOrPrepaymentExpense(i.name));
+            let monthDepreciableExpenses = monthExpenseRows.filter(i => (i.transaction_type || 'expense') === 'expense' && i.is_depreciable === true);
+            let monthExtraIncome = monthExpenseRows.filter(i => i.transaction_type === 'income');
+            const expenseByType = type => monthExpenses.filter(i => classifyOperatingExpenseName(i.name) === type).reduce((a,i) => a + (Number(i.amount)||0), 0);
+            let rentExpense = expenseByType('rent');
+            let waterExpense = expenseByType('water');
+            let electricityExpense = expenseByType('electricity');
+            let fulltimeSalaryExpense = expenseByType('fulltime');
+            let parttimeSalaryExpense = expenseByType('parttime');
+            // 店內支出總額涵蓋所有一般支出；未分類項目不另設「其他店內支出」欄位。
+            let totalOtherExpenses = monthExpenses.reduce((a,i) => a + (Number(i.amount)||0), 0);
+            const averageCostRate = products.length
+                ? products.reduce((sum, item) => sum + calculateCostRate(item), 0) / products.length
+                : 0;
+            let totalDepreciation = 0;
+            const currentMonthNumber = Number(currentProfitMonth.slice(0,4))*12 + Number(currentProfitMonth.slice(5,7))-1;
+            expenses.filter(i => (i.transaction_type || 'expense') === 'expense' && i.is_depreciable === true).forEach(item => {
+                const dateMonth = String(item.date || '').slice(0,7);
+                if (!/^\d{4}-\d{2}$/.test(dateMonth)) return;
+                const startMonth = Number(dateMonth.slice(0,4))*12 + Number(dateMonth.slice(5,7))-1;
+                const usefulLifeYears = Math.max(1, Number(item.useful_life_years) || 5);
+                const lifeMonths = usefulLifeYears * 12;
+                const annualDepreciation = (Number(item.amount) || 0) / usefulLifeYears;
+                const monthlyDepreciation = annualDepreciation / 12;
+                const elapsed = currentMonthNumber - startMonth;
+                if (elapsed >= 0 && elapsed < lifeMonths) totalDepreciation += monthlyDepreciation;
+            });
             let totalExtraIncome = monthExtraIncome.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
-            let grandTotalCost = totalFixedCost + totalOtherExpenses - totalExtraIncome;
-
-            let grossMarginRate = 1 - (avgCostRate / 100);
-            let monthlyBreakEvenRevenue = grossMarginRate > 0 ? grandTotalCost / grossMarginRate : grandTotalCost * 2;
-            let dailyBreakEvenRevenue = fixedSettings.workingDays > 0 ? monthlyBreakEvenRevenue / fixedSettings.workingDays : 0;
-
             let monthRevenues = globalRevenuesData.filter(i => i.date && i.date.startsWith(currentProfitMonth));
+            let ueGrossSales = monthRevenues.reduce((sum, r) => sum + (parseFloat(r.ubereats) || 0), 0);
+            let fpGrossSales = monthRevenues.reduce((sum, r) => sum + (parseFloat(r.foodpanda) || 0), 0);
+            let ueCommission = ueGrossSales * ueRate;
+            let fpCommission = fpGrossSales * fpRate;
+            let totalPlatformCommission = ueCommission + fpCommission;
+            let totalGrossSales = monthRevenues.reduce((sum, r) =>
+                sum + (parseFloat(r.onsite) || 0) + (parseFloat(r.ubereats) || 0) + (parseFloat(r.foodpanda) || 0), 0);
+            // 每月固定總支出：當月所有非折舊、非押金/訂金的一般店內支出
+            // （包含房租、水費、電費、正職/工讀薪資、網路、維修及其他雜項）
+            // + 月設定瓦斯/炸油/木炭 + UberEats每日廣告×營業天數 + foodpanda月廣告。
+            // 廣告費由 getMonthlyAdCosts() 依當月動態參數計算，不寫死金額。
+            let monthlySettingsAndStoreExpenseTotal = totalFixedCost + totalOtherExpenses;
+            let monthlyFixedTotalCost = monthlySettingsAndStoreExpenseTotal;
+            // 平均成本率以百分比轉成小數；成本率38%時，貢獻毛利率為62%。
+            let contributionMarginRate = Math.max(0.0001, 1 - (Math.max(0, Number(averageCostRate) || 0) / 100));
+            let monthlyBreakEvenRevenue = monthlyFixedTotalCost / contributionMarginRate;
+            let dailyBreakEvenRevenue = monthlyBreakEvenRevenue / Math.max(1, Number(fixedSettings.workingDays) || 26);
+
+
             
             let profitDaysCount = 0;
             let lossDaysCount = 0;
@@ -2264,18 +2425,19 @@
 
             let totalActualRevenue = monthRevenues.reduce((acc, i) => {
                 let onsite = parseFloat(i.onsite) || 0;
-                let ubereatsNet = (parseFloat(i.ubereats) || 0) * 0.65;   
-                let foodpandaNet = (parseFloat(i.foodpanda) || 0) * 0.67; 
-                let dayTotal = onsite + ubereatsNet + foodpandaNet;
+                let ubereatsGross = parseFloat(i.ubereats) || 0;
+                let foodpandaGross = parseFloat(i.foodpanda) || 0;
+                let dayTotal = onsite + ubereatsGross * (1 - ueRate) + foodpandaGross * (1 - fpRate);
+                let dayGrossTotal = onsite + ubereatsGross + foodpandaGross;
 
-                if (dayTotal >= dailyBreakEvenRevenue) profitDaysCount++;
+                if (dayGrossTotal >= dailyBreakEvenRevenue) profitDaysCount++;
                 else lossDaysCount++;
 
                 if (i.date) {
                     let dObj = new Date(i.date);
                     if (!isNaN(dObj.getDay())) {
                         let wDay = dObj.getDay();
-                        weekdayTotals[wDay].sum += dayTotal;
+                        weekdayTotals[wDay].sum += dayGrossTotal;
                         weekdayTotals[wDay].count += 1;
                     }
                 }
@@ -2302,16 +2464,16 @@
                 }
             }
 
-            let estimatedGrossProfit = totalActualRevenue * grossMarginRate;
-            let netProfit = estimatedGrossProfit - grandTotalCost;
-            let revenueGap = totalActualRevenue - monthlyBreakEvenRevenue;
+            // 不以目前商品平均成本率推估歷史食材成本；每日叫貨不列入損益。
+            let netProfit = totalGrossSales - totalPlatformCommission - totalFixedCost - totalOtherExpenses + totalExtraIncome - totalDepreciation;
+            let revenueGap = totalGrossSales - monthlyBreakEvenRevenue;
 
             const [pYear, pMonth] = currentProfitMonth.split('-');
             let monthDisplayTitle = `${pYear}年 ${parseInt(pMonth, 10)}月`;
 
             let html = `
                 <div class="controls-bar" style="margin-bottom: 20px;">
-                    <div class="stats-info"><span>📊 營運與回本試算儀表板 (已自動扣除 Ubereats 35% / foodpanda 33% 抽成)</span></div>
+                    <div class="stats-info"><span>📊 營運與回本試算儀表板</span></div>
                     <div class="search-sort-group">
                         <input type="text" id="profit-month-search" class="search-input" value="${monthDisplayTitle}" readonly onclick="openYearMonthPicker(changeProfitMonthWheel, '${currentProfitMonth}')" style="cursor: pointer; background: #fff; width: 120px;" title="點擊選擇年月">
                         <button class="action-btn" onclick="openRevenueModal()">＋ 記錄今日營業額</button>
@@ -2319,33 +2481,35 @@
                 </div>
 
                 <div class="profit-card">
-                    <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ 本月成本與回本門檻設定 (含動態廣告費)</h3>
+                    <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ 本月營運費用與回本門檻</h3>
                     <div class="profit-grid-settings">
-                        <div>營業天數：<b>${fixedSettings.workingDays} 天</b></div>
-                        <div>平均成本率：<b>${avgCostRate.toFixed(1)}%</b></div>
-                        <div>房租：<b>$${(fixedSettings.rent || 0).toLocaleString()} 元</b></div>
-                        <div>水電費：<b>$${(fixedSettings.utilities || 0).toLocaleString()} 元</b></div>
-                        <div>正職薪水：<b>$${(fixedSettings.fullTimeStaff || 0).toLocaleString()} 元</b></div>
-                        <div>工讀生薪水：<b>$${(fixedSettings.partTimeStaff || 0).toLocaleString()} 元</b></div>
+                        <div>營業天數：<b>${Number(fixedSettings.workingDays) || 26} 天</b></div>
+                        <div>平均成本率：<b>${averageCostRate.toFixed(1)}%</b></div>
+                        <div>房租：<b>$${Math.round(rentExpense).toLocaleString()} 元</b></div>
+                        <div>水費：<b>$${Math.round(waterExpense).toLocaleString()} 元</b></div>
+                        <div>電費：<b>$${Math.round(electricityExpense).toLocaleString()} 元</b></div>
+                        <div>正職薪水：<b>$${Math.round(fulltimeSalaryExpense).toLocaleString()} 元</b></div>
+                        <div>工讀生薪水：<b>$${Math.round(parttimeSalaryExpense).toLocaleString()} 元</b></div>
                         <div>瓦斯費：<b>$${(fixedSettings.gas || 0).toLocaleString()} 元</b></div>
                         <div>炸油費：<b>$${(fixedSettings.oil || 0).toLocaleString()} 元</b></div>
                         <div>木碳費：<b>$${(fixedSettings.charcoal || 0).toLocaleString()} 元</b></div>
-                        <div>Ubereats 廣告費（每日）：<b>$${fixedSettings.ubereatsAdDaily || 0} /天</b></div>
-                        <div>foodpanda 廣告費（每月）：<b>$${fixedSettings.foodpandaAdMonthly || 0} /月</b></div>
-                        <div>每月固定總支出：<b>$${grandTotalCost.toLocaleString()} 元</b></div>
+                        <div>UberEats 廣告費（每日 × 營業天數）：<b>$${Math.round(totalUbereatsAd).toLocaleString()} 元</b></div>
+                        <div>foodpanda 廣告費（月）：<b>$${Math.round(totalFoodpandaAd).toLocaleString()} 元</b></div>
+                        <div>每月設定費用與店內支出合計：<b>$${Math.round(monthlySettingsAndStoreExpenseTotal).toLocaleString()} 元</b></div>
                         <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
                     </div>
-                    <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 調整固定支出、廣告費與營業天數參數</button>
+                    <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 設定本月營業天數與費用</button>
                 </div>
 
                 <div class="profit-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0;">
-                    <h3 style="margin-top:0; color:#166534; font-size:16px; border-bottom:1px solid #bbf7d0; padding-bottom:8px;">📈 本月實際營運與回本進度 (實收金額計算)</h3>
+                    <h3 style="margin-top:0; color:#166534; font-size:16px; border-bottom:1px solid #bbf7d0; padding-bottom:8px;">📈 本月實際營運與回本進度</h3>
                     <div class="profit-row">
-                        <span>本月累計實收總營業額</span>
-                        <b style="color: #059669; font-size: 18px;">$${Math.round(totalActualRevenue).toLocaleString()} 元</b>
+                        <span>本月原始總營業額（現場＋兩平台）</span>
+                        <b style="color: #292524; font-size: 18px;">$${Math.round(totalGrossSales).toLocaleString()} 元</b>
                     </div>
+                    
                     <div class="profit-row">
-                        <span>每日平均回本門檻</span>
+                        <span>每日營業額回本門檻（依平均成本率及全額固定支出）</span>
                         <b>$${Math.round(dailyBreakEvenRevenue).toLocaleString()} 元 / 天</b>
                     </div>
                     <div class="profit-row">
@@ -2361,7 +2525,7 @@
                         <b style="color: #c2410c;">${revenueGap >= 0 ? '超額達標 ＋' : '還差 －'}$${Math.round(Math.abs(revenueGap)).toLocaleString()} 元</b>
                     </div>
                     <div class="profit-row total-row" style="color: ${netProfit >= 0 ? '#166534' : '#991b1b'}; border-top-color: #86efac;">
-                        <span>💰 本月實際口袋損益結算 (毛利扣固定支出)</span>
+                        <span>💰 本月營運損益（已扣店內支出、月設定費用及折舊）</span>
                         <span>${netProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(netProfit)).toLocaleString()} 元</span>
                     </div>
                 </div>
@@ -2375,11 +2539,15 @@
                     let onsite = parseFloat(rev.onsite) || 0;
                     let ueInput = parseFloat(rev.ubereats) || 0;
                     let fpInput = parseFloat(rev.foodpanda) || 0;
-                    let ueNet = ueInput * 0.65;   
-                    let fpNet = fpInput * 0.67; 
+                    let ueFee = ueInput * ueRate;
+                    let fpFee = fpInput * fpRate;
+                    let ueNet = ueInput - ueFee;
+                    let fpNet = fpInput - fpFee;
                     let dayNetTotal = onsite + ueNet + fpNet;
 
-                    let diffToBreakEven = dailyBreakEvenRevenue - dayNetTotal;
+                    // 每日門檻是營業額目標，故以當日原始總營業額比較，避免淨收/毛額口徑混用。
+                    let dayGrossTotal = onsite + ueInput + fpInput;
+                    let diffToBreakEven = dailyBreakEvenRevenue - dayGrossTotal;
                     
                     let feedbackHtml = '';
                     if (diffToBreakEven <= 0) {
@@ -2395,10 +2563,10 @@
                     html += `
                         <div class="item-card ${zebraClass}" id="rev-card-${rev.id}">
                             <div class="card-main-info">
-                                <h4>${rev.date}${weekDayStr} <span style="font-size:15px;">實收總計：$${Math.round(dayNetTotal).toLocaleString()}</span></h4>
+                                <h4>${rev.date}${weekDayStr} <span style="font-size:15px;">實收總計：$${Math.round(dayNetTotal).toLocaleString()}</span> <span style="font-size:12px;color:#78716c;">營業額：$${Math.round(dayGrossTotal).toLocaleString()}</span></h4>
                                 <p><b>現場：</b>$${onsite}</p>
-                                <p><b>Ubereats：</b>輸入 $${ueInput} ➔ <b>實收 $${Math.round(ueNet)}</b> (抽35%)</p>
-                                <p><b>foodpanda：</b>輸入 $${fpInput} ➔ <b>實收 $${Math.round(fpNet)}</b> (抽33%)</p>
+                                <p><b>UberEats：</b>$${ueInput}</p>
+                                <p><b>foodpanda：</b>$${fpInput}</p>
                                 <p style="margin-top: 8px; font-size: 13px;">${feedbackHtml}</p>
                             </div>
                             <div class="card-actions" id="rev-actions-${rev.id}">
@@ -2437,8 +2605,8 @@
                         <input type="text" id="rev-date" value="${defaultDate}" readonly onclick="openDatePicker(setRevDate, document.getElementById('rev-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
                     <div class="form-group"><label>現場客人營業額</label><input type="number" step="0.01" id="rev-onsite" value="${revItem ? revItem.onsite || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>Ubereats 營業額 (自動扣除 35% 抽成)</label><input type="number" step="0.01" id="rev-ubereats" value="${revItem ? revItem.ubereats || 0 : ''}" placeholder="0"></div>
-                    <div class="form-group"><label>foodpanda 營業額 (自動扣除 33% 抽成)</label><input type="number" step="0.01" id="rev-foodpanda" value="${revItem ? revItem.foodpanda || 0 : ''}" placeholder="0"></div>
+                    <div class="form-group"><label>UberEats 當日營業額（抽成依平台設定）</label><input type="number" step="0.01" id="rev-ubereats" value="${revItem ? revItem.ubereats || 0 : ''}" placeholder="0"></div>
+                    <div class="form-group"><label>foodpanda 當日營業額（抽成依平台設定）</label><input type="number" step="0.01" id="rev-foodpanda" value="${revItem ? revItem.foodpanda || 0 : ''}" placeholder="0"></div>
                     <div class="picker-btn-group" style="margin-top: 16px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('revenue-modal-overlay').remove()">取消</button>
                         <button class="picker-btn picker-confirm" onclick="saveRevenue(${editId})">確認儲存</button>
@@ -2483,46 +2651,60 @@
         }
 
         async function openFixedSettingsModal() {
-            let fixedSettings = await getMonthSettingsForEditing(currentProfitMonth);
-
+            const fixedSettings = await getMonthSettingsForEditing(currentProfitMonth);
             const overlay = document.createElement('div');
             overlay.className = 'picker-overlay';
             overlay.id = 'settings-modal-overlay';
             overlay.innerHTML = `
-                <div class="picker-modal" style="width: 380px; text-align: left; max-height: 90vh; overflow-y: auto;">
-                    <h4 style="text-align: center; color: #c2410c;">⚙️ 設定本月 (${currentProfitMonth}) 固定支出與參數</h4>
-                    <div class="form-group"><label>營業天數</label><input type="number" id="set-days" value="${fixedSettings.workingDays}"></div>
-                    <div class="form-group"><label>房租</label><input type="number" id="set-rent" value="${fixedSettings.rent}"></div>
-                    <div class="form-group"><label>水電費</label><input type="number" id="set-util" value="${fixedSettings.utilities}"></div>
-                    <div class="form-group"><label>正職薪水</label><input type="number" id="set-full" value="${fixedSettings.fullTimeStaff}"></div>
-                    <div class="form-group"><label>工讀生薪水</label><input type="number" id="set-part" value="${fixedSettings.partTimeStaff}"></div>
-                    <div class="form-group"><label>瓦斯費</label><input type="number" id="set-gas" value="${fixedSettings.gas}"></div>
-                    <div class="form-group"><label>炸油費</label><input type="number" id="set-oil" value="${fixedSettings.oil}"></div>
-                    <div class="form-group"><label>木碳費</label><input type="number" id="set-charcoal" value="${fixedSettings.charcoal}"></div>
-                    <div class="form-group"><label>Ubereats 廣告費 (一天單價)</label><input type="number" id="set-ubereats-daily" value="${fixedSettings.ubereatsAdDaily}"></div>
-                    <div class="form-group"><label>foodpanda 廣告費 (每月固定總額)</label><input type="number" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}"></div>
-                    <div class="picker-btn-group" style="margin-top: 16px;">
-                        <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
-                        <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">儲存設定</button>
+                <div class="picker-modal cost-setting-modal" style="text-align:left;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:5px;">
+                        <div><div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#ea580c;">MONTHLY COST SETTINGS</div><h3 style="margin:4px 0 0;color:#292524;font-size:20px;">${currentProfitMonth} 本月營運成本</h3></div>
+                        <div style="width:42px;height:42px;border-radius:13px;background:#fff1e6;color:#ea580c;display:grid;place-items:center;font-size:21px;">⚙</div>
                     </div>
-                </div>
-            `;
+                    
+                    <div class="cost-setting-section-title">🔥 本月自行設定費用</div>
+                    <div class="cost-setting-field" style="margin-bottom:12px;"><label>本月營業天數</label><input type="number" min="0" max="31" step="1" id="set-working-days" value="${Number(fixedSettings.workingDays) || 26}" oninput="updateFixedSettingsPreview()"></div>
+                    <div class="cost-setting-grid">
+                        <div class="cost-setting-field"><label>瓦斯費（元／月）</label><input type="number" min="0" id="set-gas" value="${fixedSettings.gas}"></div>
+                        <div class="cost-setting-field"><label>木炭費（元／月）</label><input type="number" min="0" id="set-charcoal" value="${fixedSettings.charcoal}"></div>
+                        <div class="cost-setting-field"><label>炸油費（元／月）</label><input type="number" min="0" id="set-oil" value="${fixedSettings.oil}"></div>
+                    </div>
+                    
+                    <div class="cost-setting-section-title">📣 平台廣告費</div>
+                    <div class="cost-setting-grid">
+                        <div class="cost-setting-field"><label>UberEats 廣告費（元／日）</label><input type="number" min="0" id="set-ubereats-daily" value="${getMonthlyAdCosts(fixedSettings).ubereatsDaily}" oninput="updateFixedSettingsPreview()"></div>
+                        <div class="cost-setting-field"><label>foodpanda 廣告費（元／月）</label><input type="number" min="0" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}" oninput="updateFixedSettingsPreview()"></div>
+                    </div>
+                    <div class="cost-setting-preview"><span>UberEats 本月廣告費（每日 × 營業天數）</span><b id="ue-ad-preview">$${Math.round(getMonthlyAdCosts(fixedSettings).ubereats).toLocaleString()} 元</b><span>foodpanda 本月廣告費</span><b id="fp-ad-preview">$${Math.round(Number(fixedSettings.foodpandaAdMonthly)||0).toLocaleString()} 元</b></div>
+                    
+                    <div class="picker-btn-group" style="margin-top:20px;">
+                        <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
+                        <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">✓ 儲存本月成本</button>
+                    </div>
+                </div>`;
             document.body.appendChild(overlay);
+        }
+
+        function updateFixedSettingsPreview() {
+            const days = Math.max(0, Number(document.getElementById('set-working-days')?.value) || 0);
+            const ueDaily = Math.max(0, Number(document.getElementById('set-ubereats-daily')?.value) || 0);
+            const fpMonthly = Math.max(0, Number(document.getElementById('set-foodpanda-monthly')?.value) || 0);
+            const ueEl = document.getElementById('ue-ad-preview');
+            const fpEl = document.getElementById('fp-ad-preview');
+            if (ueEl) ueEl.textContent = `$${Math.round(ueDaily * days).toLocaleString()} 元`;
+            if (fpEl) fpEl.textContent = `$${Math.round(fpMonthly).toLocaleString()} 元`;
         }
 
         async function saveFixedSettings() {
             let oldSettings = await getMonthSettingsForEditing(currentProfitMonth);
             let fixedSettings = {
+                ...oldSettings,
                 initialCapital: oldSettings.initialCapital || 2000000,
-                workingDays: parseFloat(document.getElementById('set-days').value) || 26,
-                rent: parseFloat(document.getElementById('set-rent').value) || 0,
-                utilities: parseFloat(document.getElementById('set-util').value) || 0,
-                fullTimeStaff: parseFloat(document.getElementById('set-full').value) || 0,
-                partTimeStaff: parseFloat(document.getElementById('set-part').value) || 0,
                 gas: parseFloat(document.getElementById('set-gas').value) || 0,
                 oil: parseFloat(document.getElementById('set-oil').value) || 0,
                 charcoal: parseFloat(document.getElementById('set-charcoal').value) || 0,
                 ubereatsAdDaily: parseFloat(document.getElementById('set-ubereats-daily').value) || 0,
+                workingDays: Math.max(0, parseInt(document.getElementById('set-working-days').value, 10) || 0),
                 foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0,
                 fixedCostsConfigured: true
             };
@@ -2536,9 +2718,10 @@
             }
 
             if (res.error) {
-                alert('儲存失敗：' + res.error.message);
+                showAppToast('成本設定儲存失敗', res.error.message, 'error');
             } else {
                 document.getElementById('settings-modal-overlay').remove();
+                showAppToast('本月成本已儲存', '損益總表與全店回本追蹤將同步使用更新後的成本。', 'success');
                 renderProfitView();
             }
         }
@@ -2574,7 +2757,9 @@
             });
 
             const currentMonthKey = getCurrentYearMonth();
-            const currentSettings = settingsByMonth[currentProfitMonth] || {};
+            const platformRates = platformRatesFromRows(settingsRows);
+            const ueRate = platformRates.ubereatsCommissionRate / 100;
+            const fpRate = platformRates.foodpandaCommissionRate / 100;
             const initialCapital = Math.max(0, await getGlobalInitialCapital());
 
             const monthNumber = ym => {
@@ -2584,37 +2769,37 @@
             const validMonth = value => /^\d{4}-\d{2}$/.test(String(value || '').substring(0, 7))
                 ? String(value).substring(0, 7) : '';
 
-            const monthCandidates = [
+            // 以最早一筆營收／支出／叫貨／月份設定為起點，連續計算到本月。
+            // 不可只列有資料的月份，否則設備折舊會漏掉中間沒有營收或支出紀錄的月份。
+            const recordedMonths = [
                 ...revenues.map(x => validMonth(x.date)),
                 ...expenses.map(x => validMonth(x.date)),
                 ...purchases.map(x => validMonth(x.date)),
-                ...settingsRows.map(x => validMonth(x.month))
-            ].filter(Boolean).filter(ym => ym <= currentMonthKey);
-
-            if (!monthCandidates.length) monthCandidates.push(currentMonthKey);
-            const firstMonth = monthCandidates.reduce((a, b) => a < b ? a : b);
+                ...settingsRows.map(r => validMonth(r.month))
+            ].filter(Boolean).filter(ym => ym <= currentMonthKey).sort();
             const monthKeys = [];
-            for (let n = monthNumber(firstMonth), last = monthNumber(currentMonthKey); n !== null && n <= last; n++) {
-                const year = Math.floor(n / 12);
-                const month = n % 12 + 1;
-                monthKeys.push(`${year}-${String(month).padStart(2, '0')}`);
+            if (recordedMonths.length) {
+                const firstMonthNumber = monthNumber(recordedMonths[0]);
+                const lastMonthNumber = monthNumber(currentMonthKey);
+                for (let n = firstMonthNumber; n <= lastMonthNumber; n++) {
+                    const year = Math.floor(n / 12);
+                    const month = (n % 12) + 1;
+                    monthKeys.push(`${year}-${String(month).padStart(2, '0')}`);
+                }
             }
 
-            // 產品成本率僅是「目前商品成本率平均值」估算，並非歷史銷售組合加權成本。
-            let averageProductCostRate = 40;
-            if (products.length) {
-                averageProductCostRate = products.reduce((sum, p) => sum + (Number(calculateCostRate(p)) || 0), 0) / products.length;
-            }
-            averageProductCostRate = Math.max(0, Math.min(100, averageProductCostRate));
-            const estimatedGrossMarginRate = 1 - averageProductCostRate / 100;
+            // 不用目前商品平均成本率回推歷史食材成本；叫貨紀錄不列入營運損益。
 
             const sum = (items, getter) => items.reduce((total, item) => total + (Number(getter(item)) || 0), 0);
             const monthRows = [];
-            const missingSettingsMonths = [];
             let cumulativeOperatingProfit = 0;
             let cumulativeCashMovement = 0;
             let cumulativePurchases = 0;
             let cumulativeDepreciation = 0;
+            let cumulativeOrdinaryExpenses = 0;
+            let cumulativeRecordedCashExpenses = 0;
+            let cumulativeDepositsAndPrepayments = 0;
+            let cumulativeMonthlySettingsCosts = 0;
             let totalEquipmentCost = 0;
             let totalEquipmentBookValue = 0;
 
@@ -2624,7 +2809,7 @@
                 (Number(e.amount) || 0) > 0
             );
 
-            // 設備採購當月不列入營運費用，依耐用年限逐月提列折舊。
+            // 設備折舊僅供設備帳面剩餘價值估算；依本次指定的損益口徑，設備購買支出已全額列入支出。
             const depreciationByMonth = Object.fromEntries(monthKeys.map(ym => [ym, 0]));
             depreciableItems.forEach(item => {
                 const cost = Number(item.amount) || 0;
@@ -2649,68 +2834,80 @@
                 const settings = settingsByMonth[ym] || null;
                 const hasSettings = !!settings && settings.fixedCostsConfigured !== false;
 
-                if (!hasSettings) missingSettingsMonths.push(ym);
 
-                const workingDays = Math.max(0, Number(settings?.workingDays) || 0);
+                const monthAds = getMonthlyAdCosts(settings);
+                // 月設定僅讀取瓦斯、木炭、炸油與平台廣告；店租/薪資/水電由 expenses 當月支出讀取。
                 const fixedCost = hasSettings
-                    ? (Number(settings.rent) || 0) +
-                      (Number(settings.utilities) || 0) +
-                      (Number(settings.fullTimeStaff) || 0) +
-                      (Number(settings.partTimeStaff) || 0) +
-                      (Number(settings.gas) || 0) +
+                    ? (Number(settings.gas) || 0) +
                       (Number(settings.oil) || 0) +
                       (Number(settings.charcoal) || 0) +
-                      ((Number(settings.ubereatsAdDaily) || 0) * workingDays) +
-                      (Number(settings.foodpandaAdMonthly) || 0)
+                      monthAds.ubereats + monthAds.foodpanda
                     : 0;
 
-                const netRevenue = sum(monthRevenues, r =>
+                const grossRevenue = sum(monthRevenues, r =>
                     (Number(r.onsite) || 0) +
-                    (Number(r.ubereats) || 0) * 0.65 +
-                    (Number(r.foodpanda) || 0) * 0.67
+                    (Number(r.ubereats) || 0) +
+                    (Number(r.foodpanda) || 0)
                 );
+                const ubereatsCommission = sum(monthRevenues, r => Number(r.ubereats) || 0) * ueRate;
+                const foodpandaCommission = sum(monthRevenues, r => Number(r.foodpanda) || 0) * fpRate;
+                const platformCommission = ubereatsCommission + foodpandaCommission;
+                const netRevenue = grossRevenue - platformCommission;
 
                 const purchasePaid = sum(monthPurchases, p => p.total_price);
                 const extraIncome = sum(monthExpenses.filter(e => e.transaction_type === 'income'), e => e.amount);
                 const ordinaryExpenses = sum(monthExpenses.filter(e =>
-                    (e.transaction_type || 'expense') === 'expense' && e.is_depreciable !== true
+                    (e.transaction_type || 'expense') === 'expense' && e.is_depreciable !== true && !isDepositOrPrepaymentExpense(e.name)
+                ), e => e.amount);
+                const depositsAndPrepayments = sum(monthExpenses.filter(e =>
+                    (e.transaction_type || 'expense') === 'expense' && isDepositOrPrepaymentExpense(e.name)
                 ), e => e.amount);
                 const allCashExpenses = sum(monthExpenses.filter(e =>
                     (e.transaction_type || 'expense') === 'expense'
                 ), e => e.amount);
 
                 const depreciation = depreciationByMonth[ym] || 0;
-                const grossProfitEstimate = netRevenue * estimatedGrossMarginRate;
-                const operatingProfitEstimate = grossProfitEstimate - fixedCost - ordinaryExpenses + extraIncome - depreciation;
+                // 依使用者指定的歷史累積公式：實收營收－當月叫貨－店內支出表全部支出。
+                // 店內支出表的所有 expense 均納入，包含一般支出、押金/訂金及設備購買；
+                // 因設備購買已全額列入，不可再把同月折舊重複扣入這個損益口徑。
+                const operatingProfitEstimate = netRevenue - purchasePaid - allCashExpenses - fixedCost + extraIncome;
 
-                // 現金流：叫貨全額視為已付款；設備採購在付款當月全額列現金流出，不再扣折舊。
-                const cashMovement = netRevenue - purchasePaid - allCashExpenses + extraIncome - fixedCost;
+                // 現金流：平台抽成在營收端扣一次；設備採購在付款當月全額列現金流出，不再扣折舊。
+                const cashMovement = grossRevenue - platformCommission - purchasePaid - allCashExpenses + extraIncome - fixedCost;
 
                 cumulativeOperatingProfit += operatingProfitEstimate;
                 cumulativeCashMovement += cashMovement;
                 cumulativePurchases += purchasePaid;
                 cumulativeDepreciation += depreciation;
+                cumulativeOrdinaryExpenses += ordinaryExpenses;
+                cumulativeRecordedCashExpenses += allCashExpenses;
+                cumulativeDepositsAndPrepayments += depositsAndPrepayments;
+                cumulativeMonthlySettingsCosts += fixedCost;
 
                 monthRows.push({
-                    month: ym, netRevenue, purchasePaid, fixedCost, ordinaryExpenses,
-                    extraIncome, depreciation, operatingProfitEstimate, cashMovement, hasSettings
+                    month: ym, netRevenue, grossRevenue, ubereatsCommission, foodpandaCommission, platformCommission,
+                    purchasePaid, fixedCost, ordinaryExpenses, extraIncome, depreciation,
+                    operatingProfitEstimate, cashMovement, hasSettings
                 });
             }
 
             totalEquipmentBookValue = Math.max(0, totalEquipmentCost - cumulativeDepreciation);
+            // 本金回收缺口以「初始投入資本－目前推算實際現金餘額」計算。
+            // 現金餘額 = 初始投入資本 + 歷史累積現金流變動；
+            // 設備、裝潢、叫貨及店內支出已反映在累積現金流，不可再加一次。
+            const currentCashBalance = initialCapital + cumulativeCashMovement;
+            const remainingToRecover = Math.max(0, initialCapital - currentCashBalance);
+            const recoveredCapital = Math.max(0, initialCapital - remainingToRecover);
             const recoveryProgress = initialCapital > 0
-                ? Math.max(0, Math.min(100, cumulativeOperatingProfit / initialCapital * 100)) : 0;
-            const remainingToRecover = Math.max(0, initialCapital - cumulativeOperatingProfit);
-            const returnRate = initialCapital > 0 ? cumulativeOperatingProfit / initialCapital * 100 : 0;
+                ? Math.max(0, Math.min(100, recoveredCapital / initialCapital * 100)) : 0;
+            const returnRate = initialCapital > 0
+                ? (initialCapital - remainingToRecover) / initialCapital * 100 : 0;
+            const excessCashAfterRecovery = Math.max(0, currentCashBalance - initialCapital);
 
             const money = value => `$${Math.round(value || 0).toLocaleString('zh-TW')} 元`;
-            const statusText = missingSettingsMonths.length
-                ? `有 ${missingSettingsMonths.length} 個月份缺少固定成本設定，累積營運損益目前是「未完整估算」`
-                : '目前納入的月份皆有固定成本設定；商品成本仍採目前商品成本率估算';
-
             const monthlyRowsHtml = monthRows.slice().reverse().map(row => `
                 <tr>
-                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;white-space:nowrap;">${row.month}${row.hasSettings ? '' : ' ⚠️'}</td>
+                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;white-space:nowrap;">${row.month}</td>
                     <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.netRevenue).toLocaleString('zh-TW')}</td>
                     <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.purchasePaid).toLocaleString('zh-TW')}</td>
                     <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.operatingProfitEstimate >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.operatingProfitEstimate).toLocaleString('zh-TW')}</td>
@@ -2718,75 +2915,54 @@
                 </tr>
             `).join('');
 
-            const missingSettingsHtml = missingSettingsMonths.length ? `
-                <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:14px 16px;margin:0 0 18px;">
-                    <b style="color:#9a3412;">⚠️ 歷史固定成本設定不完整</b>
-                    <p style="margin:7px 0;color:#7c2d12;font-size:13px;line-height:1.7;">
-                        以下月份沒有保存獨立設定：${missingSettingsMonths.join('、')}。
-                        系統沒有把其他月份的房租、人事或廣告費套用到這些月份；因此目前累積營運損益會低估這些月份的成本，不能視為最終正確獲利。
-                        請補齊各月份設定後再判讀回本進度。
-                    </p>
-                </div>` : '';
-
             contentEl.innerHTML = `
                 <div class="controls-bar" style="margin-bottom:20px;">
                     <div class="stats-info"><span>💎 創業資本、營運損益與實際付款現金流分開追蹤</span></div>
                     <div><button class="action-btn" onclick="openCapitalSettingsModal()">⚙️ 設定初始投入資本金額</button></div>
                 </div>
 
-                ${missingSettingsHtml}
 
                 <div class="profit-card">
                     <h3 style="margin-top:0;color:#9a3412;font-size:18px;">👑 創業本金與營運回本</h3>
                     <div class="profit-row"><span>初始投入資本額</span><b>${money(initialCapital)}</b></div>
-                    <div class="profit-row"><span>累積營運淨利／虧損（估算）</span><b style="color:${cumulativeOperatingProfit >= 0 ? '#166534' : '#b91c1c'};">${cumulativeOperatingProfit >= 0 ? '+' : '−'}${money(Math.abs(cumulativeOperatingProfit))}</b></div>
-                    <div class="profit-row"><span>本金回收進度</span><b>${recoveryProgress.toFixed(1)}%</b></div>
+                    <div class="profit-row"><span>累積營運淨利／虧損（實收營收－叫貨支出－店內支出總額）</span><b style="color:${cumulativeOperatingProfit >= 0 ? '#166534' : '#b91c1c'};">${cumulativeOperatingProfit >= 0 ? '+' : '−'}${money(Math.abs(cumulativeOperatingProfit))}</b></div>
+                    <div class="profit-row"><span>目前推算實際現金餘額（初始資本＋累積現金流變動）</span><b>${money(currentCashBalance)}</b></div>
+                    <div class="profit-row"><span>本金回收進度（依目前實際現金餘額）</span><b>${recoveryProgress.toFixed(1)}%</b></div>
                     <div style="height:12px;background:#fed7aa;border-radius:99px;overflow:hidden;margin:8px 0 14px;"><div style="height:100%;width:${recoveryProgress}%;background:#ea580c;"></div></div>
-                    <div class="profit-row"><span>${remainingToRecover > 0 ? '距離累積獲利回收本金尚差' : '超額回收本金'}</span><b>${money(remainingToRecover > 0 ? remainingToRecover : Math.max(0, cumulativeOperatingProfit - initialCapital))}</b></div>
-                    <div class="profit-row"><span>累積損益報酬率</span><b>${returnRate >= 0 ? '+' : ''}${returnRate.toFixed(1)}%</b></div>
-                    <p style="font-size:12px;color:#78716c;line-height:1.7;margin:12px 0 0;">${statusText}。此處是營運獲利回收本金的估算，不是銀行帳戶餘額。</p>
+                    <div class="profit-row"><span>${remainingToRecover > 0 ? '距離初始投入本金尚差' : '目前現金餘額已達初始本金'}</span><b>${money(remainingToRecover > 0 ? remainingToRecover : excessCashAfterRecovery)}</b></div>
+                    <div class="profit-row"><span>本金回收比例（依初始投入本金）</span><b>${returnRate.toFixed(1)}%</b></div>
                 </div>
 
                 <div class="profit-card" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);border-color:#bfdbfe;">
                     <h3 style="margin-top:0;color:#1d4ed8;font-size:18px;">💵 累積現金流（已付款叫貨納入）</h3>
                     <div class="profit-row"><span>累積已付款叫貨金額</span><b>${money(cumulativePurchases)}</b></div>
+                    <div class="profit-row"><span>現金流公式已逐月扣除平台抽成；廣告費仍依各月設定獨立列入固定支出</span><b>抽成與廣告費分開</b></div>
                     <div class="profit-row"><span>累積現金流淨額（營收－已付款叫貨－已記錄支出－設定固定成本＋額外收入）</span><b style="color:${cumulativeCashMovement >= 0 ? '#166534' : '#b91c1c'};">${cumulativeCashMovement >= 0 ? '+' : '−'}${money(Math.abs(cumulativeCashMovement))}</b></div>
-                    <p style="font-size:12px;color:#1e40af;line-height:1.7;margin:12px 0 0;">這是依現有紀錄推算的累積現金流變動，不等於目前銀行餘額；尚未包含未登錄交易、借款本金、股東追加/抽回資金及其他未記錄項目。</p>
                 </div>
 
                 <div class="profit-card" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border-color:#bbf7d0;">
                     <h3 style="margin-top:0;color:#166534;font-size:18px;">🏷️ 設備資產與折舊</h3>
                     <div class="profit-row"><span>列管設備原始總價</span><b>${money(totalEquipmentCost)}</b></div>
-                    <div class="profit-row"><span>累計折舊（只進營運損益）</span><b>−${money(cumulativeDepreciation)}</b></div>
+                    <div class="profit-row"><span>累計折舊（設備帳面估算）</span><b>−${money(cumulativeDepreciation)}</b></div>
                     <div class="profit-row"><span>設備估算帳面剩餘價值</span><b>${money(totalEquipmentBookValue)}</b></div>
-                    <p style="font-size:12px;color:#166534;line-height:1.7;margin:12px 0 0;">設備購買金額在現金流中於付款月份全額扣除；營運損益則依耐用年限逐月折舊，兩者分開，不會重複扣款。</p>
                 </div>
 
                 <div class="profit-card">
-                    <h3 style="margin-top:0;color:#9a3412;font-size:17px;">📅 每月明細（新月份在前）</h3>
+                    <h3 style="margin-top:0;color:#9a3412;font-size:17px;">📅 每月明細</h3>
                     <div style="overflow-x:auto;">
-                        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:540px;">
+                        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:600px;">
                             <thead><tr style="color:#9a3412;background:#fff7ed;">
                                 <th style="text-align:left;padding:9px 6px;">月份</th>
-                                <th style="text-align:right;padding:9px 6px;">實收營收</th>
-                                <th style="text-align:right;padding:9px 6px;">已付款叫貨</th>
-                                <th style="text-align:right;padding:9px 6px;">營運損益估算</th>
+                                <th style="text-align:right;padding:9px 6px;">月實收總營收</th>
+                                <th style="text-align:right;padding:9px 6px;">當月叫貨支出</th>
+                                <th style="text-align:right;padding:9px 6px;">營運損益</th>
                                 <th style="text-align:right;padding:9px 6px;">現金流變動</th>
                             </tr></thead>
                             <tbody>${monthlyRowsHtml || '<tr><td colspan="5" style="padding:16px;text-align:center;">尚無資料</td></tr>'}</tbody>
                         </table>
                     </div>
-                    <p style="font-size:12px;color:#78716c;line-height:1.7;margin:12px 0 0;">⚠️ 標記月份代表沒有該月固定成本設定。現金流公式把設定固定成本視為當月付款估算；若同一筆房租、人事或其他固定費用也已登錄在「店內支出」，請避免重複記錄。</p>
                 </div>
 
-                <div style="font-size:12px;color:var(--text-muted);line-height:1.8;padding:0 4px 16px;">
-                    <b>計算原則與資料限制</b><br>
-                    1. 營運損益：實收營收 ×（1－目前商品平均成本率）－固定成本－一般支出＋額外收入－設備折舊。<br>
-                    2. 現金流：實收營收－每日已付款叫貨－所有已記錄支出（含設備購買）＋額外收入－設定固定成本。<br>
-                    3. 叫貨紀錄視為已付款，依叫貨日期列入現金流；不直接重複列為當期營運費用。尚未售出的食材屬庫存，應由存貨盤點與實際耗用資料計算銷貨成本。<br>
-                    4. 商品成本率目前使用商品資料的平均成本率，未依歷史銷售品項加權；若要精確損益，需有每月銷售品項數量與期初/期末庫存。<br>
-                    5. 固定成本只採用各月份自己保存的設定；缺少設定的月份會列警示，不會拿最新設定回填。設備折舊按購買月份起算，購買當月列第一個月。
-                </div>
             `;
         }
 
