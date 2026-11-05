@@ -2068,7 +2068,7 @@
                         <label>日期</label>
                         <input type="text" id="exp-date" value="${todayStr}" readonly onclick="openDatePicker(setAddExpenseDate, document.getElementById('exp-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
-                    <div class="form-group"><label>項目名稱</label><input type="text" id="exp-name" placeholder="例如: 營業用冰箱、瓦斯桶、竹籤"></div>
+                    <div class="form-group"><label>項目名稱</label><input type="text" id="exp-name" list="standard-expense-categories" placeholder="例如: 營業用冰箱、瓦斯桶、竹籤"><datalist id="standard-expense-categories"><option value="營業稅"></option><option value="保險費"></option><option value="員工勞健保"></option><option value="網路費"></option></datalist></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="exp-qty" value="1" placeholder="請輸入數量"></div>
                     <div class="form-group"><label>金額 (總金額)</label><input type="number" step="0.01" id="exp-amount" placeholder="請輸入總金額"></div>
                     <div class="form-group"><label>相關廠商</label><input type="text" id="exp-vendor" placeholder="例如: 餐廳設備行、欣欣瓦斯"></div>
@@ -2180,7 +2180,7 @@
                         <label>日期</label>
                         <input type="text" id="edit-exp-date" value="${item.date}" readonly onclick="openDatePicker(setEditExpenseDate, document.getElementById('edit-exp-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
-                    <div class="form-group"><label>支出項目名稱</label><input type="text" id="edit-exp-name" value="${item.name}"></div>
+                    <div class="form-group"><label>支出項目名稱</label><input type="text" id="edit-exp-name" list="standard-expense-categories-edit" value="${item.name}"><datalist id="standard-expense-categories-edit"><option value="營業稅"></option><option value="保險費"></option><option value="員工勞健保"></option><option value="網路費"></option></datalist></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="edit-exp-qty" value="${item.quantity || 1}"></div>
                     <div class="form-group"><label>金額</label><input type="number" step="0.01" id="edit-exp-amount" value="${item.amount}"></div>
                     <div class="form-group"><label>相關廠商</label><input type="text" id="edit-exp-vendor" value="${item.vendor || ''}"></div>
@@ -2256,11 +2256,53 @@
         function classifyOperatingExpenseName(name) {
             const n = String(name || '').replace(/\s/g, '').toLowerCase();
             if (/房租|租金/.test(n)) return 'rent';
-            if (/水費|自來水|水電水/.test(n)) return 'water';
             if (/電費|電費帳單|台電|水電電/.test(n)) return 'electricity';
             if (/正職.*(薪|工資)|正職薪資|正職薪水/.test(n)) return 'fulltime';
             if (/工讀.*(薪|工資)|工讀薪資|工讀薪水|兼職.*(薪|工資)/.test(n)) return 'parttime';
+            if (/營業稅/.test(n)) return 'businessTax';
+            if (/保險費/.test(n)) return 'insurance';
+            if (/員工勞保|勞保|員工健保|健保/.test(n)) return 'employeeLaborHealth';
+            if (/網路費|網路/.test(n)) return 'internet';
             return 'other';
+        }
+
+        // 分類費用仍使用 expenses.name/amount/date 的既有紀錄；
+        // 本函式只做顯示分類，總支出仍由既有支出加總一次，避免重複扣款。
+        const TRACKED_EXPENSE_TYPES = [
+            ['businessTax', '營業稅'],
+            ['insurance', '保險費（年繳／月攤）'],
+            ['employeeLaborHealth', '員工勞健保'],
+            ['internet', '網路費']
+        ];
+        function sumNamedExpenseType(items, type) {
+            return (items || []).filter(item =>
+                (item.transaction_type || 'expense') === 'expense' &&
+                item.is_depreciable !== true &&
+                !isDepositOrPrepaymentExpense(item.name) &&
+                classifyOperatingExpenseName(item.name) === type
+            ).reduce((total, item) => total + (Number(item.amount) || 0), 0);
+        }
+
+        // 保險費輸入的是全年金額：依支出日期所在年度，平均攤入該年度 12 個月份。
+        // 這是損益的月攤提；實際現金流仍在原付款月份扣除全年付款金額。
+        function getAnnualInsuranceMonthlyAllocation(items, yearMonth) {
+            const year = String(yearMonth || '').slice(0, 4);
+            if (!/^\d{4}$/.test(year)) return 0;
+            const annualAmount = (items || []).filter(item =>
+                (item.transaction_type || 'expense') === 'expense' &&
+                item.is_depreciable !== true &&
+                !isDepositOrPrepaymentExpense(item.name) &&
+                classifyOperatingExpenseName(item.name) === 'insurance' &&
+                String(item.date || '').slice(0, 4) === year
+            ).reduce((total, item) => total + (Number(item.amount) || 0), 0);
+            return annualAmount / 12;
+        }
+
+        function getInsurancePaidInMonth(items, yearMonth) {
+            return sumNamedExpenseType(
+                (items || []).filter(item => String(item.date || '').startsWith(yearMonth)),
+                'insurance'
+            );
         }
 
         // 押金／訂金屬資金占用或預付款：付款時納入現金流，不直接當作當月營運費用。
@@ -2373,12 +2415,18 @@
             let monthExtraIncome = monthExpenseRows.filter(i => i.transaction_type === 'income');
             const expenseByType = type => monthExpenses.filter(i => classifyOperatingExpenseName(i.name) === type).reduce((a,i) => a + (Number(i.amount)||0), 0);
             let rentExpense = expenseByType('rent');
-            let waterExpense = expenseByType('water');
             let electricityExpense = expenseByType('electricity');
             let fulltimeSalaryExpense = expenseByType('fulltime');
             let parttimeSalaryExpense = expenseByType('parttime');
-            // 店內支出總額涵蓋所有一般支出；未分類項目不另設「其他店內支出」欄位。
-            let totalOtherExpenses = monthExpenses.reduce((a,i) => a + (Number(i.amount)||0), 0);
+            const trackedExpenseTotals = Object.fromEntries(
+                TRACKED_EXPENSE_TYPES.map(([type]) => [type, type === 'insurance'
+                    ? getAnnualInsuranceMonthlyAllocation(expenses, currentProfitMonth)
+                    : sumNamedExpenseType(monthExpenses, type)])
+            );
+            // 月損益以保險費全年金額 ÷ 12 攤提；其他支出仍按當月紀錄計算。
+            const insurancePaidThisMonth = sumNamedExpenseType(monthExpenses, 'insurance');
+            let totalOtherExpenses = monthExpenses.reduce((a,i) => a + (Number(i.amount)||0), 0)
+                - insurancePaidThisMonth + trackedExpenseTotals.insurance;
             const averageCostRate = products.length
                 ? products.reduce((sum, item) => sum + calculateCostRate(item), 0) / products.length
                 : 0;
@@ -2405,7 +2453,7 @@
             let totalGrossSales = monthRevenues.reduce((sum, r) =>
                 sum + (parseFloat(r.onsite) || 0) + (parseFloat(r.ubereats) || 0) + (parseFloat(r.foodpanda) || 0), 0);
             // 每月固定總支出：當月所有非折舊、非押金/訂金的一般店內支出
-            // （包含房租、水費、電費、正職/工讀薪資、網路、維修及其他雜項）
+            // （包含房租、電費、正職/工讀薪資、網路、維修及其他雜項）
             // + 月設定瓦斯/炸油/木炭 + UberEats每日廣告×營業天數 + foodpanda月廣告。
             // 廣告費由 getMonthlyAdCosts() 依當月動態參數計算，不寫死金額。
             let monthlySettingsAndStoreExpenseTotal = totalFixedCost + totalOtherExpenses;
@@ -2486,14 +2534,17 @@
                         <div>營業天數：<b>${Number(fixedSettings.workingDays) || 26} 天</b></div>
                         <div>平均成本率：<b>${averageCostRate.toFixed(1)}%</b></div>
                         <div>房租：<b>$${Math.round(rentExpense).toLocaleString()} 元</b></div>
-                        <div>水費：<b>$${Math.round(waterExpense).toLocaleString()} 元</b></div>
                         <div>電費：<b>$${Math.round(electricityExpense).toLocaleString()} 元</b></div>
                         <div>正職薪水：<b>$${Math.round(fulltimeSalaryExpense).toLocaleString()} 元</b></div>
                         <div>工讀生薪水：<b>$${Math.round(parttimeSalaryExpense).toLocaleString()} 元</b></div>
                         <div>瓦斯費：<b>$${(fixedSettings.gas || 0).toLocaleString()} 元</b></div>
                         <div>炸油費：<b>$${(fixedSettings.oil || 0).toLocaleString()} 元</b></div>
-                        <div>木碳費：<b>$${(fixedSettings.charcoal || 0).toLocaleString()} 元</b></div>
-                        <div>UberEats 廣告費（每日 × 營業天數）：<b>$${Math.round(totalUbereatsAd).toLocaleString()} 元</b></div>
+                        <div>木炭費：<b>$${(fixedSettings.charcoal || 0).toLocaleString()} 元</b></div>
+                        <div>營業稅：<b>$${Math.round(trackedExpenseTotals.businessTax).toLocaleString()} 元</b></div>
+                        <div>保險費（月攤提，全年金額 ÷ 12）：<b>$${Math.round(trackedExpenseTotals.insurance).toLocaleString()} 元</b></div>
+                        <div>員工勞健保：<b>$${Math.round(trackedExpenseTotals.employeeLaborHealth).toLocaleString()} 元</b></div>
+                        <div>網路費：<b>$${Math.round(trackedExpenseTotals.internet).toLocaleString()} 元</b></div>
+                        <div>UberEats 廣告費（每日金額 × 當月營業天數）：<b>$${Math.round(totalUbereatsAd).toLocaleString()} 元</b></div>
                         <div>foodpanda 廣告費（月）：<b>$${Math.round(totalFoodpandaAd).toLocaleString()} 元</b></div>
                         <div>每月設定費用與店內支出合計：<b>$${Math.round(monthlySettingsAndStoreExpenseTotal).toLocaleString()} 元</b></div>
                         <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
@@ -2525,7 +2576,7 @@
                         <b style="color: #c2410c;">${revenueGap >= 0 ? '超額達標 ＋' : '還差 －'}$${Math.round(Math.abs(revenueGap)).toLocaleString()} 元</b>
                     </div>
                     <div class="profit-row total-row" style="color: ${netProfit >= 0 ? '#166534' : '#991b1b'}; border-top-color: #86efac;">
-                        <span>💰 本月營運損益（已扣店內支出、月設定費用及折舊）</span>
+                        <span>💰 本月營運損益（含店內支出分類、月設定費用及設備折舊；設備購買本金不重複扣除）</span>
                         <span>${netProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(netProfit)).toLocaleString()} 元</span>
                     </div>
                 </div>
@@ -2865,12 +2916,19 @@
                 const allCashExpenses = sum(monthExpenses.filter(e =>
                     (e.transaction_type || 'expense') === 'expense'
                 ), e => e.amount);
+                const trackedExpenseTotals = Object.fromEntries(
+                    TRACKED_EXPENSE_TYPES.map(([type]) => [type, type === 'insurance'
+                        ? getAnnualInsuranceMonthlyAllocation(expenses, ym)
+                        : sumNamedExpenseType(monthExpenses, type)])
+                );
+                const insurancePaidThisMonth = sumNamedExpenseType(monthExpenses, 'insurance');
+                const profitBasisExpenses = allCashExpenses - insurancePaidThisMonth + trackedExpenseTotals.insurance;
 
                 const depreciation = depreciationByMonth[ym] || 0;
                 // 依使用者指定的歷史累積公式：實收營收－當月叫貨－店內支出表全部支出。
                 // 店內支出表的所有 expense 均納入，包含一般支出、押金/訂金及設備購買；
                 // 因設備購買已全額列入，不可再把同月折舊重複扣入這個損益口徑。
-                const operatingProfitEstimate = netRevenue - purchasePaid - allCashExpenses - fixedCost + extraIncome;
+                const operatingProfitEstimate = netRevenue - purchasePaid - profitBasisExpenses - fixedCost + extraIncome;
 
                 // 現金流：平台抽成在營收端扣一次；設備採購在付款當月全額列現金流出，不再扣折舊。
                 const cashMovement = grossRevenue - platformCommission - purchasePaid - allCashExpenses + extraIncome - fixedCost;
@@ -2887,7 +2945,7 @@
                 monthRows.push({
                     month: ym, netRevenue, grossRevenue, ubereatsCommission, foodpandaCommission, platformCommission,
                     purchasePaid, fixedCost, ordinaryExpenses, extraIncome, depreciation,
-                    operatingProfitEstimate, cashMovement, hasSettings
+                    trackedExpenseTotals, operatingProfitEstimate, cashMovement, hasSettings
                 });
             }
 
@@ -2907,11 +2965,10 @@
             const money = value => `$${Math.round(value || 0).toLocaleString('zh-TW')} 元`;
             const monthlyRowsHtml = monthRows.slice().reverse().map(row => `
                 <tr>
-                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;white-space:nowrap;">${row.month}</td>
-                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.netRevenue).toLocaleString('zh-TW')}</td>
-                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.purchasePaid).toLocaleString('zh-TW')}</td>
-                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.operatingProfitEstimate >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.operatingProfitEstimate).toLocaleString('zh-TW')}</td>
-                    <td style="padding:9px 6px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.cashMovement >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.cashMovement).toLocaleString('zh-TW')}</td>
+                    <td style="padding:9px 8px;border-bottom:1px solid #f1e5d8;white-space:nowrap;">${row.month}</td>
+                    <td style="padding:9px 8px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.grossRevenue).toLocaleString('zh-TW')}</td>
+                    <td style="padding:9px 8px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.operatingProfitEstimate >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.operatingProfitEstimate).toLocaleString('zh-TW')}</td>
+                    <td style="padding:9px 8px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.cashMovement >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.cashMovement).toLocaleString('zh-TW')}</td>
                 </tr>
             `).join('');
 
@@ -2938,6 +2995,7 @@
                     <div class="profit-row"><span>累積已付款叫貨金額</span><b>${money(cumulativePurchases)}</b></div>
                     <div class="profit-row"><span>現金流公式已逐月扣除平台抽成；廣告費仍依各月設定獨立列入固定支出</span><b>抽成與廣告費分開</b></div>
                     <div class="profit-row"><span>累積現金流淨額（營收－已付款叫貨－已記錄支出－設定固定成本＋額外收入）</span><b style="color:${cumulativeCashMovement >= 0 ? '#166534' : '#b91c1c'};">${cumulativeCashMovement >= 0 ? '+' : '−'}${money(Math.abs(cumulativeCashMovement))}</b></div>
+                    <p style="font-size:12px;color:#78716c;margin:8px 0 0;">營業稅、員工勞健保及網路費依支出月份列示；保險費輸入全年金額後，損益按 12 個月平均攤提。現金流仍於實際付款月份扣除全年保險費，不會重複扣款。</p>
                 </div>
 
                 <div class="profit-card" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border-color:#bbf7d0;">
@@ -2950,15 +3008,14 @@
                 <div class="profit-card">
                     <h3 style="margin-top:0;color:#9a3412;font-size:17px;">📅 每月明細</h3>
                     <div style="overflow-x:auto;">
-                        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:600px;">
+                        <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px;">
                             <thead><tr style="color:#9a3412;background:#fff7ed;">
-                                <th style="text-align:left;padding:9px 6px;">月份</th>
-                                <th style="text-align:right;padding:9px 6px;">月實收總營收</th>
-                                <th style="text-align:right;padding:9px 6px;">當月叫貨支出</th>
-                                <th style="text-align:right;padding:9px 6px;">營運損益</th>
-                                <th style="text-align:right;padding:9px 6px;">現金流變動</th>
+                                <th style="text-align:left;padding:10px 8px;">月份</th>
+                                <th style="text-align:right;padding:10px 8px;">月實收總營收</th>
+                                <th style="text-align:right;padding:10px 8px;">淨利（營運損益）</th>
+                                <th style="text-align:right;padding:10px 8px;">現金流變動</th>
                             </tr></thead>
-                            <tbody>${monthlyRowsHtml || '<tr><td colspan="5" style="padding:16px;text-align:center;">尚無資料</td></tr>'}</tbody>
+                            <tbody>${monthlyRowsHtml || '<tr><td colspan="4" style="padding:16px;text-align:center;">尚無資料</td></tr>'}</tbody>
                         </table>
                     </div>
                 </div>
