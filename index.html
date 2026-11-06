@@ -1194,8 +1194,9 @@
                     let productCost = parseFloat(item.package_cost) || 0;
                     let ueRate = (Number(globalPlatformRates.ubereatsCommissionRate) || 0) / 100;
                     let fpRate = (Number(globalPlatformRates.foodpandaCommissionRate) || 0) / 100;
-                    let ueFee = currentPrice * ueRate;
-                    let fpFee = currentPrice * fpRate;
+                    const ueBreakEvenPrice = ueRate >= 1 ? null : Math.round(currentPrice / (1 - ueRate));
+                    const fpBreakEvenPrice = fpRate >= 1 ? null : Math.round(currentPrice / (1 - fpRate));
+                    const formatBreakEvenPrice = value => value === null ? '無法計算' : `$${value} 元`;
 
                     html += `
                         <div class="item-card ${zebraClass}" id="card-${item.id}">
@@ -1205,12 +1206,8 @@
                                 <p><b>總成本：</b>$${item.package_cost} &nbsp;|&nbsp; <span class="cost-rate">成本率：${costRate}%</span></p>
                                 <p><b>原本商品毛利：</b>$${(currentPrice - productCost).toFixed(2)} 元</p>
                                 <div class="platform-breakeven-box">
-                                    <div><b style="color:#059669;">UberEats（${ueRate * 100}%）抽成</b><span>$${ueFee.toFixed(2)}</span></div>
-                                    <div><span>扣抽成後收入</span><b>$${(currentPrice - ueFee).toFixed(2)}</b></div>
-                                    <div><span>扣除食材／包材成本後收益</span><b style="color:#059669;">$${(currentPrice - ueFee - productCost).toFixed(2)}</b></div>
-                                    <div style="border-top:1px dashed #fed7aa;padding-top:6px;margin-top:6px;"><b style="color:#d97706;">foodpanda（${fpRate * 100}%）抽成</b><span>$${fpFee.toFixed(2)}</span></div>
-                                    <div><span>扣抽成後收入</span><b>$${(currentPrice - fpFee).toFixed(2)}</b></div>
-                                    <div><span>扣除食材／包材成本後收益</span><b style="color:#d97706;">$${(currentPrice - fpFee - productCost).toFixed(2)}</b></div>
+                                    <div><b style="color:#059669;">UberEats（抽成 ${ueRate * 100}%）打平售價</b><b>${formatBreakEvenPrice(ueBreakEvenPrice)}</b></div>
+                                    <div style="border-top:1px dashed #fed7aa;padding-top:6px;margin-top:6px;"><b style="color:#d97706;">foodpanda（抽成 ${fpRate * 100}%）打平售價</b><b>${formatBreakEvenPrice(fpBreakEvenPrice)}</b></div>
                                 </div>
                                 <p style="margin-top:6px;"><b>備註：</b>${item.note || '無'}</p>
                             </div>
