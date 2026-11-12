@@ -2374,17 +2374,17 @@
         };
 
 
-        // UberEats 廣告費按日設定；每月金額 = 每日廣告費 × 使用者設定的營業天數。
-        // 舊資料若只有月金額，依原營業天數換算成每日金額，維持歷史數值。
+        // UberEats 行銷費用與 foodpanda 一樣以每月金額設定。
+        // 相容舊資料：若舊月份只有每日金額，依該月份原本設定的營業天數換算，
+        // 保留原本的每月總金額，不會因這次介面調整而改變歷史損益。
         function getMonthlyAdCosts(settings) {
             const s = settings || {};
             const days = Math.max(0, Number(s.workingDays ?? 26) || 0);
-            const daily = s.ubereatsAdDaily !== undefined
-                ? (Number(s.ubereatsAdDaily) || 0)
-                : (Number(s.ubereatsAdMonthly) || 0) / Math.max(1, days);
+            const ubereatsMonthly = s.ubereatsAdMonthly !== undefined
+                ? (Number(s.ubereatsAdMonthly) || 0)
+                : (Number(s.ubereatsAdDaily) || 0) * days;
             return {
-                ubereatsDaily: Math.max(0, daily),
-                ubereats: Math.max(0, daily) * days,
+                ubereats: Math.max(0, ubereatsMonthly),
                 foodpanda: Math.max(0, Number(s.foodpandaAdMonthly) || 0),
                 workingDays: days
             };
@@ -2504,7 +2504,7 @@
                 sum + (parseFloat(r.onsite) || 0) + (parseFloat(r.ubereats) || 0) + (parseFloat(r.foodpanda) || 0), 0);
             // 每月固定總支出：當月所有非折舊、非押金/訂金的一般店內支出
             // （包含房租、電費、正職/工讀薪資、網路、維修及其他雜項）
-            // + 月設定瓦斯/炸油/木炭 + UberEats每日廣告×營業天數 + foodpanda月廣告。
+            // + 月設定瓦斯/炸油/木炭 + UberEats月行銷費用 + foodpanda月行銷費用。
             // 廣告費由 getMonthlyAdCosts() 依當月動態參數計算，不寫死金額。
             let monthlySettingsAndStoreExpenseTotal = totalFixedCost + totalOtherExpenses;
             let monthlyFixedTotalCost = monthlySettingsAndStoreExpenseTotal;
@@ -2594,8 +2594,8 @@
                         <div>保險費（月攤提，全年金額 ÷ 12）：<b>$${Math.round(trackedExpenseTotals.insurance).toLocaleString()} 元</b></div>
                         <div>員工勞健保：<b>$${Math.round(trackedExpenseTotals.employeeLaborHealth).toLocaleString()} 元</b></div>
                         <div>網路費：<b>$${Math.round(trackedExpenseTotals.internet).toLocaleString()} 元</b></div>
-                        <div>UberEats 廣告費（每日金額 × 當月營業天數）：<b>$${Math.round(totalUbereatsAd).toLocaleString()} 元</b></div>
-                        <div>foodpanda 廣告費（月）：<b>$${Math.round(totalFoodpandaAd).toLocaleString()} 元</b></div>
+                        <div>UberEats 行銷費用（月）：<b>$${Math.round(totalUbereatsAd).toLocaleString()} 元</b></div>
+                        <div>foodpanda 行銷費用（月）：<b>$${Math.round(totalFoodpandaAd).toLocaleString()} 元</b></div>
                         <div>每月設定費用與店內支出合計：<b>$${Math.round(monthlySettingsAndStoreExpenseTotal).toLocaleString()} 元</b></div>
                         <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
                     </div>
@@ -2773,10 +2773,10 @@
                     
                     <div class="cost-setting-section-title">📣 平台廣告費</div>
                     <div class="cost-setting-grid">
-                        <div class="cost-setting-field"><label>UberEats 廣告費（元／日）</label><input type="number" min="0" id="set-ubereats-daily" value="${getMonthlyAdCosts(fixedSettings).ubereatsDaily}" oninput="updateFixedSettingsPreview()"></div>
-                        <div class="cost-setting-field"><label>foodpanda 廣告費（元／月）</label><input type="number" min="0" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}" oninput="updateFixedSettingsPreview()"></div>
+                        <div class="cost-setting-field"><label>UberEats 行銷費用（元／月）</label><input type="number" min="0" id="set-ubereats-monthly" value="${getMonthlyAdCosts(fixedSettings).ubereats}" oninput="updateFixedSettingsPreview()"></div>
+                        <div class="cost-setting-field"><label>foodpanda 行銷費用（元／月）</label><input type="number" min="0" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}" oninput="updateFixedSettingsPreview()"></div>
                     </div>
-                    <div class="cost-setting-preview"><span>UberEats 本月廣告費（每日 × 營業天數）</span><b id="ue-ad-preview">$${Math.round(getMonthlyAdCosts(fixedSettings).ubereats).toLocaleString()} 元</b><span>foodpanda 本月廣告費</span><b id="fp-ad-preview">$${Math.round(Number(fixedSettings.foodpandaAdMonthly)||0).toLocaleString()} 元</b></div>
+                    <div class="cost-setting-preview"><span>UberEats 本月行銷費用</span><b id="ue-ad-preview">$${Math.round(getMonthlyAdCosts(fixedSettings).ubereats).toLocaleString()} 元</b><span>foodpanda 本月行銷費用</span><b id="fp-ad-preview">$${Math.round(Number(fixedSettings.foodpandaAdMonthly)||0).toLocaleString()} 元</b></div>
                     
                     <div class="picker-btn-group" style="margin-top:20px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
@@ -2788,11 +2788,11 @@
 
         function updateFixedSettingsPreview() {
             const days = Math.max(0, Number(document.getElementById('set-working-days')?.value) || 0);
-            const ueDaily = Math.max(0, Number(document.getElementById('set-ubereats-daily')?.value) || 0);
+            const ueMonthly = Math.max(0, Number(document.getElementById('set-ubereats-monthly')?.value) || 0);
             const fpMonthly = Math.max(0, Number(document.getElementById('set-foodpanda-monthly')?.value) || 0);
             const ueEl = document.getElementById('ue-ad-preview');
             const fpEl = document.getElementById('fp-ad-preview');
-            if (ueEl) ueEl.textContent = `$${Math.round(ueDaily * days).toLocaleString()} 元`;
+            if (ueEl) ueEl.textContent = `$${Math.round(ueMonthly).toLocaleString()} 元`;
             if (fpEl) fpEl.textContent = `$${Math.round(fpMonthly).toLocaleString()} 元`;
         }
 
@@ -2804,7 +2804,7 @@
                 gas: parseFloat(document.getElementById('set-gas').value) || 0,
                 oil: parseFloat(document.getElementById('set-oil').value) || 0,
                 charcoal: parseFloat(document.getElementById('set-charcoal').value) || 0,
-                ubereatsAdDaily: parseFloat(document.getElementById('set-ubereats-daily').value) || 0,
+                ubereatsAdMonthly: parseFloat(document.getElementById('set-ubereats-monthly').value) || 0,
                 workingDays: Math.max(0, parseInt(document.getElementById('set-working-days').value, 10) || 0),
                 foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0,
                 fixedCostsConfigured: true
