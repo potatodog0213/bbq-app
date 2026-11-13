@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "馬鈴吉碳烤｜智慧營運管理系統",
+  "short_name": "馬鈴吉碳烤",
+  "description": "馬鈴吉碳烤智慧營運管理與標準作業系統",
+  "lang": "zh-TW",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#fcf8f2",
+  "theme_color": "#fcf8f2",
+  "icons": [
+    {"src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

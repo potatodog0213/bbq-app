@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -689,6 +689,16 @@
         .picker-cancel { background: #e2e8f0; color: #334155; }
         .picker-cancel:hover { background: #cbd5e1; }
     </style>
+
+    <!-- PWA / iOS 安裝設定：僅新增安裝中繼資料，不更動原有系統功能 -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#fcf8f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="馬鈴吉碳烤">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+
 </head>
 <body>
 
@@ -3305,5 +3315,16 @@
             if (overlay) overlay.remove();
         }
     </script>
+
+    <!-- PWA Service Worker：只快取 App 外殼與圖示，不快取 Supabase/API 資料 -->
+    <script>
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('./service-worker.js')
+            .catch(function (error) { console.warn('App 離線外殼註冊失敗：', error); });
+        });
+      }
+    </script>
+
 </body>
 </html>
