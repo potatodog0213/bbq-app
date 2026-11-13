@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -2518,10 +2518,20 @@
             // 廣告費由 getMonthlyAdCosts() 依當月動態參數計算，不寫死金額。
             let monthlySettingsAndStoreExpenseTotal = totalFixedCost + totalOtherExpenses;
             let monthlyFixedTotalCost = monthlySettingsAndStoreExpenseTotal;
-            // 平均成本率以百分比轉成小數；成本率38%時，貢獻毛利率為62%。
-            let contributionMarginRate = Math.max(0.0001, 1 - (Math.max(0, Number(averageCostRate) || 0) / 100));
-            let monthlyBreakEvenRevenue = monthlyFixedTotalCost / contributionMarginRate;
-            let dailyBreakEvenRevenue = monthlyBreakEvenRevenue / Math.max(1, Number(fixedSettings.workingDays) || 26);
+            const estimatedIngredientCost = totalGrossSales * Math.max(0, Number(averageCostRate) || 0) / 100;
+            // 以當月各通路實際營收計算加權抽成率；現場營收抽成率為 0。
+            const weightedPlatformCommissionRate = totalGrossSales > 0
+                ? totalPlatformCommission / totalGrossSales : 0;
+            // 回本公式與預估營運損益一致：營業額扣食材成本、加權平台抽成及固定營運成本，
+            // 並將設備折舊列為成本、額外收入列為抵減項。
+            let contributionMarginRate = 1 - (Math.max(0, Number(averageCostRate) || 0) / 100) - weightedPlatformCommissionRate;
+            let monthlyBreakEvenRevenue = contributionMarginRate > 0
+                ? (monthlyFixedTotalCost + totalDepreciation - totalExtraIncome) / contributionMarginRate
+                : Infinity;
+            const workingDays = Math.max(1, Number(fixedSettings.workingDays) || 26);
+            let dailyBreakEvenRevenue = monthlyBreakEvenRevenue / workingDays;
+            const ingredientCostRate = Math.max(0, Number(averageCostRate) || 0) / 100;
+            const dailyFixedCostAllocation = (monthlyFixedTotalCost + totalDepreciation - totalExtraIncome) / workingDays;
 
 
             
@@ -2538,7 +2548,10 @@
                 let dayTotal = onsite + ubereatsGross * (1 - ueRate) + foodpandaGross * (1 - fpRate);
                 let dayGrossTotal = onsite + ubereatsGross + foodpandaGross;
 
-                if (dayGrossTotal >= dailyBreakEvenRevenue) profitDaysCount++;
+                const dayPlatformCommission = ubereatsGross * ueRate + foodpandaGross * fpRate;
+                const dayEstimatedIngredientCost = dayGrossTotal * ingredientCostRate;
+                const dayOperatingProfitEstimate = dayGrossTotal - dayPlatformCommission - dayEstimatedIngredientCost - dailyFixedCostAllocation;
+                if (dayOperatingProfitEstimate >= 0) profitDaysCount++;
                 else lossDaysCount++;
 
                 if (i.date) {
@@ -2572,8 +2585,8 @@
                 }
             }
 
-            // 不以目前商品平均成本率推估歷史食材成本；每日叫貨不列入損益。
-            let netProfit = totalGrossSales - totalPlatformCommission - totalFixedCost - totalOtherExpenses + totalExtraIncome - totalDepreciation;
+            // 預估食材成本依月營業額及目前商品平均成本率估算；已付款叫貨僅影響現金流，不列入營運損益。
+            let netProfit = totalGrossSales - estimatedIngredientCost - totalPlatformCommission - totalFixedCost - totalOtherExpenses + totalExtraIncome - totalDepreciation;
             let revenueGap = totalGrossSales - monthlyBreakEvenRevenue;
 
             const [pYear, pMonth] = currentProfitMonth.split('-');
@@ -2589,7 +2602,7 @@
                 </div>
 
                 <div class="profit-card">
-                    <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ 本月營運費用與回本門檻</h3>
+                    <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ 本月固定營運費用與回本門檻</h3>
                     <div class="profit-grid-settings">
                         <div>營業天數：<b>${Number(fixedSettings.workingDays) || 26} 天</b></div>
                         <div>平均成本率：<b>${averageCostRate.toFixed(1)}%</b></div>
@@ -2606,8 +2619,9 @@
                         <div>網路費：<b>$${Math.round(trackedExpenseTotals.internet).toLocaleString()} 元</b></div>
                         <div>UberEats 行銷費用（月）：<b>$${Math.round(totalUbereatsAd).toLocaleString()} 元</b></div>
                         <div>foodpanda 行銷費用（月）：<b>$${Math.round(totalFoodpandaAd).toLocaleString()} 元</b></div>
-                        <div>每月設定費用與店內支出合計：<b>$${Math.round(monthlySettingsAndStoreExpenseTotal).toLocaleString()} 元</b></div>
-                        <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Math.round(monthlyBreakEvenRevenue).toLocaleString()} 元</b></div>
+                        <div>每月固定／營運費用合計：<b>$${Math.round(monthlySettingsAndStoreExpenseTotal).toLocaleString()} 元</b></div>
+                        <div>預估食材變動成本（依本月營業額估算，非固定費用）：<b>$${Math.round(estimatedIngredientCost).toLocaleString()} 元</b></div>
+                        <div style="grid-column: 1 / -1;"><b>🎯 月回本營業額目標：$${Number.isFinite(monthlyBreakEvenRevenue) ? '$' + Math.round(monthlyBreakEvenRevenue).toLocaleString() + ' 元' : '目前成本率下無法達成'}</b></div>
                     </div>
                     <button class="clear-search-btn" style="width:100%;" onclick="openFixedSettingsModal()">✏️ 設定本月營業天數與費用</button>
                 </div>
@@ -2620,8 +2634,12 @@
                     </div>
                     
                     <div class="profit-row">
-                        <span>每日營業額回本門檻（依平均成本率及全額固定支出）</span>
-                        <b>$${Math.round(dailyBreakEvenRevenue).toLocaleString()} 元 / 天</b>
+                        <span>預估食材變動成本（依營業額估算）</span>
+                        <b>$${Math.round(estimatedIngredientCost).toLocaleString()} 元</b>
+                    </div>
+                    <div class="profit-row">
+                        <span>每日平均回本營業額參考值（實際每日盈虧另依當日平台比例估算）</span>
+                        <b>${Number.isFinite(dailyBreakEvenRevenue) ? '$' + Math.round(dailyBreakEvenRevenue).toLocaleString() + ' 元 / 天' : '目前成本率下無法達成'}</b>
                     </div>
                     <div class="profit-row">
                         <span>本月達標天數統計</span>
@@ -2636,7 +2654,7 @@
                         <b style="color: #c2410c;">${revenueGap >= 0 ? '超額達標 ＋' : '還差 －'}$${Math.round(Math.abs(revenueGap)).toLocaleString()} 元</b>
                     </div>
                     <div class="profit-row total-row" style="color: ${netProfit >= 0 ? '#166534' : '#991b1b'}; border-top-color: #86efac;">
-                        <span>💰 本月營運損益（含店內支出分類、月設定費用及設備折舊；設備購買本金不重複扣除）</span>
+                        <span>💰 本月預估營運損益（含預估食材成本、店內支出、月設定費用及設備折舊；設備購買本金不重複扣除）</span>
                         <span>${netProfit >= 0 ? '淨賺 ＋' : '淨虧 －'}$${Math.round(Math.abs(netProfit)).toLocaleString()} 元</span>
                     </div>
                 </div>
@@ -2656,15 +2674,16 @@
                     let fpNet = fpInput - fpFee;
                     let dayNetTotal = onsite + ueNet + fpNet;
 
-                    // 每日門檻是營業額目標，故以當日原始總營業額比較，避免淨收/毛額口徑混用。
                     let dayGrossTotal = onsite + ueInput + fpInput;
-                    let diffToBreakEven = dailyBreakEvenRevenue - dayGrossTotal;
+                    let dayPlatformCommission = ueFee + fpFee;
+                    let dayEstimatedIngredientCost = dayGrossTotal * ingredientCostRate;
+                    let dayOperatingProfitEstimate = dayGrossTotal - dayPlatformCommission - dayEstimatedIngredientCost - dailyFixedCostAllocation;
                     
                     let feedbackHtml = '';
-                    if (diffToBreakEven <= 0) {
-                        feedbackHtml = `<span style="color:#059669; font-weight:700;">🔥 太棒了！有賺錢，超額賺取 $${Math.abs(Math.round(diffToBreakEven)).toLocaleString()} 元！</span>`;
+                    if (dayOperatingProfitEstimate >= 0) {
+                        feedbackHtml = `<span style="color:#059669; font-weight:700;">🔥 今日預估營運賺取 $${Math.round(dayOperatingProfitEstimate).toLocaleString()} 元</span>`;
                     } else {
-                        feedbackHtml = `<span style="color:#dc2626; font-weight:700;">💪 距離今日回本還差 $${Math.round(diffToBreakEven).toLocaleString()} 元</span>`;
+                        feedbackHtml = `<span style="color:#dc2626; font-weight:700;">💪 今日預估營運虧損 $${Math.round(Math.abs(dayOperatingProfitEstimate)).toLocaleString()} 元</span>`;
                     }
 
                     let dObj = new Date(rev.date);
@@ -2871,6 +2890,11 @@
             const platformRates = platformRatesFromRows(settingsRows);
             const ueRate = platformRates.ubereatsCommissionRate / 100;
             const fpRate = platformRates.foodpandaCommissionRate / 100;
+            // 與「每月損益總表與回本試算」相同：使用目前商品平均成本率計算各月回本營業額目標。
+            const averageCostRate = products.length
+                ? products.reduce((sum, item) => sum + calculateCostRate(item), 0) / products.length
+                : 0;
+            const ingredientCostRate = Math.max(0, Number(averageCostRate) || 0) / 100;
             const initialCapital = Math.max(0, await getGlobalInitialCapital());
 
             const monthNumber = ym => {
@@ -2899,7 +2923,7 @@
                 }
             }
 
-            // 不用目前商品平均成本率回推歷史食材成本；叫貨紀錄不列入營運損益。
+            // 營運損益沿用每月損益總表公式；叫貨付款只列入現金流，不直接當成當月商品成本。
 
             const sum = (items, getter) => items.reduce((total, item) => total + (Number(getter(item)) || 0), 0);
             const monthRows = [];
@@ -2920,7 +2944,7 @@
                 (Number(e.amount) || 0) > 0
             );
 
-            // 設備折舊僅供設備帳面剩餘價值估算；依本次指定的損益口徑，設備購買支出已全額列入支出。
+            // 設備每月折舊同時用於營運損益及設備帳面剩餘價值估算；設備本金只在實際現金流付款月份扣除。
             const depreciationByMonth = Object.fromEntries(monthKeys.map(ym => [ym, 0]));
             depreciableItems.forEach(item => {
                 const cost = Number(item.amount) || 0;
@@ -2954,6 +2978,8 @@
                       (Number(settings.charcoal) || 0) +
                       monthAds.ubereats + monthAds.foodpanda
                     : 0;
+                // 現金流的瓦斯、炸油、木炭採購已包含在每日叫貨金額，不可再扣月設定的耗用金額；月設定仍用於營運損益。
+                const cashFixedCost = hasSettings ? monthAds.ubereats + monthAds.foodpanda : 0;
 
                 const grossRevenue = sum(monthRevenues, r =>
                     (Number(r.onsite) || 0) +
@@ -2985,13 +3011,31 @@
                 const profitBasisExpenses = allCashExpenses - insurancePaidThisMonth + trackedExpenseTotals.insurance;
 
                 const depreciation = depreciationByMonth[ym] || 0;
-                // 依使用者指定的歷史累積公式：實收營收－當月叫貨－店內支出表全部支出。
-                // 店內支出表的所有 expense 均納入，包含一般支出、押金/訂金及設備購買；
-                // 因設備購買已全額列入，不可再把同月折舊重複扣入這個損益口徑。
-                const operatingProfitEstimate = netRevenue - purchasePaid - profitBasisExpenses - fixedCost + extraIncome;
+                // 營運損益完全沿用「每月損益總表與回本試算」公式：
+                // 營收－平台抽成－月設定固定費用－一般店內支出（保險按月攤提）＋額外收入－設備月折舊。
+                // 商品叫貨付款、設備購買本金、押金及預付款不直接全額扣入營運損益。
+                const operatingExpenses = sum(monthExpenses.filter(e =>
+                    (e.transaction_type || 'expense') === 'expense' && e.is_depreciable !== true && !isDepositOrPrepaymentExpense(e.name)
+                ), e => e.amount);
+                const insurancePaidForProfit = sumNamedExpenseType(monthExpenses.filter(e =>
+                    (e.transaction_type || 'expense') === 'expense' && e.is_depreciable !== true && !isDepositOrPrepaymentExpense(e.name)
+                ), 'insurance');
+                const profitInsuranceAllocation = getAnnualInsuranceMonthlyAllocation(expenses, ym);
+                const totalOtherExpenses = operatingExpenses - insurancePaidForProfit + profitInsuranceAllocation;
+                const estimatedIngredientCost = grossRevenue * ingredientCostRate;
+                const weightedPlatformCommissionRate = grossRevenue > 0 ? platformCommission / grossRevenue : 0;
+                const operatingProfitEstimate = grossRevenue - estimatedIngredientCost - platformCommission - fixedCost - totalOtherExpenses + extraIncome - depreciation;
 
-                // 現金流：平台抽成在營收端扣一次；設備採購在付款當月全額列現金流出，不再扣折舊。
-                const cashMovement = grossRevenue - platformCommission - purchasePaid - allCashExpenses + extraIncome - fixedCost;
+                // 回本目標與預估營運損益採相同成本基礎，包含食材成本、平台加權抽成、折舊及額外收入。
+                const monthlyFixedTotalCost = fixedCost + totalOtherExpenses;
+                const contributionMarginRate = 1 - ingredientCostRate - weightedPlatformCommissionRate;
+                const monthlyBreakEvenRevenue = contributionMarginRate > 0
+                    ? (monthlyFixedTotalCost + depreciation - extraIncome) / contributionMarginRate
+                    : Infinity;
+                const revenueGap = grossRevenue - monthlyBreakEvenRevenue;
+
+                // 現金流仍依實際收付款計算；叫貨、設備本金、押金預付款按實際付款月份列入。
+                const cashMovement = grossRevenue - platformCommission - purchasePaid - allCashExpenses + extraIncome - cashFixedCost;
 
                 cumulativeOperatingProfit += operatingProfitEstimate;
                 cumulativeCashMovement += cashMovement;
@@ -3004,8 +3048,10 @@
 
                 monthRows.push({
                     month: ym, netRevenue, grossRevenue, ubereatsCommission, foodpandaCommission, platformCommission,
-                    purchasePaid, fixedCost, ordinaryExpenses, extraIncome, depreciation,
-                    trackedExpenseTotals, operatingProfitEstimate, cashMovement, hasSettings
+                    purchasePaid, fixedCost, ordinaryExpenses, extraIncome, depreciation, estimatedIngredientCost,
+                    trackedExpenseTotals, operatingProfitEstimate, cashMovement, hasSettings,
+                    monthlyBreakEvenRevenue, revenueGap, allCashExpenses, depositsAndPrepayments,
+                    ubereatsCommission, foodpandaCommission, profitBasisExpenses, totalOtherExpenses
                 });
             }
 
@@ -3023,14 +3069,57 @@
             const excessCashAfterRecovery = Math.max(0, currentCashBalance - initialCapital);
 
             const money = value => `$${Math.round(value || 0).toLocaleString('zh-TW')} 元`;
-            const monthlyRowsHtml = monthRows.slice().reverse().map(row => `
-                <tr>
-                    <td style="padding:9px 8px;border-bottom:1px solid #f1e5d8;white-space:nowrap;">${row.month}</td>
-                    <td style="padding:9px 8px;border-bottom:1px solid #f1e5d8;text-align:right;">${Math.round(row.grossRevenue).toLocaleString('zh-TW')}</td>
-                    <td style="padding:9px 8px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.operatingProfitEstimate >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.operatingProfitEstimate).toLocaleString('zh-TW')}</td>
-                    <td style="padding:9px 8px;border-bottom:1px solid #f1e5d8;text-align:right;color:${row.cashMovement >= 0 ? '#15803d' : '#b91c1c'};">${Math.round(row.cashMovement).toLocaleString('zh-TW')}</td>
-                </tr>
-            `).join('');
+            const moneyPlain = value => `$${Math.round(value || 0).toLocaleString('zh-TW')}`;
+            const monthlyRowsHtml = monthRows.slice().reverse().map((row, index) => {
+                const profitColor = row.operatingProfitEstimate >= 0 ? '#15803d' : '#b91c1c';
+                const gapColor = row.revenueGap >= 0 ? '#15803d' : '#c2410c';
+                const profitLabel = row.operatingProfitEstimate >= 0 ? '淨賺' : '淨賠';
+                const gapLabel = row.revenueGap >= 0 ? '已超過回本目標' : '距離回本目標還差';
+                return `
+                    <div style="border:1px solid #fed7aa;border-radius:14px;padding:14px;margin-bottom:12px;background:#fff;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;">
+                            <strong style="font-size:16px;color:#9a3412;">${row.month}</strong>
+                            <span style="font-size:12px;padding:4px 9px;border-radius:99px;background:${row.operatingProfitEstimate >= 0 ? '#dcfce7' : '#fee2e2'};color:${row.operatingProfitEstimate >= 0 ? '#166534' : '#991b1b'};font-weight:700;">${row.operatingProfitEstimate >= 0 ? '本月有賺錢' : '本月虧損'}</span>
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <div style="font-size:12px;color:#78716c;margin-bottom:3px;">月總營業額（現場＋兩平台）</div>
+                            <div style="font-size:23px;font-weight:800;color:#292524;">${moneyPlain(row.grossRevenue)}</div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <div style="background:#fff7ed;border-radius:10px;padding:10px;min-width:0;">
+                                <div style="font-size:11px;color:#9a3412;margin-bottom:4px;">距離月回本目標</div>
+                                <div style="font-size:16px;font-weight:800;color:${gapColor};line-height:1.35;">${gapLabel}</div>
+                                <div style="font-size:17px;font-weight:800;color:${gapColor};">${moneyPlain(Math.abs(row.revenueGap))}</div>
+                            </div>
+                            <div style="background:#f0fdf4;border-radius:10px;padding:10px;min-width:0;">
+                                <div style="font-size:11px;color:#166534;margin-bottom:4px;">本月預估營運損益</div>
+                                <div style="font-size:16px;font-weight:800;color:${profitColor};">${profitLabel}</div>
+                                <div style="font-size:19px;font-weight:800;color:${profitColor};">${moneyPlain(Math.abs(row.operatingProfitEstimate))}</div>
+                            </div>
+                        </div>
+                        <details style="margin-top:12px;border-top:1px solid #f1e5d8;padding-top:10px;">
+                            <summary style="cursor:pointer;color:#9a3412;font-weight:700;font-size:13px;">查看本月金流與收支明細</summary>
+                            <div style="padding-top:10px;font-size:13px;">
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>現金流變動</span><b style="color:${row.cashMovement >= 0 ? '#15803d' : '#b91c1c'};">${row.cashMovement >= 0 ? '+' : '−'}${moneyPlain(Math.abs(row.cashMovement))}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>月回本營業額目標</span><b>${Number.isFinite(row.monthlyBreakEvenRevenue) ? moneyPlain(row.monthlyBreakEvenRevenue) : '目前成本率下無法達成'}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>預估食材成本（營運損益使用）</span><b>${moneyPlain(row.estimatedIngredientCost)}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>已付款商品叫貨</span><b>${moneyPlain(row.purchasePaid)}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>店內實際支出（含設備、押金等）</span><b>${moneyPlain(row.allCashExpenses)}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>保險費每月攤提（營運損益使用）</span><b>${moneyPlain(row.trackedExpenseTotals.insurance || 0)}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>月設定費用（瓦斯、炸油、木炭、平台廣告）</span><b>${moneyPlain(row.fixedCost)}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>額外收入</span><b>${moneyPlain(row.extraIncome)}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>平台抽成</span><b>${moneyPlain(row.platformCommission)}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>設備折舊（營運損益使用）</span><b>${moneyPlain(row.depreciation)}</b></div>
+                                <div style="margin-top:8px;padding:10px;border-radius:8px;background:#f8fafc;color:#475569;line-height:1.6;">
+                                    <b>現金流怎麼算？</b><br>
+                                    月總營業額 − 平台抽成 − 已付款商品叫貨 − 店內實際支出 − 月設定費用 ＋ 額外收入。<br>
+                                    設備購買、押金及預付款會依實際付款影響現金流；營運損益則不會把這些款項全部當成當月費用。
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                `;
+            }).join('');
 
             contentEl.innerHTML = `
                 <div class="controls-bar" style="margin-bottom:20px;">
@@ -3042,7 +3131,7 @@
                 <div class="profit-card">
                     <h3 style="margin-top:0;color:#9a3412;font-size:18px;">👑 創業本金與營運回本</h3>
                     <div class="profit-row"><span>初始投入資本額</span><b>${money(initialCapital)}</b></div>
-                    <div class="profit-row"><span>累積營運淨利／虧損（實收營收－叫貨支出－店內支出總額）</span><b style="color:${cumulativeOperatingProfit >= 0 ? '#166534' : '#b91c1c'};">${cumulativeOperatingProfit >= 0 ? '+' : '−'}${money(Math.abs(cumulativeOperatingProfit))}</b></div>
+                    <div class="profit-row"><span>累積營運淨利／虧損（沿用每月損益總表的營運損益算法）</span><b style="color:${cumulativeOperatingProfit >= 0 ? '#166534' : '#b91c1c'};">${cumulativeOperatingProfit >= 0 ? '+' : '−'}${money(Math.abs(cumulativeOperatingProfit))}</b></div>
                     <div class="profit-row"><span>目前推算實際現金餘額（初始資本＋累積現金流變動）</span><b>${money(currentCashBalance)}</b></div>
                     <div class="profit-row"><span>本金回收進度（依目前實際現金餘額）</span><b>${recoveryProgress.toFixed(1)}%</b></div>
                     <div style="height:12px;background:#fed7aa;border-radius:99px;overflow:hidden;margin:8px 0 14px;"><div style="height:100%;width:${recoveryProgress}%;background:#ea580c;"></div></div>
@@ -3051,10 +3140,10 @@
                 </div>
 
                 <div class="profit-card" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);border-color:#bfdbfe;">
-                    <h3 style="margin-top:0;color:#1d4ed8;font-size:18px;">💵 累積現金流（已付款叫貨納入）</h3>
+                    <h3 style="margin-top:0;color:#1d4ed8;font-size:18px;">💵 累積實際現金流（已付款叫貨納入）</h3>
                     <div class="profit-row"><span>累積已付款叫貨金額</span><b>${money(cumulativePurchases)}</b></div>
                     <div class="profit-row"><span>現金流公式已逐月扣除平台抽成；廣告費仍依各月設定獨立列入固定支出</span><b>抽成與廣告費分開</b></div>
-                    <div class="profit-row"><span>累積現金流淨額（營收－已付款叫貨－已記錄支出－設定固定成本＋額外收入）</span><b style="color:${cumulativeCashMovement >= 0 ? '#166534' : '#b91c1c'};">${cumulativeCashMovement >= 0 ? '+' : '−'}${money(Math.abs(cumulativeCashMovement))}</b></div>
+                    <div class="profit-row"><span>累積現金流淨額（營收－平台抽成－已付款叫貨－已記錄支出－設定固定成本＋額外收入）</span><b style="color:${cumulativeCashMovement >= 0 ? '#166534' : '#b91c1c'};">${cumulativeCashMovement >= 0 ? '+' : '−'}${money(Math.abs(cumulativeCashMovement))}</b></div>
                     <p style="font-size:12px;color:#78716c;margin:8px 0 0;">營業稅、員工勞健保及網路費依支出月份列示；保險費輸入全年金額後，損益按 12 個月平均攤提。現金流仍於實際付款月份扣除全年保險費，不會重複扣款。</p>
                 </div>
 
@@ -3066,18 +3155,23 @@
                 </div>
 
                 <div class="profit-card">
-                    <h3 style="margin-top:0;color:#9a3412;font-size:17px;">📅 每月明細</h3>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px;">
-                            <thead><tr style="color:#9a3412;background:#fff7ed;">
-                                <th style="text-align:left;padding:10px 8px;">月份</th>
-                                <th style="text-align:right;padding:10px 8px;">月實收總營收</th>
-                                <th style="text-align:right;padding:10px 8px;">淨利（營運損益）</th>
-                                <th style="text-align:right;padding:10px 8px;">現金流變動</th>
-                            </tr></thead>
-                            <tbody>${monthlyRowsHtml || '<tr><td colspan="4" style="padding:16px;text-align:center;">尚無資料</td></tr>'}</tbody>
-                        </table>
-                    </div>
+                    <h3 style="margin-top:0;color:#9a3412;font-size:17px;">📅 每月營運統計</h3>
+                    <p style="font-size:12px;color:#78716c;margin:0 0 12px;line-height:1.6;">每個月份先看營業額、預估營運損益、距離月回本目標及差額；其他資金收支點開後再查看。</p>
+                    ${monthlyRowsHtml || '<p style="padding:16px;text-align:center;color:#78716c;">尚無資料</p>'}
+                </div>
+
+                <div class="profit-card" style="background:#fffbeb;border-color:#fde68a;">
+                    <details>
+                        <summary style="cursor:pointer;font-weight:800;color:#92400e;font-size:16px;">❓ 數字怎麼計算？（點開查看說明）</summary>
+                        <div style="font-size:13px;line-height:1.75;color:#57534e;padding-top:12px;">
+                            <p><b>① 月總營業額</b><br>現場營業額＋Uber Eats 營業額＋foodpanda 營業額，這是平台抽成前的營業額。</p>
+                            <p><b>② 距離月回本目標</b><br>本月總營業額－月回本營業額目標。負數代表還差多少營業額；正數代表已超過多少。</p>
+                            <p><b>③ 本月預估營運損益</b><br>月營業額－預估食材成本（月營業額 × 平均食材成本率）－平台抽成－月設定費用－一般店內支出（保險按月攤提）＋額外收入－設備每月折舊。已付款商品叫貨不再從營運損益扣除。</p>
+                            <p><b>④ 現金流變動</b><br>月總營業額－平台抽成－實際已付款商品叫貨－店內實際支出－月設定費用＋額外收入。這是看實際資金增加或減少。</p>
+                            <p><b>⑤ 為什麼營運損益和現金流不同？</b><br>商品叫貨付款、設備購買、押金及預付款會影響實際現金流，但不一定全部是當月營運費用。設備購買本金不會一次全部扣進營運損益，而是依使用年限計算每月折舊。</p>
+                            <p style="margin-bottom:0;"><b>⑥ 創業本金回收</b><br>初始投入資本是創業時投入的資金；系統另外追蹤實際現金流與目前推算現金餘額，觀察本金回收進度。初始投入資本本身不是營業收入或營運費用。</p>
+                        </div>
+                    </details>
                 </div>
 
             `;
