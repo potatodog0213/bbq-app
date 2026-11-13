@@ -884,25 +884,53 @@
         // 平台抽成比例沿用既有 settings.settings_json 儲存，不新增或修改資料表欄位。
         const DEFAULT_PLATFORM_RATES = { ubereatsCommissionRate: 0, foodpandaCommissionRate: 0 };
         let globalPlatformRates = { ...DEFAULT_PLATFORM_RATES };
+        let selectedPlatformSettingsMonth = getCurrentYearMonth();
 
-        function platformRatesFromRows(rows) {
-            const row = (rows || []).slice().sort((a, b) => String(b.month || '').localeCompare(String(a.month || ''))).find(r => r.settings_json &&
-                (r.settings_json.ubereatsCommissionRate !== undefined ||
-                 r.settings_json.foodpandaCommissionRate !== undefined));
-            return row ? {
-                ubereatsCommissionRate: Math.max(0, Math.min(100, Number(row.settings_json.ubereatsCommissionRate) || 0)),
-                foodpandaCommissionRate: Math.max(0, Math.min(100, Number(row.settings_json.foodpandaCommissionRate) || 0))
-            } : { ...DEFAULT_PLATFORM_RATES };
+        function platformRatesFromRows(rows, month) {
+            const row = (rows || []).find(r => String(r.month || '') === String(month || ''));
+            const settings = row?.settings_json || {};
+            return {
+                ubereatsCommissionRate: settings.ubereatsCommissionRate === undefined ? 0 : Math.max(0, Math.min(100, Number(settings.ubereatsCommissionRate) || 0)),
+                foodpandaCommissionRate: settings.foodpandaCommissionRate === undefined ? 0 : Math.max(0, Math.min(100, Number(settings.foodpandaCommissionRate) || 0))
+            };
+        }
+
+        async function getPlatformRatesForMonth(month) {
+            const { data, error } = await _supabase.from('settings')
+                .select('month,settings_json').eq('month', month).maybeSingle();
+            if (error) {
+                console.error('讀取平台抽成比例失敗：', month, error);
+                return { ...DEFAULT_PLATFORM_RATES };
+            }
+            return platformRatesFromRows(data ? [data] : [], month);
         }
 
         async function getPlatformRates() {
-            const { data, error } = await _supabase.from('settings').select('month,settings_json').order('month', { ascending: false });
-            if (error) {
-                console.error('讀取平台抽成比例失敗：', error);
-                return globalPlatformRates;
-            }
-            globalPlatformRates = platformRatesFromRows(data || []);
+            globalPlatformRates = await getPlatformRatesForMonth(getCurrentYearMonth());
             return globalPlatformRates;
+        }
+
+        // 外送平台設定共用店內支出記錄表的年月滾輪選擇器。
+        function setPlatformSettingsMonth(selectedMonth) {
+            const month = String(selectedMonth || '').substring(0, 7);
+            if (!/^\d{4}-\d{2}$/.test(month)) return;
+            selectedPlatformSettingsMonth = month;
+            const monthInput = document.getElementById('platform-settings-month');
+            if (monthInput) monthInput.value = `📅 ${month.replace('-', '年 ')}月`;
+            loadPlatformRatesForSelectedMonth();
+        }
+
+        async function loadPlatformRatesForSelectedMonth() {
+            // 顯示欄位為格式化文字，實際年月以 selectedPlatformSettingsMonth 為準。
+            const month = selectedPlatformSettingsMonth;
+            if (!/^\d{4}-\d{2}$/.test(String(month || ''))) return;
+            const rates = await getPlatformRatesForMonth(month);
+            // 避免較慢的舊月份讀取結果覆蓋使用者剛切換的新月份。
+            if (month !== selectedPlatformSettingsMonth) return;
+            const ueInput = document.getElementById('platform-ubereats-rate');
+            const fpInput = document.getElementById('platform-foodpanda-rate');
+            if (ueInput) ueInput.value = rates.ubereatsCommissionRate;
+            if (fpInput) fpInput.value = rates.foodpandaCommissionRate;
         }
 
         async function savePlatformRates() {
@@ -913,11 +941,15 @@
                 return;
             }
 
-            // 僅將全域平台比例寫入「本月」既有 settings_json，保留其他月份原始設定。
-            const month = getCurrentYearMonth();
+            // 顯示欄位是格式化文字；儲存月份一律使用實際選取狀態。
+            const month = selectedPlatformSettingsMonth;
+            if (!/^\d{4}-\d{2}$/.test(String(month || ''))) {
+                alert('請先選擇有效的設定月份。');
+                return;
+            }
             const { data: existing, error: readError } = await _supabase
                 .from('settings').select('month,settings_json').eq('month', month).maybeSingle();
-            if (readError) { alert('讀取本月設定失敗：' + readError.message); return; }
+            if (readError) { alert('讀取月份設定失敗：' + readError.message); return; }
 
             const rates = { ubereatsCommissionRate: ue, foodpandaCommissionRate: fp };
             let result;
@@ -933,8 +965,8 @@
             }
             if (result.error) { alert('儲存平台抽成失敗：' + result.error.message); return; }
 
-            globalPlatformRates = rates;
-            showAppToast('平台抽成比例已儲存', '損益總表與全店回本追蹤已套用新比例。', 'success');
+            if (month === getCurrentYearMonth()) globalPlatformRates = rates;
+            showAppToast(`${month} 平台抽成比例已儲存`, '只有所選月份的抽成設定會更新，其他月份不受影響。', 'success');
             if (currentPage === 'products') renderProductsList();
             else if (currentPage === 'profit') renderProfitView();
             else if (currentPage === 'capital') renderCapitalView();
@@ -1131,15 +1163,20 @@
             if (error) { contentEl.innerHTML = '<p style="color:red; text-align:center;">載入失敗：' + error.message + '</p>'; return; }
             globalProductsData = data || [];
             const platformRates = await getPlatformRates();
+            const selectedPlatformRates = await getPlatformRatesForMonth(selectedPlatformSettingsMonth);
 
             
             contentEl.innerHTML = `
                 <div class="profit-card" style="margin-bottom:18px;">
                     <h3 style="margin-top:0;color:#9a3412;font-size:16px;">⚙️ 外送平台抽成設定</h3>
-                    <p style="font-size:13px;color:var(--text-muted);margin-top:0;">兩個平台獨立設定，比例儲存在既有 settings.settings_json 中，不新增或修改資料表欄位。</p>
+                    <p style="font-size:13px;color:var(--text-muted);margin-top:0;">每個月份獨立保存抽成比例，沿用既有 settings.settings_json，不新增或修改資料表欄位。</p>
+                    <div style="margin-bottom:12px;">
+                        <label for="platform-settings-month">設定月份</label>
+                        <input class="search-input" style="width:100%;box-sizing:border-box;margin-top:6px;cursor:pointer;background:#fff;font-weight:600;color:#c2410c;" type="text" id="platform-settings-month" value="📅 ${selectedPlatformSettingsMonth.replace('-', '年 ')}月" readonly onclick="openYearMonthPicker(setPlatformSettingsMonth, selectedPlatformSettingsMonth)" title="點擊選擇年月">
+                    </div>
                     <div class="profit-grid-settings">
-                        <div style="display:block;"><label for="platform-ubereats-rate">UberEats 抽成比例（%）</label><input class="search-input" style="width:100%;box-sizing:border-box;margin-top:6px;" type="number" min="0" max="100" step="0.01" id="platform-ubereats-rate" value="${platformRates.ubereatsCommissionRate}"></div>
-                        <div style="display:block;"><label for="platform-foodpanda-rate">foodpanda 抽成比例（%）</label><input class="search-input" style="width:100%;box-sizing:border-box;margin-top:6px;" type="number" min="0" max="100" step="0.01" id="platform-foodpanda-rate" value="${platformRates.foodpandaCommissionRate}"></div>
+                        <div style="display:block;"><label for="platform-ubereats-rate">UberEats 抽成比例（%）</label><input class="search-input" style="width:100%;box-sizing:border-box;margin-top:6px;" type="number" min="0" max="100" step="0.01" id="platform-ubereats-rate" value="${selectedPlatformRates.ubereatsCommissionRate}"></div>
+                        <div style="display:block;"><label for="platform-foodpanda-rate">foodpanda 抽成比例（%）</label><input class="search-input" style="width:100%;box-sizing:border-box;margin-top:6px;" type="number" min="0" max="100" step="0.01" id="platform-foodpanda-rate" value="${selectedPlatformRates.foodpandaCommissionRate}"></div>
                     </div>
                     <button class="action-btn" style="width:100%;" onclick="savePlatformRates()">儲存平台抽成比例</button>
                 </div>
@@ -2452,7 +2489,7 @@
             const products = productsRes.data || [];
             const expenses = expensesRes.data || [];
             globalRevenuesData = revenuesRes.data || [];
-            const platformRates = await getPlatformRates();
+            const platformRates = await getPlatformRatesForMonth(currentProfitMonth);
             const ueRate = platformRates.ubereatsCommissionRate / 100;
             const fpRate = platformRates.foodpandaCommissionRate / 100;
 
@@ -2887,9 +2924,7 @@
             });
 
             const currentMonthKey = getCurrentYearMonth();
-            const platformRates = platformRatesFromRows(settingsRows);
-            const ueRate = platformRates.ubereatsCommissionRate / 100;
-            const fpRate = platformRates.foodpandaCommissionRate / 100;
+            // 各月份在下方迴圈中分別讀取自己的平台抽成設定，歷史月份不套用最新月份比例。
             // 與「每月損益總表與回本試算」相同：使用目前商品平均成本率計算各月回本營業額目標。
             const averageCostRate = products.length
                 ? products.reduce((sum, item) => sum + calculateCostRate(item), 0) / products.length
@@ -2967,6 +3002,9 @@
                 const monthExpenses = expenses.filter(x => validMonth(x.date) === ym);
                 const monthPurchases = purchases.filter(x => validMonth(x.date) === ym);
                 const settings = settingsByMonth[ym] || null;
+                const monthPlatformRates = platformRatesFromRows(settingsRows, ym);
+                const ueRate = monthPlatformRates.ubereatsCommissionRate / 100;
+                const fpRate = monthPlatformRates.foodpandaCommissionRate / 100;
                 const hasSettings = !!settings && settings.fixedCostsConfigured !== false;
 
 
