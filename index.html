@@ -37,117 +37,228 @@
             margin: 0 auto; 
         }
 
-        /* 質感主視覺 Header (首頁) */
-        .header { 
-            text-align: center; 
-            margin-bottom: 32px; 
-            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%);
-            padding: 36px 24px;
-            border-radius: 24px;
-            border: 1px solid #fdba74;
-            box-shadow: var(--shadow);
+        /* ===== POS 風格店務工作台：僅首頁視覺 ===== */
+        #home-view {
+            --pos-ink: #17212b;
+            --pos-muted: #687583;
+            --pos-navy: #172b3a;
+            --pos-blue: #167c8d;
+            --pos-cyan: #dff4f3;
+            --pos-line: #dce4e9;
             position: relative;
+            isolation: isolate;
+            box-sizing: border-box;
+            width: 100vw;
+            min-height: 100svh;
+            margin: -24px 0 0 calc(50% - 50vw);
+            padding: 0 max(20px, calc((100vw - 1120px) / 2)) 34px;
             overflow: hidden;
+            color: var(--pos-ink);
+            background: #edf2f5;
         }
-        .header::after {
+        #home-view::before {
             content: '';
             position: absolute;
-            bottom: -50px;
-            right: -50px;
-            width: 150px;
-            height: 150px;
-            background: rgba(234, 88, 12, 0.05);
-            border-radius: 50%;
+            z-index: -1;
+            top: 0; left: 0; right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #17384a 0%, #167c8d 55%, #f0a34a 100%);
+        }
+        #home-view::after {
+            content: '';
+            position: absolute;
+            z-index: -1;
+            top: 0; right: 0;
+            width: 40%; height: 260px;
+            opacity: .45;
             pointer-events: none;
+            background: radial-gradient(circle at 80% 15%, rgba(22,124,141,.12), transparent 62%);
         }
-        .header h1 { 
-            font-size: 32px; 
-            margin: 0 0 10px 0; 
-            color: #9a3412; 
-            letter-spacing: 0.8px;
-            font-weight: 800;
-        }
-        .header p { 
-            color: #c2410c; 
-            font-size: 15px; 
-            margin: 0; 
-            font-weight: 600;
-        }
-        
-        /* 主選單格線 */
-        .menu-grid { 
-            display: grid; 
-            grid-template-columns: 1fr; 
-            gap: 18px; 
-        }
-        @media (min-width: 600px) {
-            .menu-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        .menu-card {
-            background: linear-gradient(135deg, #fffdf9 0%, #fffbeb 100%);
-            padding: 24px;
-            border-radius: 18px;
-            box-shadow: var(--shadow);
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        #home-view .header {
+            position: relative;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            border: 1px solid #fde68a;
-            position: relative;
+            gap: 16px;
+            margin: 0 calc(-1 * max(20px, (100vw - 1120px) / 2)) 27px;
+            padding: 23px max(24px, calc((100vw - 1072px) / 2));
+            min-height: 94px;
+            color: #fff;
+            background: var(--pos-navy);
+            border: 0;
+            border-radius: 0;
+            box-shadow: 0 5px 18px rgba(23,43,58,.14);
             overflow: hidden;
         }
-        .menu-card::before {
+        #home-view .header::before {
+            content: 'STORE CONSOLE';
+            position: absolute;
+            right: max(24px, calc((100vw - 1072px) / 2));
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,.34);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 2.4px;
+        }
+        #home-view .header::after {
             content: '';
             position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 6px;
-            background: linear-gradient(to bottom, #f59e0b, #d97706);
-            transition: background 0.3s;
+            right: 16%; top: -95px;
+            width: 260px; height: 260px;
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 50%;
+            box-shadow: 0 0 0 26px rgba(255,255,255,.025), 0 0 0 54px rgba(255,255,255,.02);
+            pointer-events: none;
         }
-        .menu-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-hover);
-            border-color: #f97316;
-            background: #ffffff;
+        #home-view .brand-mark {
+            width: 56px; height: 56px; flex: 0 0 56px;
+            display: grid; place-items: center;
+            border: 1px solid rgba(255,255,255,.2);
+            border-radius: 15px;
+            color: #fff;
+            background: linear-gradient(145deg, #e6a24c, #c96d32);
+            box-shadow: 0 5px 14px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.25);
+            font-size: 29px;
+            animation: pos-mark-pulse 4s ease-in-out infinite;
         }
-        .menu-card:hover::before {
-            background: linear-gradient(to bottom, #f97316, #ea580c);
+        @keyframes pos-mark-pulse { 0%,100% { box-shadow: 0 5px 14px rgba(0,0,0,.2), 0 0 0 0 rgba(230,162,76,0); } 50% { box-shadow: 0 5px 14px rgba(0,0,0,.2), 0 0 0 7px rgba(230,162,76,.10); } }
+        #home-view .header-copy { position: relative; z-index: 1; text-align: left; }
+        #home-view .header h1 {
+            margin: 0 0 5px;
+            color: #fff;
+            font-size: clamp(25px, 3.5vw, 31px);
+            line-height: 1.12;
+            font-weight: 850;
+            letter-spacing: 1.5px;
         }
-        .menu-card:active { transform: scale(0.98); }
-
-        .menu-card.capital-card::before {
-            background: linear-gradient(to bottom, #b91c1c, #991b1b);
+        #home-view .header p {
+            margin: 0;
+            color: #9ed7d9;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 2px;
         }
-        .menu-card.capital-card:hover {
-            border-color: #dc2626;
+        #home-view .home-section-title {
+            display: flex; align-items: center; gap: 10px;
+            margin: 0 0 15px 1px;
+            color: #405260;
+            font-size: 13px;
+            font-weight: 850;
+            letter-spacing: .8px;
         }
-
-        .menu-card-content h3 { 
-            margin: 0 0 6px 0; 
-            font-size: 18px; 
-            color: #7c2d12; 
-            font-weight: 700;
+        #home-view .home-section-title::before {
+            content: '';
+            width: 4px; height: 19px;
+            border-radius: 4px;
+            background: #168394;
         }
-        .menu-card-content span { 
-            font-size: 13.5px; 
-            color: var(--text-muted); 
-            line-height: 1.4; 
-            display: block; 
+        #home-view .home-section-title::after { content: ''; height: 1px; flex: 1; background: #d2dce2; }
+        #home-view .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 13px;
         }
-        .arrow { 
-            font-size: 22px; 
-            color: #d97706; 
-            font-weight: bold; 
-            transition: transform 0.3s;
+        #home-view .menu-card {
+            position: relative;
+            box-sizing: border-box;
+            min-height: 126px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 15px;
+            padding: 18px 18px;
+            border: 1px solid #dce5ea;
+            border-left: 4px solid #a8c6cd;
+            border-radius: 13px;
+            color: var(--pos-ink);
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(23,43,58,.035), 0 7px 16px rgba(23,43,58,.035);
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+            -webkit-tap-highlight-color: transparent;
         }
-        .menu-card:hover .arrow {
-            transform: translateX(6px);
-            color: var(--primary);
+        #home-view .menu-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(105deg, rgba(22,124,141,.055), transparent 48%);
+            opacity: 0;
+            transition: opacity .2s ease;
+            pointer-events: none;
         }
+        #home-view .menu-card:hover { transform: translateY(-3px); border-color: #9bc6cc; border-left-color: #167c8d; box-shadow: 0 9px 22px rgba(23,43,58,.11); }
+        #home-view .menu-card:hover::before { opacity: 1; }
+        #home-view .menu-card:active { transform: scale(.985); }
+        #home-view .menu-icon {
+            position: relative; z-index: 1;
+            width: 54px; height: 54px; flex: 0 0 54px;
+            display: grid; place-items: center;
+            border: 1px solid #cfe5e7;
+            border-radius: 12px;
+            color: #176c7a;
+            background: #e7f4f4;
+            font-size: 27px;
+        }
+        #home-view .menu-card:nth-child(2) .menu-icon { color: #8b5c1d; background: #fff4df; border-color: #f1dfbd; }
+        #home-view .menu-card:nth-child(3) .menu-icon { color: #47724e; background: #edf5eb; border-color: #d9e8d6; }
+        #home-view .menu-card:nth-child(4) .menu-icon { color: #536a8a; background: #edf2fa; border-color: #d9e2f1; }
+        #home-view .menu-card:nth-child(5) .menu-icon { color: #9a5a32; background: #fbefe8; border-color: #f0ddd0; }
+        #home-view .menu-card:nth-child(6) .menu-icon { color: #8b6b25; background: #f8f3e4; border-color: #e9dfc2; }
+        #home-view .menu-card-content { position: relative; z-index: 1; min-width: 0; width: 100%; padding-right: 16px; }
+        #home-view .menu-card-content h3 { margin: 0; color: #1c2c38; font-size: 16px; line-height: 1.42; font-weight: 800; letter-spacing: .1px; overflow-wrap: anywhere; }
+        #home-view .arrow { position: absolute; right: 14px; bottom: 12px; color: #78909b; font-size: 17px; line-height: 1; font-weight: 800; transition: transform .18s ease, color .18s ease; }
+        #home-view .menu-card:hover .arrow { transform: translate(2px,-2px); color: #167c8d; }
+        #home-view .menu-card.capital-card {
+            grid-column: 1 / -1;
+            min-height: 94px;
+            flex-direction: row;
+            align-items: center;
+            gap: 17px;
+            padding: 16px 20px;
+            border: 1px solid #176d7a;
+            border-left: 5px solid #e4a34c;
+            border-radius: 13px;
+            color: #fff;
+            background: linear-gradient(105deg, #174454 0%, #176d7a 100%);
+            box-shadow: 0 7px 17px rgba(23,83,96,.17);
+        }
+        #home-view .menu-card.capital-card::before { background: linear-gradient(105deg, rgba(255,255,255,.08), transparent 65%); }
+        #home-view .menu-card.capital-card:hover { border-color: #2b8792; border-left-color: #f0b45e; box-shadow: 0 12px 24px rgba(23,83,96,.23); }
+        #home-view .menu-card.capital-card .menu-icon { width: 54px; height: 54px; flex-basis: 54px; border: 1px solid rgba(255,255,255,.24); border-radius: 12px; color: #fff; background: rgba(255,255,255,.12); font-size: 27px; }
+        #home-view .menu-card.capital-card .menu-card-content h3 { color: #fff; font-size: 17px; }
+        #home-view .menu-card.capital-card .arrow { right: 20px; bottom: 50%; color: #d7f0ee; transform: translateY(50%); }
+        #home-view .menu-card.capital-card:hover .arrow { transform: translate(3px,50%); color: #fff; }
+        #home-view .home-footnote { margin: 20px 2px 0; color: #778792; font-size: 11px; font-weight: 700; text-align: center; letter-spacing: 1px; }
+        @media (max-width: 760px) {
+            #home-view { padding: 0 14px 24px; }
+            #home-view .header { margin: 0 -14px 19px; padding: 19px 17px; min-height: 76px; }
+            #home-view .header::before { content: 'POS STYLE'; right: 16px; font-size: 9px; letter-spacing: 1.5px; }
+            #home-view .brand-mark { width: 48px; height: 48px; flex-basis: 48px; border-radius: 12px; font-size: 25px; }
+            #home-view .header h1 { font-size: 24px; }
+            #home-view .header p { font-size: 9px; letter-spacing: 1.3px; }
+            #home-view .home-section-title { margin-bottom: 11px; font-size: 12px; }
+            #home-view .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+            #home-view .menu-card { min-height: 112px; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 9px; padding: 12px 11px 14px; border-radius: 11px; }
+            #home-view .menu-icon { width: 42px; height: 42px; flex-basis: 42px; border-radius: 10px; font-size: 22px; }
+            #home-view .menu-card-content { padding-right: 10px; }
+            #home-view .menu-card-content h3 { font-size: 14px; line-height: 1.35; }
+            #home-view .arrow { right: 10px; bottom: 10px; font-size: 16px; }
+            #home-view .menu-card.capital-card { min-height: 78px; flex-direction: row; align-items: center; padding: 12px; gap: 11px; }
+            #home-view .menu-card.capital-card .menu-icon { width: 44px; height: 44px; flex-basis: 44px; font-size: 23px; }
+            #home-view .menu-card.capital-card .menu-card-content h3 { font-size: 14px; }
+            #home-view .menu-card.capital-card .arrow { right: 13px; }
+            #home-view .home-footnote { margin-top: 16px; font-size: 10px; }
+        }
+        @media (max-width: 360px) {
+            #home-view { padding-left: 11px; padding-right: 11px; }
+            #home-view .header { margin-left: -11px; margin-right: -11px; padding-left: 13px; }
+            #home-view .menu-grid { gap: 7px; }
+            #home-view .menu-card { min-height: 106px; padding: 10px 9px 12px; }
+            #home-view .menu-card-content h3 { font-size: 13px; }
+        }
+        @media (prefers-reduced-motion: reduce) { #home-view *, #home-view *::before, #home-view *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
         /* 子頁面容器 */
         .page-view { 
@@ -688,6 +799,199 @@
         .picker-confirm:hover { background: var(--primary-hover); }
         .picker-cancel { background: #e2e8f0; color: #334155; }
         .picker-cancel:hover { background: #cbd5e1; }
+    
+
+        /* ===== POS 暖奶油米色主題：首頁視覺覆蓋，不更動功能 ===== */
+        #home-view {
+            --pos-ink: #38291f;
+            --pos-muted: #806b57;
+            --pos-navy: #493326;
+            --pos-blue: #a9532b;
+            --pos-cyan: #f1dfc5;
+            --pos-line: #e5d3b9;
+            background: #F8EDDB;
+            color: #38291f;
+        }
+        #home-view::before {
+            height: 6px;
+            background: linear-gradient(90deg, #493326 0%, #8f4c2d 52%, #d18a43 100%);
+        }
+        #home-view::after {
+            opacity: .7;
+            background:
+                radial-gradient(circle at 84% 14%, rgba(198,111,55,.13), transparent 58%),
+                radial-gradient(circle at 12% 88%, rgba(150,103,55,.09), transparent 48%);
+        }
+        #home-view .header {
+            color: #fff8ed;
+            background: linear-gradient(112deg, #3d2a20 0%, #553827 68%, #68432c 100%);
+            box-shadow: 0 7px 22px rgba(76,48,29,.18);
+        }
+        #home-view .header::before { color: rgba(255,241,220,.43); }
+        #home-view .header::after {
+            border-color: rgba(255,239,214,.12);
+            box-shadow: 0 0 0 26px rgba(255,239,214,.035), 0 0 0 54px rgba(255,239,214,.025);
+        }
+        #home-view .brand-mark {
+            color: #fffaf1;
+            background: linear-gradient(145deg, #e4a14d, #b9572e);
+            border-color: rgba(255,239,214,.3);
+            box-shadow: 0 5px 14px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.28);
+        }
+        @keyframes pos-mark-pulse {
+            0%,100% { box-shadow: 0 5px 14px rgba(0,0,0,.18), 0 0 0 0 rgba(228,161,77,0); }
+            50% { box-shadow: 0 5px 14px rgba(0,0,0,.18), 0 0 0 7px rgba(228,161,77,.13); }
+        }
+        #home-view .header h1 { color: #fff8ed; }
+        #home-view .header p { color: #f0c38c; }
+        #home-view .home-section-title { color: #6c4b35; }
+        #home-view .home-section-title::before { background: #bd6537; }
+        #home-view .home-section-title::after { background: #dfcdb2; }
+        #home-view .menu-card {
+            color: #38291f;
+            background: #fffaf1;
+            border-color: #e8d8c1;
+            border-left-color: #d6b894;
+            box-shadow: 0 3px 7px rgba(84,57,34,.045), 0 9px 20px rgba(84,57,34,.055);
+        }
+        #home-view .menu-card::before {
+            background: linear-gradient(105deg, rgba(196,112,57,.09), transparent 56%);
+        }
+        #home-view .menu-card:hover {
+            border-color: #d5a477;
+            border-left-color: #b95d32;
+            box-shadow: 0 11px 24px rgba(94,59,32,.13);
+        }
+        #home-view .menu-icon {
+            color: #8d4b2d;
+            background: #f7e6ce;
+            border-color: #ead2b2;
+        }
+        #home-view .menu-card:nth-child(2) .menu-icon { color: #9a6129; background: #faedcf; border-color: #efddb7; }
+        #home-view .menu-card:nth-child(3) .menu-icon { color: #667044; background: #edf0dc; border-color: #dce2c7; }
+        #home-view .menu-card:nth-child(4) .menu-icon { color: #8b593d; background: #f5e5d8; border-color: #ead1bf; }
+        #home-view .menu-card:nth-child(5) .menu-icon { color: #a34f36; background: #f8e4dc; border-color: #edcec1; }
+        #home-view .menu-card:nth-child(6) .menu-icon { color: #8b6b32; background: #f5edcf; border-color: #e8ddb5; }
+        #home-view .menu-card-content h3 { color: #3d2c21; }
+        #home-view .arrow { color: #a58a70; }
+        #home-view .menu-card:hover .arrow { color: #a9532b; }
+        #home-view .menu-card.capital-card {
+            border-color: #75462d;
+            border-left-color: #e5a34f;
+            color: #fff8ed;
+            background: linear-gradient(105deg, #563827 0%, #75452c 100%);
+            box-shadow: 0 8px 19px rgba(91,55,32,.19);
+        }
+        #home-view .menu-card.capital-card:hover {
+            border-color: #a6653c;
+            border-left-color: #f0bd70;
+            box-shadow: 0 13px 25px rgba(91,55,32,.24);
+        }
+        #home-view .menu-card.capital-card .menu-icon {
+            color: #fff8ed;
+            background: rgba(255,244,224,.13);
+            border-color: rgba(255,244,224,.25);
+        }
+        #home-view .menu-card.capital-card .menu-card-content h3 { color: #fff8ed; }
+        #home-view .menu-card.capital-card .arrow { color: #f5d6a7; }
+        #home-view .home-footnote { color: #927b63; }
+        @media (max-width: 760px) {
+            #home-view { background: #F8EDDB; }
+            #home-view .menu-card { box-shadow: 0 2px 5px rgba(84,57,34,.045), 0 6px 13px rgba(84,57,34,.05); }
+        }
+
+        /* ===== 配色微調 v2：柔和奶茶米色，降低標題區深色對比 ===== */
+        #home-view {
+            --pos-ink: #72543e;
+            --pos-muted: #9b8067;
+            --pos-blue: #b97850;
+            --pos-line: #eadbc7;
+            background: #F8EDDB;
+        }
+        #home-view::before {
+            height: 5px;
+            background: linear-gradient(90deg, #d7a779 0%, #c98c65 52%, #e3bd8f 100%);
+        }
+        #home-view::after {
+            background:
+                radial-gradient(circle at 84% 14%, rgba(201,140,101,.10), transparent 58%),
+                radial-gradient(circle at 12% 88%, rgba(215,167,121,.10), transparent 48%);
+        }
+        #home-view .header {
+            color: #72543e;
+            background: linear-gradient(112deg, #f0d9b9 0%, #ead0ad 58%, #e5c49b 100%);
+            border: 1px solid rgba(174,126,83,.16);
+            box-shadow: 0 5px 16px rgba(132,94,61,.09);
+        }
+        #home-view .header::before { color: rgba(125,86,57,.32); }
+        #home-view .header::after {
+            border-color: rgba(154,111,73,.12);
+            box-shadow: 0 0 0 26px rgba(154,111,73,.025), 0 0 0 54px rgba(154,111,73,.018);
+        }
+        #home-view .brand-mark {
+            color: #fffaf3;
+            background: linear-gradient(145deg, #d99a67, #bd7954);
+            border-color: rgba(255,255,255,.55);
+            box-shadow: 0 3px 9px rgba(145,91,55,.13), inset 0 1px 0 rgba(255,255,255,.35);
+        }
+        #home-view .header h1 { color: #79543a; text-shadow: none; }
+        #home-view .header p { color: #a27655; }
+        #home-view .home-section-title { color: #8a674c; }
+        #home-view .home-section-title::before { background: #c58b64; }
+        #home-view .home-section-title::after { background: #e4d2ba; }
+        #home-view .menu-card {
+            color: #72543e;
+            background: #fffaf2;
+            border-color: #eadbc7;
+            border-left-color: #dfc3a3;
+            box-shadow: 0 2px 5px rgba(112,78,49,.035), 0 6px 14px rgba(112,78,49,.045);
+        }
+        #home-view .menu-card::before {
+            background: linear-gradient(105deg, rgba(211,158,115,.08), transparent 58%);
+        }
+        #home-view .menu-card:hover {
+            border-color: #d9b28e;
+            border-left-color: #c58b64;
+            box-shadow: 0 9px 19px rgba(112,78,49,.10);
+        }
+        #home-view .menu-icon {
+            color: #a66f4d;
+            background: #f6e9d8;
+            border-color: #ead8c1;
+        }
+        #home-view .menu-card:nth-child(2) .menu-icon,
+        #home-view .menu-card:nth-child(3) .menu-icon,
+        #home-view .menu-card:nth-child(4) .menu-icon,
+        #home-view .menu-card:nth-child(5) .menu-icon,
+        #home-view .menu-card:nth-child(6) .menu-icon {
+            color: #a66f4d;
+            background: #f6e9d8;
+            border-color: #ead8c1;
+        }
+        #home-view .menu-card-content h3 { color: #72543e; }
+        #home-view .arrow { color: #bd9a7b; }
+        #home-view .menu-card:hover .arrow { color: #b97850; }
+        #home-view .menu-card.capital-card {
+            color: #72543e;
+            background: linear-gradient(105deg, #ecd4b5 0%, #e6c9a5 100%);
+            border-color: #dfc19e;
+            border-left-color: #c58b64;
+            box-shadow: 0 5px 14px rgba(112,78,49,.08);
+        }
+        #home-view .menu-card.capital-card:hover {
+            border-color: #d2a77e;
+            border-left-color: #b97850;
+            box-shadow: 0 9px 19px rgba(112,78,49,.12);
+        }
+        #home-view .menu-card.capital-card .menu-icon {
+            color: #a66f4d;
+            background: rgba(255,250,242,.58);
+            border-color: rgba(174,126,83,.20);
+        }
+        #home-view .menu-card.capital-card .menu-card-content h3 { color: #72543e; }
+        #home-view .menu-card.capital-card .arrow { color: #a77a59; }
+        #home-view .home-footnote { color: #a58a70; }
+
     </style>
 
     <!-- PWA / iOS 安裝設定：僅新增安裝中繼資料，不更動原有系統功能 -->
@@ -703,70 +1007,48 @@
 <body>
 
     <div class="container">
-        <!-- 首頁主選單 -->
+        <!-- 首頁主選單：僅重新設計視覺與入口排列，原功能事件保持不變 -->
         <div id="home-view">
             <div class="header">
-                <h1>🔥 馬鈴吉碳烤</h1>
-                <p>智慧營運管理與標準作業系統</p>
+                <div class="brand-mark">🔥</div>
+                <div class="header-copy">
+                    <h1>馬鈴吉碳烤</h1>
+                    <p>SMART STORE OPERATIONS</p>
+                </div>
             </div>
 
+            <div class="home-section-title">店務功能選單</div>
             <div class="menu-grid">
                 <div class="menu-card" onclick="openPage('recipes')">
-                    <div class="menu-card-content">
-                        <h3>📖 配方與過程表</h3>
-                        <span>醬料、醃料、炸雞腿與飲料配方與製作步驟</span>
-                    </div>
-                    <div class="arrow">›</div>
+                    <span class="menu-icon">📖</span><div class="menu-card-content"><h3>配方與過程表</h3></div>
+                    <div class="arrow">↗</div>
                 </div>
-
                 <div class="menu-card" onclick="openPage('products')">
-                    <div class="menu-card-content">
-                        <h3>📊 販售品項成本表</h3>
-                        <span>品項名稱、單價、成本、售價、成本率</span>
-                    </div>
-                    <div class="arrow">›</div>
+                    <span class="menu-icon">📊</span><div class="menu-card-content"><h3>販售品項成本表</h3></div>
+                    <div class="arrow">↗</div>
                 </div>
-
                 <div class="menu-card" onclick="openPage('materials')">
-                    <div class="menu-card-content">
-                        <h3>📦 原物料與耗材價格表</h3>
-                        <span>品項名稱、規格、單價、廠商與最後更新</span>
-                    </div>
-                    <div class="arrow">›</div>
+                    <span class="menu-icon">📦</span><div class="menu-card-content"><h3>原物料與耗材價格表</h3></div>
+                    <div class="arrow">↗</div>
                 </div>
-
                 <div class="menu-card" onclick="openPage('purchases')">
-                    <div class="menu-card-content">
-                        <h3>📋 每日叫貨記錄表</h3>
-                        <span>數量、單位、金額與自動比價警示</span>
-                    </div>
-                    <div class="arrow">›</div>
+                    <span class="menu-icon">📋</span><div class="menu-card-content"><h3>每日叫貨記錄表</h3></div>
+                    <div class="arrow">↗</div>
                 </div>
-
                 <div class="menu-card" onclick="openPage('expenses')">
-                    <div class="menu-card-content">
-                        <h3>💸 店內支出記錄表</h3>
-                        <span>日期、項目、數量、金額、廠商與設備折舊追蹤</span>
-                    </div>
-                    <div class="arrow">›</div>
+                    <span class="menu-icon">💸</span><div class="menu-card-content"><h3>店內支出記錄表</h3></div>
+                    <div class="arrow">↗</div>
                 </div>
-
                 <div class="menu-card" onclick="openPage('profit')">
-                    <div class="menu-card-content">
-                        <h3>📈 每月損益總表與回本試算</h3>
-                        <span>固定支出、營業額、每日回本目標與淨利結算</span>
-                    </div>
-                    <div class="arrow">›</div>
+                    <span class="menu-icon">📈</span><div class="menu-card-content"><h3>每月損益總表與回本試算</h3></div>
+                    <div class="arrow">↗</div>
                 </div>
-
                 <div class="menu-card capital-card" onclick="openPage('capital')" style="grid-column: 1 / -1;">
-                    <div class="menu-card-content">
-                        <h3>💎 全店創業資本與回本追蹤</h3>
-                        <span>設定初始資本額、追蹤全店累積淨利與本金回本進度</span>
-                    </div>
-                    <div class="arrow">›</div>
+                    <span class="menu-icon">💎</span><div class="menu-card-content"><h3>全店創業資本與回本追蹤</h3></div>
+                    <div class="arrow">↗</div>
                 </div>
             </div>
+            <div class="home-footnote">馬鈴吉碳烤　·　POS 風格店務管理</div>
         </div>
 
         <!-- 子頁面容器 -->
