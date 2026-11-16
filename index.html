@@ -4318,12 +4318,12 @@
             overlay.className = 'picker-overlay';
             overlay.id = 'wheel-picker-overlay';
             overlay.innerHTML = `
-                <div class="picker-modal">
+                <div class="picker-modal" style="width:360px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:22px 16px;">
                     <h4>📅 選擇日期</h4>
-                    <div class="picker-wheels-container">
-                        <div class="wheel-column" id="wheel-year" onscroll="handleWheelScroll('year')"></div>
-                        <div class="wheel-column" id="wheel-month" onscroll="handleWheelScroll('month')"></div>
-                        <div class="wheel-column" id="wheel-day" onscroll="handleWheelScroll('day')"></div>
+                    <div class="picker-wheels-container" style="display:flex;justify-content:space-between;gap:8px;width:100%;box-sizing:border-box;overflow:hidden;">
+                        <div class="wheel-column" id="wheel-year" onscroll="handleWheelScroll('year')" style="flex:1 1 0;width:33.333%;min-width:0;max-width:33.333%;"></div>
+                        <div class="wheel-column" id="wheel-month" onscroll="handleWheelScroll('month')" style="flex:1 1 0;width:33.333%;min-width:0;max-width:33.333%;"></div>
+                        <div class="wheel-column" id="wheel-day" onscroll="handleWheelScroll('day')" style="flex:1 1 0;width:33.333%;min-width:0;max-width:33.333%;"></div>
                     </div>
                     <div class="picker-btn-group">
                         <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
@@ -4351,11 +4351,11 @@
             overlay.className = 'picker-overlay';
             overlay.id = 'wheel-picker-overlay';
             overlay.innerHTML = `
-                <div class="picker-modal" style="width: 280px;">
+                <div class="picker-modal" style="width:320px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:22px 16px;">
                     <h4>📅 選擇年月</h4>
-                    <div class="picker-wheels-container" style="justify-content:space-around;gap:12px;width:100%;box-sizing:border-box;">
-                        <div class="wheel-column" id="wheel-year" onscroll="handleWheelScroll('year')" style="flex:1 1 0;width:50%;min-width:0;"></div>
-                        <div class="wheel-column" id="wheel-month" onscroll="handleWheelScroll('month')" style="flex:1 1 0;width:50%;min-width:0;"></div>
+                    <div class="picker-wheels-container" style="display:flex;justify-content:space-between;gap:12px;width:100%;box-sizing:border-box;overflow:hidden;">
+                        <div class="wheel-column" id="wheel-year" onscroll="handleWheelScroll('year')" style="flex:1 1 0;width:50%;min-width:0;max-width:50%;"></div>
+                        <div class="wheel-column" id="wheel-month" onscroll="handleWheelScroll('month')" style="flex:1 1 0;width:50%;min-width:0;max-width:50%;"></div>
                     </div>
                     <div class="picker-btn-group" style="margin-top: 15px;">
                         <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
