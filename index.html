@@ -1182,6 +1182,8 @@
         let purchaseUnitTargetId = '';
         let orderCart = {};
         let orderSelectionOrder = [];
+        // 即時貼上辨識所加入的數量，重新辨識時先扣回，避免每打一個字就重複累加。
+        let orderPasteApplied = {};
         let orderCategorySettings = {};
         let orderDrinkAvailability = (() => { try { const v = JSON.parse(localStorage.getItem('malinji_order_drinks_v1') || '{"紅茶":true,"冬瓜茶":true}'); return {紅茶:v.紅茶 !== false, 冬瓜茶:v.冬瓜茶 !== false}; } catch(e) { return {紅茶:true,冬瓜茶:true}; } })();
         let orderSelectedTime = '20:30';
@@ -2491,6 +2493,109 @@
             `;
         }
 
+        const PURCHASE_VENDOR_STORAGE_KEY = 'malinji_purchase_custom_vendors_v1';
+        const DEFAULT_PURCHASE_VENDORS = ['菜商', '源生食品行', '美味家食品企業社', '甄香食品行', '祥創企業社'];
+        function escapePurchaseVendorHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        }
+        function getPurchaseVendorOptions(currentVendor = '') {
+            let custom = [];
+            try {
+                const saved = JSON.parse(localStorage.getItem(PURCHASE_VENDOR_STORAGE_KEY) || '[]');
+                if (Array.isArray(saved)) custom = saved.filter(v => typeof v === 'string' && v.trim());
+            } catch (e) {}
+            const existing = (globalPurchasesData || []).map(item => String(item.vendor || '').trim()).filter(Boolean);
+            return [...new Set([...DEFAULT_PURCHASE_VENDORS, ...custom, ...existing, String(currentVendor || '').trim()].filter(Boolean))];
+        }
+        let purchaseVendorPickerPrefix = '';
+        function renderPurchaseVendorField(prefix, currentVendor = '') {
+            const selected = String(currentVendor || '');
+            return `
+                <div class="form-group">
+                    <label>廠商名稱</label>
+                    <input type="hidden" id="${prefix}-vendor" value="${escapePurchaseVendorHtml(selected)}">
+                    <button type="button" class="order-time-btn" id="${prefix}-vendor-display" onclick="openPurchaseVendorPicker('${prefix}')" style="width:100%;text-align:left;justify-content:space-between;">
+                        <span>${selected ? escapePurchaseVendorHtml(selected) : '請選擇廠商'}</span><span>⌄</span>
+                    </button>
+                    <div style="display:flex;gap:8px;margin-top:8px;">
+                        <input type="text" id="${prefix}-vendor-new" placeholder="有新廠商？輸入廠商名稱" style="flex:1;min-width:0;">
+                        <button type="button" class="card-btn" onclick="addPurchaseVendorOption('${prefix}')" style="white-space:nowrap;">＋加入選單</button>
+                    </div>
+                </div>`;
+        }
+        function savePurchaseVendorOptions(options) {
+            try { localStorage.setItem(PURCHASE_VENDOR_STORAGE_KEY, JSON.stringify(options.filter(v => !DEFAULT_PURCHASE_VENDORS.includes(v)))); } catch (e) {}
+        }
+        function setPurchaseVendorSelection(prefix, name) {
+            const hidden = document.getElementById(`${prefix}-vendor`);
+            const display = document.getElementById(`${prefix}-vendor-display`);
+            if (hidden) hidden.value = name;
+            if (display) display.innerHTML = `<span>${escapePurchaseVendorHtml(name || '請選擇廠商')}</span><span>⌄</span>`;
+        }
+        function addPurchaseVendorOption(prefix) {
+            const input = document.getElementById(`${prefix}-vendor-new`);
+            if (!input) return;
+            const name = input.value.trim();
+            if (!name) { input.focus(); return; }
+            const options = getPurchaseVendorOptions();
+            if (!options.includes(name)) options.push(name);
+            savePurchaseVendorOptions(options);
+            setPurchaseVendorSelection(prefix, name);
+            input.value = '';
+        }
+        function getPurchaseVendorValue(prefix) {
+            const input = document.getElementById(`${prefix}-vendor-new`);
+            const typed = input?.value.trim() || '';
+            if (typed) {
+                const options = getPurchaseVendorOptions();
+                if (!options.includes(typed)) options.push(typed);
+                savePurchaseVendorOptions(options);
+                setPurchaseVendorSelection(prefix, typed);
+                input.value = '';
+                return typed;
+            }
+            return document.getElementById(`${prefix}-vendor`)?.value.trim() || '';
+        }
+        function openPurchaseVendorPicker(prefix) {
+            purchaseVendorPickerPrefix = prefix;
+            const options = getPurchaseVendorOptions();
+            const current = document.getElementById(`${prefix}-vendor`)?.value || '';
+            const selectedIndex = Math.max(0, options.indexOf(current));
+            const overlay = document.createElement('div');
+            overlay.className = 'picker-overlay';
+            overlay.id = 'wheel-picker-overlay';
+            overlay.innerHTML = `
+                <div class="picker-modal" style="width:340px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:22px 16px;">
+                    <h4>🏷️ 選擇廠商</h4>
+                    <div class="picker-wheels-container" style="justify-content:center;">
+                        <div class="wheel-column" id="wheel-purchase-vendor" onscroll="highlightSelected('purchase-vendor')" style="width:100%;max-width:100%;">
+                            <div style="height:47.5px;"></div>
+                            ${options.map((name,index)=>`<div class="wheel-item" data-val="${index}">${escapePurchaseVendorHtml(name)}</div>`).join('')}
+                            <div style="height:47.5px;"></div>
+                        </div>
+                    </div>
+                    <div class="picker-btn-group">
+                        <button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button>
+                        <button class="picker-btn picker-confirm" onclick="confirmPurchaseVendorPicker()">確定選取</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => {
+                const col = document.getElementById('wheel-purchase-vendor');
+                const item = col?.querySelectorAll('.wheel-item')[selectedIndex];
+                if (col && item) {
+                    col.scrollTop = item.offsetTop - col.clientHeight / 2 + item.clientHeight / 2;
+                    highlightSelected('purchase-vendor');
+                }
+            });
+        }
+        function confirmPurchaseVendorPicker() {
+            const index = Number(getSelectedValue('purchase-vendor'));
+            const options = getPurchaseVendorOptions();
+            if (options[index]) setPurchaseVendorSelection(purchaseVendorPickerPrefix, options[index]);
+            closeWheelPicker();
+        }
+
         function renderAddPurchaseForm() {
             const titleEl = document.getElementById('page-title');
             const contentEl = document.getElementById('page-content');
@@ -2506,7 +2611,7 @@
                         <label>日期 (點擊可更改)</label>
                         <input type="text" id="pur-date" value="${todayStr}" readonly onclick="openDatePicker(setAddPurchaseDate, document.getElementById('pur-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
-                    <div class="form-group"><label>廠商名稱</label><input type="text" id="pur-vendor" placeholder="例如: 肉品商、蔬菜行"></div>
+                    ${renderPurchaseVendorField("pur")}
                     <div class="form-group"><label>品項名稱</label><input type="text" id="pur-item-name" placeholder="例如: 大甜不辣、雞肉串"></div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                         <div class="form-group"><label>數量</label><input type="number" step="0.1" id="pur-qty" placeholder="例如: 2"></div>
@@ -2523,7 +2628,7 @@
 
         async function addPurchase() {
             const date = document.getElementById('pur-date').value;
-            const vendor = document.getElementById('pur-vendor').value.trim();
+            const vendor = getPurchaseVendorValue('pur');
             const item_name = document.getElementById('pur-item-name').value.trim();
             const quantity = parseFloat(document.getElementById('pur-qty').value) || 1;
             const unit = document.getElementById('pur-unit').value || '條';
@@ -2563,7 +2668,7 @@
                         <label>日期</label>
                         <input type="text" id="edit-pur-date" value="${item.date}" readonly onclick="openDatePicker(setEditPurchaseDate, document.getElementById('edit-pur-date').value)" style="cursor: pointer; background: #fff;">
                     </div>
-                    <div class="form-group"><label>廠商名稱</label><input type="text" id="edit-pur-vendor" value="${item.vendor || ''}"></div>
+                    ${renderPurchaseVendorField("edit-pur", item.vendor || "")}
                     <div class="form-group"><label>品項名稱</label><input type="text" id="edit-pur-item-name" value="${item.item_name}"></div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                         <div class="form-group"><label>數量</label><input type="number" step="0.1" id="edit-pur-qty" value="${item.quantity || 1}"></div>
@@ -2581,7 +2686,7 @@
 
         async function updatePurchase(id) {
             const date = document.getElementById('edit-pur-date').value;
-            const vendor = document.getElementById('edit-pur-vendor').value.trim();
+            const vendor = getPurchaseVendorValue('edit-pur');
             const item_name = document.getElementById('edit-pur-item-name').value.trim();
             const quantity = parseFloat(document.getElementById('edit-pur-qty').value) || 1;
             const unit = document.getElementById('edit-pur-unit').value || '條';
@@ -2646,6 +2751,20 @@
                                 <button type="button" class="order-drink-toggle" data-drink="冬瓜茶" onclick="toggleOrderDrink('冬瓜茶')">冬瓜茶：供應中</button>
                             </div>
                         </div>
+                        <div style="margin-top:16px;padding:13px;border:1px solid #eadbc7;border-radius:12px;background:#fffaf3;">
+                            <div style="font-size:14px;font-weight:800;color:#8f5d3d;margin-bottom:7px;">📋 貼上客人訂單，自動辨識餐點</div>
+                            <div style="font-size:12px;color:#92765e;line-height:1.6;margin-bottom:8px;">貼上或直接修改文字，辨識結果與右側訂單會即時更新；不同口味、尺寸會依完整品名區分。</div>
+                            <textarea id="order-paste-input" class="order-copy-preview" style="min-height:125px;background:#fff;" placeholder="例如：
+大甜不辣*1
+椒鹽豬血糕 x2
+雞翅 3份
+小辣
+21:40 取" oninput="parsePastedCustomerOrder()"></textarea>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                                <button type="button" class="action-btn" style="background:#eee2d3;color:#72543e;" onclick="clearPastedCustomerOrder()">清空貼上內容</button>
+                            </div>
+                            <div id="order-paste-match-result" style="display:none;margin-top:10px;font-size:12px;line-height:1.7;"></div>
+                        </div>
                         <label style="display:block;font-size:13px;font-weight:750;color:#72543e;margin:14px 0 7px;">複製內容預覽</label>
                         <textarea id="order-copy-preview" class="order-copy-preview" readonly placeholder=""></textarea>
                         <button class="action-btn" style="width:100%;margin-top:10px;padding:13px;" onclick="copyOrderMessage()">📋 複製訂餐內容</button>
@@ -2697,6 +2816,118 @@
             else { if (!Number(orderCart[key])) orderSelectionOrder.push(key); orderCart[key] = next; }
             renderOrderProducts();
         }
+        function normalizeOrderMatchText(value) {
+            return String(value || '').toLowerCase().replace(/[\s　\-_－—·・、，。！？!?「」『』（）()\[\]【】]/g, '').replace(/臺/g,'台');
+        }
+        function orderEditDistance(a, b) {
+            const aa=Array.from(a), bb=Array.from(b); if(!aa.length)return bb.length;if(!bb.length)return aa.length;
+            let prev=Array.from({length:bb.length+1},(_,i)=>i),cur=[];
+            for(let i=1;i<=aa.length;i++){cur=[i];for(let j=1;j<=bb.length;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(aa[i-1]===bb[j-1]?0:1));prev=cur;}
+            return prev[bb.length];
+        }
+        function scoreOrderName(input, productName) {
+            const a=normalizeOrderMatchText(input), b=normalizeOrderMatchText(productName);
+            if(!a||!b)return 0; if(a===b)return 1;
+            if(a.includes(b)||b.includes(a)) return 0.91 + Math.min(0.08, Math.min(a.length,b.length)/Math.max(a.length,b.length)*0.08);
+            const distance=orderEditDistance(a,b), editScore=1-distance/Math.max(a.length,b.length);
+            const chars=new Set(Array.from(a)); let common=0; for(const ch of chars)if(b.includes(ch))common++;
+            const overlap=common/Math.max(new Set(Array.from(a+b)).size,1);
+            return Math.max(editScore*0.78, overlap*0.82);
+        }
+        function parseCustomerOrderLine(line) {
+            let text=String(line||'').trim();
+            if(!text)return [];
+            if(/^(以上共|共\s*\d+\s*項|備註|取餐|取|謝謝|感謝|胡椒鹽|小辣|中辣|大辣|不辣|微辣|正常辣|餐具|不要|加|電話|地址)/i.test(text) || /^\d{1,2}:\d{2}\s*(?:取餐|取|自取|外帶)?$/.test(text))return [];
+            // 容量單位前後即使有空格也視為同一個品名（例如紅茶500 ml 1）。
+            // 先合併數字與 ml，再處理客人省略 ml 的容量寫法（例如冬瓜茶700 1）。
+            text=text.replace(/(\d)\s+(ml|毫升)\b/gi,'$1$2');
+            text=text.replace(/([^0-9\n]+?)(\d{3,4})(?=\s+\d+(?:\.\d+)?(?:\s*(?:串|份|個|支|片|條|盒|杯|碗|包|根|瓶|斤|兩|隻))?(?:\s|$))/gi,'$1$2ml');
+            // *, x、× 等符號只是數量分隔符；單位可有可無，不作為品項比對條件。
+            text=text.replace(/[＊*×xXＸ]\s*(?=\d)/g,' ');
+            const multiPattern=/([^0-9＊*×xXＸ]+?(?:\d+(?:ml|毫升))?)[\s　]*(\d+(?:\.\d+)?)\s*(?:串|份|個|支|片|條|盒|杯|碗|包|根|瓶|斤|兩|隻)?/gi;
+            const parsed=[]; let m;
+            while((m=multiPattern.exec(text))!==null){
+                const name=m[1].replace(/^[\s　、,，；;]+|[\s　、,，；;]+$/g,'').trim();
+                const quantity=Number(m[2]);
+                if(name&&Number.isFinite(quantity)&&quantity>0)parsed.push({name,quantity});
+            }
+            if(parsed.length)return parsed;
+            const name=text.replace(/^[\s　、,，；;]+|[\s　、,，；;]+$/g,'').trim();
+            return name?[{name,quantity:1}]:[];
+        }
+        function parsePastedCustomerOrder() {
+            const input=document.getElementById('order-paste-input');
+            const result=document.getElementById('order-paste-match-result');
+            if(!input||!result)return;
+
+            // 先撤銷上一次由貼上文字自動加入的數量，再依目前文字重算，避免即時輸入時重複累加。
+            Object.entries(orderPasteApplied).forEach(([id,quantity])=>{
+                const left=Math.max(0,(Number(orderCart[id])||0)-Number(quantity||0));
+                if(left>0)orderCart[id]=left;
+                else {delete orderCart[id];orderSelectionOrder=orderSelectionOrder.filter(x=>x!==String(id));}
+            });
+            orderPasteApplied={};
+
+            if(!input.value.trim()){
+                result.style.display='none';result.innerHTML='';
+                renderOrderProducts();
+                return;
+            }
+            // 取餐時間也從客人文字中擷取；未標示上午／下午時，一律視為晚上。
+            const timeMatches=[...input.value.matchAll(/(?:^|\n)\s*(\d{1,2}):(\d{2})\s*(?:取餐|取|自取|外帶)?\s*(?=\n|$)/g)];
+            if(timeMatches.length){
+                const last=timeMatches[timeMatches.length-1];
+                let hour=Number(last[1]); const minute=Number(last[2]);
+                if(hour>=0&&hour<=23&&minute>=0&&minute<=59){
+                    if(hour>=1&&hour<=11)hour+=12;
+                    else if(hour===0)hour=12;
+                    orderSelectedTime=`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
+                    const timeDisplay=document.getElementById('order-time-display');
+                    if(timeDisplay)timeDisplay.innerHTML=`<span class=\"order-time-value\">${orderSelectedTime}</span><span class=\"order-time-arrow\">⌄</span>`;
+                }
+            }
+            const lines=input.value.split(/\r?\n/).filter(line=>!/^\s*\d{1,2}:\d{2}\s*(?:取餐|取|自取|外帶)?\s*$/.test(line)).flatMap(parseCustomerOrderLine).filter(Boolean);
+            const matched=[],unmatched=[];
+            lines.forEach(line=>{
+                const normalized=normalizeOrderMatchText(line.name);
+                const exact=globalProductsData.filter(product=>normalizeOrderMatchText(product.name)===normalized);
+                const byCheapestThenOrder=(a,b)=>(Number(a.price)||0)-(Number(b.price)||0)||globalProductsData.indexOf(a)-globalProductsData.indexOf(b);
+                // 有寫容量／口味／尺寸等完整名稱時，先精準選擇對應品項。
+                if(exact.length){
+                    matched.push({...line,product:exact.slice().sort(byCheapestThenOrder)[0],score:1,review:false});return;
+                }
+                // 只寫主名稱時（例如冬瓜茶、甜不辣、豬血糕），才從同系列規格中選最低價；
+                // 價格相同時依菜單原始順序選第一個。
+                const containsCandidates=globalProductsData.filter(product=>normalizeOrderMatchText(product.name).includes(normalized));
+                if(containsCandidates.length){
+                    matched.push({...line,product:containsCandidates.slice().sort(byCheapestThenOrder)[0],score:0.99,review:false});return;
+                }
+                const ranked=globalProductsData.map((product,index)=>({product,score:scoreOrderName(line.name,product.name),index}))
+                    .sort((a,b)=>b.score-a.score||(Number(a.product.price)||0)-(Number(b.product.price)||0)||a.index-b.index);
+                const best=ranked[0];
+                // 拼字略有不同時採最高相似度；相似度達標便自動選取，同分時最低價格優先。
+                if(best && best.score>=0.84) matched.push({...line,product:best.product,score:best.score,review:false});
+                else unmatched.push({...line,candidates:ranked.slice(0,4)});
+            });
+            matched.forEach(item=>{
+                const id=String(item.product.id);
+                if(!Number(orderCart[id]))orderSelectionOrder.push(id);
+                orderCart[id]=(Number(orderCart[id])||0)+item.quantity;
+                orderPasteApplied[id]=(Number(orderPasteApplied[id])||0)+item.quantity;
+            });
+            renderOrderProducts();
+            updateOrderSummary();
+            const matchHtml=matched.length?matched.map(x=>`<div style="color:#38734b;">✓「${escapeOrderHtml(x.name)}」→ ${escapeOrderHtml(x.product.name)} × ${x.quantity}</div>`).join(''):'<div style="color:#92765e;">目前沒有可直接確定的餐點。</div>';
+            const unmatchedHtml=unmatched.map(x=>`<div style="color:#b45309;margin-top:4px;">？「${escapeOrderHtml(x.name)}」× ${x.quantity}：${x.candidates.length?'可能品項：'+x.candidates.map(c=>escapeOrderHtml(c.product.name)).join('、'):'找不到相符品項'}，請補完整名稱或確認菜單品名。</div>`).join('');
+            result.style.display='block';
+            result.innerHTML=`<div style="font-weight:800;color:#72543e;margin-bottom:4px;">即時辨識：已加入 ${matched.length} 項，待確認 ${unmatched.length} 項</div>${matchHtml}${unmatchedHtml}<div style="color:#92765e;margin-top:5px;">辨識會隨文字修改即時重算；不必輸入單位；只寫主名稱時會優先選最低價格的品項，同價則依菜單順序選取。</div>`;
+        }
+        function clearPastedCustomerOrder() {
+            const input=document.getElementById('order-paste-input');
+            if(input)input.value='';
+            parsePastedCustomerOrder();
+        }
+
         function getOrderDetails() {
             const byId = new Map(globalProductsData.map(p=>[String(p.id),p]));
             return orderSelectionOrder.map(id=>byId.get(String(id))).filter(p=>p&&Number(orderCart[p.id])>0).map(p=>{
