@@ -1178,7 +1178,7 @@
         let currentPage = '';
         // 比價開關僅保存在目前裝置的 localStorage，不新增或修改任何資料庫欄位。
         const PURCHASE_COMPARE_STORAGE_KEY = 'malinji_purchase_compare_excluded_v1';
-        const PURCHASE_UNITS = ['條', '盒', '顆', '箱', '斤', '隻', '包'];
+        const PURCHASE_UNITS = ['條', '盒', '顆', '箱', '斤', '隻', '包', '片', '袋', '趟', '桶'];
         let purchaseUnitTargetId = '';
         let orderCart = {};
         let orderSelectionOrder = [];
@@ -2251,6 +2251,16 @@
             closeWheelPicker();
         }
 
+        // 叫貨帳務分類只做程式端標記，不新增/修改 Supabase 欄位或資料表。
+        // 炸油、瓦斯、木炭屬「燃料／炸油耗材」：採購金額進現金流，不併入商品食材成本率。
+        function classifyPurchaseAccountingItem(item) {
+            const name = String(item && item.item_name || '').replace(/\s/g, '').toLowerCase();
+            if (/炸油|食用油|沙拉油|棕櫚油|大豆油|瓦斯|桶裝瓦斯|木炭|木碳|備長炭|龍眼木炭|竹炭|碳精|炭精/.test(name)) {
+                return { key: 'operating_consumable', label: '燃料／炸油耗材', note: '採購金額列現金流；月設定費用列損益，不計入商品食材成本率' };
+            }
+            return { key: 'food_or_other_purchase', label: '一般叫貨', note: '採購金額列現金流；不直接以叫貨總額計算商品成本率' };
+        }
+
         async function renderPurchasesList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取叫貨記錄中...</p>';
@@ -2400,6 +2410,7 @@
                                 <h4>${item.item_name} <span>總價：$${total.toLocaleString()}</span></h4>
                                 <p><b>日期：</b>${item.date}</p>
                                 <p><b>廠商：</b>${item.vendor || '未設定'}</p>
+                                <p><b>帳務分類：</b><span title="${classifyPurchaseAccountingItem(item).note}" style="display:inline-block;padding:2px 8px;border-radius:99px;background:${classifyPurchaseAccountingItem(item).key === 'operating_consumable' ? '#fef3c7' : '#f5f5f4'};color:${classifyPurchaseAccountingItem(item).key === 'operating_consumable' ? '#92400e' : '#57534e'};font-size:12px;font-weight:700;">${classifyPurchaseAccountingItem(item).label}</span></p>
                                 <p><b>數量：</b>${qty} ${unit} &nbsp;|&nbsp; <b>計算單價：</b>$${Math.round(info.unitPrice)} / ${unit}</p>
                                 ${changeBadge}
                                 <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:#806b57;">
@@ -2514,7 +2525,7 @@
                 <div class="form-group">
                     <label>廠商名稱</label>
                     <input type="hidden" id="${prefix}-vendor" value="${escapePurchaseVendorHtml(selected)}">
-                    <button type="button" class="order-time-btn" id="${prefix}-vendor-display" onclick="openPurchaseVendorPicker('${prefix}')" style="width:100%;text-align:left;justify-content:space-between;">
+                    <button type="button" class="order-time-btn" id="${prefix}-vendor-display" onclick="openPurchaseVendorFormPicker('${prefix}')" style="width:100%;text-align:left;justify-content:space-between;">
                         <span>${selected ? escapePurchaseVendorHtml(selected) : '請選擇廠商'}</span><span>⌄</span>
                     </button>
                     <div style="display:flex;gap:8px;margin-top:8px;">
@@ -2556,7 +2567,7 @@
             }
             return document.getElementById(`${prefix}-vendor`)?.value.trim() || '';
         }
-        function openPurchaseVendorPicker(prefix) {
+        function openPurchaseVendorFormPicker(prefix) {
             purchaseVendorPickerPrefix = prefix;
             const options = getPurchaseVendorOptions();
             const current = document.getElementById(`${prefix}-vendor`)?.value || '';
@@ -3031,7 +3042,8 @@
 
         // ==================== 店內支出記錄表邏輯 (含設備折舊追蹤) ====================
         let expenseSearchDepFilterVal = 'ALL'; // 'ALL', 'DEPR', 'NON_DEPR'
-        let expenseSearchDateVal = ''; // YYYY-MM；空字串代表看全部
+        let expenseSearchDateVal = getCurrentYearMonth(); // YYYY-MM
+        let expenseDateFilterEnabled = true;
         let expenseAmountSortVal = 'none'; // none, asc, desc
         let expenseKeywordSearchVal = ''; // 僅搜尋支出項目名稱與相關廠商，不影響資料庫
 
@@ -3059,7 +3071,7 @@
             let dateDisplayStr = expenseSearchDateVal ? `📅 ${expenseSearchDateVal.replace('-', '年 ')}月` : '📅 選擇年月';
 
             let dateFilteredData = globalExpensesData.filter(item => {
-                if (!expenseSearchDateVal) return true;
+                if (!expenseDateFilterEnabled || !expenseSearchDateVal) return true;
                 return String(item.date || '').startsWith(expenseSearchDateVal);
             });
 
@@ -3140,8 +3152,9 @@
                         <input type="text" id="expense-keyword-search-input" class="search-input" value="${escapeExpenseSearchAttribute(expenseKeywordSearchVal)}" placeholder="🔎 搜尋支出項目名稱／相關廠商" oninput="setExpenseKeywordSearch(this.value)" oncompositionend="setExpenseKeywordSearch(this.value)" style="background:#fff; width:220px; max-width:100%;" title="僅搜尋支出項目名稱與相關廠商">
                         <input type="text" id="expense-dep-filter-input" class="search-input" value="${depDisplayStr}" readonly onclick="openExpenseDepFilterPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="點擊篩選支出類型與折舊狀態">
                         <input type="text" id="expense-amount-sort-input" class="search-input" value="${sortDisplayStr}" readonly onclick="openExpenseAmountSortPicker()" style="cursor: pointer; background: #fff; width: 120px;" title="依實際金額排序">
-                        ${renderYearMonthDropdowns('expense', expenseSearchDateVal || getCurrentYearMonth(), globalExpensesData, 'changeExpenseYearMonth()')}
-                        ${(expenseKeywordSearchVal || expenseSearchDateVal || expenseAmountSortVal !== 'none' || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
+                        ${renderYearMonthDropdowns('expense', expenseSearchDateVal || getCurrentYearMonth(), globalExpensesData, 'changeExpenseYearMonth()', !expenseDateFilterEnabled)}
+                        <label style="display:inline-flex;align-items:center;gap:5px;padding:8px 10px;background:#fff;border:1px solid #e7d9ca;border-radius:9px;font-size:12px;white-space:nowrap;"><input type="checkbox" id="expense-date-filter-toggle" ${expenseDateFilterEnabled ? 'checked' : ''} onchange="toggleExpenseDateFilter(this.checked)" style="width:16px;height:16px;">日期搜尋</label>
+                        ${(expenseKeywordSearchVal || !expenseDateFilterEnabled || expenseSearchDateVal !== getCurrentYearMonth() || expenseAmountSortVal !== 'none' || expenseSearchDepFilterVal !== 'ALL') ? `<button class="clear-search-btn" onclick="clearExpenseSearch()">❌ 清除</button>` : ''}
                     </div>
                 </div>
             `;
@@ -3273,6 +3286,7 @@
 
         function setSearchDateQuery(selectedMonth) {
             expenseSearchDateVal = String(selectedMonth || '').substring(0, 7);
+            expenseDateFilterEnabled = true;
             displayExpensesList();
         }
 
@@ -3281,6 +3295,18 @@
             const month = document.getElementById('expense-month-select')?.value;
             if (!year || !month) return;
             expenseSearchDateVal = `${year}-${month}`;
+            expenseDateFilterEnabled = true;
+            displayExpensesList();
+        }
+
+        function toggleExpenseDateFilter(enabled) {
+            expenseDateFilterEnabled = !!enabled;
+            const picker = document.getElementById('expense-yearmonth-select');
+            if (picker) {
+                picker.disabled = !expenseDateFilterEnabled;
+                picker.style.background = expenseDateFilterEnabled ? '#fff' : '#f5f5f4';
+                picker.style.cursor = expenseDateFilterEnabled ? 'pointer' : 'not-allowed';
+            }
             displayExpensesList();
         }
 
@@ -3330,7 +3356,8 @@
         function clearExpenseSearch() {
             expenseKeywordSearchVal = '';
             expenseSearchDepFilterVal = 'ALL';
-            expenseSearchDateVal = '';
+            expenseSearchDateVal = getCurrentYearMonth();
+            expenseDateFilterEnabled = true;
             expenseAmountSortVal = 'none';
             displayExpensesList();
         }
@@ -3639,6 +3666,91 @@
             };
         }
 
+        // 單一月度帳務計算核心：損益儀表板與創業資本明細必須共用此結果。
+        // workingDays 統一採該月實際有營收紀錄的日期數；舊版每日廣告設定也依此換算。
+        function calculateMonthlyMetrics(yearMonth, data) {
+            const d = data || {};
+            const products = d.products || [];
+            const expenses = d.expenses || [];
+            const revenues = d.revenues || [];
+            const settings = d.settings || {};
+            const platformRates = d.platformRates || { ubereatsCommissionRate: 0, foodpandaCommissionRate: 0 };
+            const monthRevenues = revenues.filter(r => String(r.date || '').startsWith(yearMonth));
+            const recordedBusinessDays = new Set(monthRevenues
+                .map(r => String(r.date || '').slice(0, 10))
+                .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date))).size;
+            const hasSettings = settings.fixedCostsConfigured !== false;
+            const monthAds = hasSettings
+                ? getMonthlyAdCosts({ ...settings, workingDays: recordedBusinessDays })
+                : { ubereats: 0, foodpanda: 0, workingDays: recordedBusinessDays };
+            const gas = hasSettings ? (Number(settings.gas) || 0) : 0;
+            const oil = hasSettings ? (Number(settings.oil) || 0) : 0;
+            const charcoal = hasSettings ? (Number(settings.charcoal) || 0) : 0;
+            const fixedCost = gas + oil + charcoal + monthAds.ubereats + monthAds.foodpanda;
+            const cashFixedCost = monthAds.ubereats + monthAds.foodpanda;
+
+            const monthExpenseRows = expenses.filter(e => String(e.date || '').startsWith(yearMonth));
+            const monthExpenses = monthExpenseRows.filter(e =>
+                (e.transaction_type || 'expense') === 'expense' && e.is_depreciable !== true && !isDepositOrPrepaymentExpense(e.name));
+            const monthDepreciableExpenses = monthExpenseRows.filter(e =>
+                (e.transaction_type || 'expense') === 'expense' && e.is_depreciable === true);
+            const monthExtraIncome = monthExpenseRows.filter(e => e.transaction_type === 'income');
+            const sum = (items, getter) => items.reduce((total, item) => total + (Number(getter(item)) || 0), 0);
+            const insurancePaidThisMonth = sumNamedExpenseType(monthExpenses, 'insurance');
+            const insuranceAllocation = getAnnualInsuranceMonthlyAllocation(expenses, yearMonth);
+            const totalOtherExpenses = sum(monthExpenses, e => e.amount) - insurancePaidThisMonth + insuranceAllocation;
+            const trackedExpenseTotals = Object.fromEntries(TRACKED_EXPENSE_TYPES.map(([type]) => [type,
+                type === 'insurance' ? insuranceAllocation : sumNamedExpenseType(monthExpenses, type)]));
+
+            const averageCostRate = products.length
+                ? products.reduce((total, item) => total + calculateCostRate(item), 0) / products.length
+                : 0;
+            const ingredientCostRate = Math.max(0, Number(averageCostRate) || 0) / 100;
+            const totalGrossSales = sum(monthRevenues, r =>
+                (Number(r.onsite) || 0) + (Number(r.ubereats) || 0) + (Number(r.foodpanda) || 0));
+            const ueGrossSales = sum(monthRevenues, r => r.ubereats);
+            const fpGrossSales = sum(monthRevenues, r => r.foodpanda);
+            const ueRate = (Number(platformRates.ubereatsCommissionRate) || 0) / 100;
+            const fpRate = (Number(platformRates.foodpandaCommissionRate) || 0) / 100;
+            const ueCommission = ueGrossSales * ueRate;
+            const fpCommission = fpGrossSales * fpRate;
+            const totalPlatformCommission = ueCommission + fpCommission;
+            const weightedPlatformCommissionRate = totalGrossSales > 0 ? totalPlatformCommission / totalGrossSales : 0;
+
+            // 折舊依設備購買月份及耐用年限逐月提列；設備本金仍只進現金流。
+            const targetMonthNumber = Number(yearMonth.slice(0, 4)) * 12 + Number(yearMonth.slice(5, 7)) - 1;
+            let totalDepreciation = 0;
+            expenses.filter(e => (e.transaction_type || 'expense') === 'expense' && e.is_depreciable === true).forEach(item => {
+                const dateMonth = String(item.date || '').slice(0, 7);
+                if (!/^\d{4}-\d{2}$/.test(dateMonth)) return;
+                const startMonthNumber = Number(dateMonth.slice(0, 4)) * 12 + Number(dateMonth.slice(5, 7)) - 1;
+                const lifeMonths = Math.max(1, Number(item.useful_life_years) || 5) * 12;
+                const elapsed = targetMonthNumber - startMonthNumber;
+                if (elapsed >= 0 && elapsed < lifeMonths) totalDepreciation += (Number(item.amount) || 0) / lifeMonths;
+            });
+            const totalExtraIncome = sum(monthExtraIncome, e => e.amount);
+            const estimatedIngredientCost = totalGrossSales * ingredientCostRate;
+            const operatingProfitEstimate = totalGrossSales - estimatedIngredientCost - totalPlatformCommission
+                - fixedCost - totalOtherExpenses + totalExtraIncome - totalDepreciation;
+            const monthlyFixedTotalCost = fixedCost + totalOtherExpenses;
+            const contributionMarginRate = 1 - ingredientCostRate - weightedPlatformCommissionRate;
+            const monthlyBreakEvenRevenue = contributionMarginRate > 0
+                ? (monthlyFixedTotalCost + totalDepreciation - totalExtraIncome) / contributionMarginRate
+                : Infinity;
+            return {
+                yearMonth, settings, hasSettings, monthRevenues, recordedBusinessDays, monthAds,
+                totalUbereatsAd: monthAds.ubereats, totalFoodpandaAd: monthAds.foodpanda,
+                gas, oil, charcoal, fixedCost, cashFixedCost,
+                monthExpenseRows, monthExpenses, monthDepreciableExpenses, monthExtraIncome,
+                trackedExpenseTotals, totalOtherExpenses, averageCostRate, ingredientCostRate,
+                totalGrossSales, ueGrossSales, fpGrossSales, ueCommission, fpCommission,
+                totalPlatformCommission, weightedPlatformCommissionRate, totalDepreciation,
+                totalExtraIncome, estimatedIngredientCost, operatingProfitEstimate,
+                monthlyFixedTotalCost, contributionMarginRate, monthlyBreakEvenRevenue,
+                revenueGap: totalGrossSales - monthlyBreakEvenRevenue
+            };
+        }
+
         // 只讀取該月份真正保存的設定；歷史月份缺資料時絕不套用最新月份。
         async function getMonthSettings(monthStr) {
             const { data, error } = await _supabase
@@ -3711,80 +3823,29 @@
             const fpRate = platformRates.foodpandaCommissionRate / 100;
 
             let fixedSettings = await getMonthSettingsForEditing(currentProfitMonth);
-
-            const hasMonthlySettings = fixedSettings.fixedCostsConfigured !== false;
-            const monthlyAds = hasMonthlySettings ? getMonthlyAdCosts(fixedSettings) : { ubereats: 0, foodpanda: 0 };
-            let totalUbereatsAd = monthlyAds.ubereats;
-            let totalFoodpandaAd = monthlyAds.foodpanda;
-
-            // 本月設定只包含瓦斯、木炭、炸油及平台廣告；房租/薪資/水電等一律由 expenses 店內支出表讀取。
-            let totalFixedCost = hasMonthlySettings
-                ? (parseFloat(fixedSettings.gas) || 0) + (parseFloat(fixedSettings.oil) || 0) +
-                  (parseFloat(fixedSettings.charcoal) || 0) + totalUbereatsAd + totalFoodpandaAd
-                : 0;
-
-            let monthExpenseRows = expenses.filter(i => i.date && i.date.startsWith(currentProfitMonth));
-            let monthExpenses = monthExpenseRows.filter(i => (i.transaction_type || 'expense') === 'expense' && i.is_depreciable !== true && !isDepositOrPrepaymentExpense(i.name));
-            let monthDepreciableExpenses = monthExpenseRows.filter(i => (i.transaction_type || 'expense') === 'expense' && i.is_depreciable === true);
-            let monthExtraIncome = monthExpenseRows.filter(i => i.transaction_type === 'income');
-            const expenseByType = type => monthExpenses.filter(i => classifyOperatingExpenseName(i.name) === type).reduce((a,i) => a + (Number(i.amount)||0), 0);
+            const monthMetrics = calculateMonthlyMetrics(currentProfitMonth, {
+                products, expenses, revenues: globalRevenuesData, settings: fixedSettings, platformRates
+            });
+            const {
+                hasSettings: hasMonthlySettings, monthRevenues, recordedBusinessDays,
+                totalUbereatsAd, totalFoodpandaAd, fixedCost: totalFixedCost,
+                monthExpenses, monthDepreciableExpenses, monthExtraIncome, trackedExpenseTotals,
+                totalOtherExpenses, averageCostRate, totalDepreciation, totalExtraIncome,
+                ueGrossSales, fpGrossSales, ueCommission, fpCommission,
+                totalPlatformCommission, totalGrossSales, monthlyFixedTotalCost,
+                estimatedIngredientCost, weightedPlatformCommissionRate,
+                contributionMarginRate, monthlyBreakEvenRevenue, ingredientCostRate, operatingProfitEstimate
+            } = monthMetrics;
+            // 舊畫面欄位沿用此名稱；統一指向共用計算核心的月固定／營運費用總額。
+            const monthlySettingsAndStoreExpenseTotal = monthlyFixedTotalCost;
+            const expenseByType = type => monthExpenses.filter(i => classifyOperatingExpenseName(i.name) === type)
+                .reduce((total, item) => total + (Number(item.amount) || 0), 0);
             let rentExpense = expenseByType('rent');
             let electricityExpense = expenseByType('electricity');
             let fulltimeSalaryExpense = expenseByType('fulltime');
             let parttimeSalaryExpense = expenseByType('parttime');
-            const trackedExpenseTotals = Object.fromEntries(
-                TRACKED_EXPENSE_TYPES.map(([type]) => [type, type === 'insurance'
-                    ? getAnnualInsuranceMonthlyAllocation(expenses, currentProfitMonth)
-                    : sumNamedExpenseType(monthExpenses, type)])
-            );
-            // 月損益以保險費全年金額 ÷ 12 攤提；其他支出仍按當月紀錄計算。
-            const insurancePaidThisMonth = sumNamedExpenseType(monthExpenses, 'insurance');
-            let totalOtherExpenses = monthExpenses.reduce((a,i) => a + (Number(i.amount)||0), 0)
-                - insurancePaidThisMonth + trackedExpenseTotals.insurance;
-            const averageCostRate = products.length
-                ? products.reduce((sum, item) => sum + calculateCostRate(item), 0) / products.length
-                : 0;
-            let totalDepreciation = 0;
-            const currentMonthNumber = Number(currentProfitMonth.slice(0,4))*12 + Number(currentProfitMonth.slice(5,7))-1;
-            expenses.filter(i => (i.transaction_type || 'expense') === 'expense' && i.is_depreciable === true).forEach(item => {
-                const dateMonth = String(item.date || '').slice(0,7);
-                if (!/^\d{4}-\d{2}$/.test(dateMonth)) return;
-                const startMonth = Number(dateMonth.slice(0,4))*12 + Number(dateMonth.slice(5,7))-1;
-                const usefulLifeYears = Math.max(1, Number(item.useful_life_years) || 5);
-                const lifeMonths = usefulLifeYears * 12;
-                const annualDepreciation = (Number(item.amount) || 0) / usefulLifeYears;
-                const monthlyDepreciation = annualDepreciation / 12;
-                const elapsed = currentMonthNumber - startMonth;
-                if (elapsed >= 0 && elapsed < lifeMonths) totalDepreciation += monthlyDepreciation;
-            });
-            let totalExtraIncome = monthExtraIncome.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
-            let monthRevenues = globalRevenuesData.filter(i => i.date && i.date.startsWith(currentProfitMonth));
-            let ueGrossSales = monthRevenues.reduce((sum, r) => sum + (parseFloat(r.ubereats) || 0), 0);
-            let fpGrossSales = monthRevenues.reduce((sum, r) => sum + (parseFloat(r.foodpanda) || 0), 0);
-            let ueCommission = ueGrossSales * ueRate;
-            let fpCommission = fpGrossSales * fpRate;
-            let totalPlatformCommission = ueCommission + fpCommission;
-            let totalGrossSales = monthRevenues.reduce((sum, r) =>
-                sum + (parseFloat(r.onsite) || 0) + (parseFloat(r.ubereats) || 0) + (parseFloat(r.foodpanda) || 0), 0);
-            // 每月固定總支出：當月所有非折舊、非押金/訂金的一般店內支出
-            // （包含房租、電費、正職/工讀薪資、網路、維修及其他雜項）
-            // + 月設定瓦斯/炸油/木炭 + UberEats月行銷費用 + foodpanda月行銷費用。
-            // 廣告費由 getMonthlyAdCosts() 依當月動態參數計算，不寫死金額。
-            let monthlySettingsAndStoreExpenseTotal = totalFixedCost + totalOtherExpenses;
-            let monthlyFixedTotalCost = monthlySettingsAndStoreExpenseTotal;
-            const estimatedIngredientCost = totalGrossSales * Math.max(0, Number(averageCostRate) || 0) / 100;
-            // 以當月各通路實際營收計算加權抽成率；現場營收抽成率為 0。
-            const weightedPlatformCommissionRate = totalGrossSales > 0
-                ? totalPlatformCommission / totalGrossSales : 0;
-            // 回本公式與預估營運損益一致：營業額扣食材成本、加權平台抽成及固定營運成本，
-            // 並將設備折舊列為成本、額外收入列為抵減項。
-            let contributionMarginRate = 1 - (Math.max(0, Number(averageCostRate) || 0) / 100) - weightedPlatformCommissionRate;
-            let monthlyBreakEvenRevenue = contributionMarginRate > 0
-                ? (monthlyFixedTotalCost + totalDepreciation - totalExtraIncome) / contributionMarginRate
-                : Infinity;
-            const workingDays = Math.max(1, Number(fixedSettings.workingDays) || 26);
+            const workingDays = Math.max(1, recordedBusinessDays);
             let dailyBreakEvenRevenue = monthlyBreakEvenRevenue / workingDays;
-            const ingredientCostRate = Math.max(0, Number(averageCostRate) || 0) / 100;
             const dailyFixedCostAllocation = (monthlyFixedTotalCost + totalDepreciation - totalExtraIncome) / workingDays;
 
 
@@ -3812,8 +3873,10 @@
                     let dObj = new Date(i.date);
                     if (!isNaN(dObj.getDay())) {
                         let wDay = dObj.getDay();
-                        weekdayTotals[wDay].sum += dayGrossTotal;
-                        weekdayTotals[wDay].count += 1;
+                        if (wDay !== 3) { // 星期三不納入星期平均洞察
+                            weekdayTotals[wDay].sum += dayGrossTotal;
+                            weekdayTotals[wDay].count += 1;
+                        }
                     }
                 }
 
@@ -3840,11 +3903,25 @@
             }
 
             // 預估食材成本依月營業額及目前商品平均成本率估算；已付款叫貨僅影響現金流，不列入營運損益。
-            let netProfit = totalGrossSales - estimatedIngredientCost - totalPlatformCommission - totalFixedCost - totalOtherExpenses + totalExtraIncome - totalDepreciation;
+            let netProfit = operatingProfitEstimate;
             let revenueGap = totalGrossSales - monthlyBreakEvenRevenue;
 
             const [pYear, pMonth] = currentProfitMonth.split('-');
             let monthDisplayTitle = `${pYear}年 ${parseInt(pMonth, 10)}月`;
+            const [selectedYearNum, selectedMonthNum] = currentProfitMonth.split('-').map(Number);
+            const monthDayCount = new Date(selectedYearNum, selectedMonthNum, 0).getDate();
+            const today = new Date();
+            const isCurrentSelectedMonth = currentProfitMonth === getCurrentYearMonth();
+            const lastDayToCheck = isCurrentSelectedMonth ? today.getDate() : (currentProfitMonth > getCurrentYearMonth() ? 0 : monthDayCount);
+            const recordedDateSet = new Set(monthRevenues.map(r => String(r.date || '').slice(0, 10)));
+            const missingRevenueDates = [];
+            for (let day = 1; day <= lastDayToCheck; day++) {
+                const dateKey = `${currentProfitMonth}-${String(day).padStart(2, '0')}`;
+                if (!recordedDateSet.has(dateKey)) missingRevenueDates.push(`${parseInt(pMonth, 10)}月${day}日`);
+            }
+            const missingRevenueHtml = missingRevenueDates.length
+                ? missingRevenueDates.join('、')
+                : '目前應填寫的日期都已完成';
 
             let html = `
                 <div class="controls-bar" style="margin-bottom: 20px;">
@@ -3858,7 +3935,7 @@
                 <div class="profit-card">
                     <h3 style="margin-top:0; color:#c2410c; font-size:16px; border-bottom:1px solid #fed7aa; padding-bottom:8px;">⚙️ 本月固定營運費用與回本門檻</h3>
                     <div class="profit-grid-settings">
-                        <div>營業天數：<b>${Number(fixedSettings.workingDays) || 26} 天</b></div>
+                        <div>營業天數：<b>${recordedBusinessDays} 天</b></div>
                         <div>平均成本率：<b>${averageCostRate.toFixed(1)}%</b></div>
                         <div>房租：<b>$${Math.round(rentExpense).toLocaleString()} 元</b></div>
                         <div>電費：<b>$${Math.round(electricityExpense).toLocaleString()} 元</b></div>
@@ -3901,7 +3978,7 @@
                     </div>
                     <div class="profit-row">
                         <span>📅 星期幾營運洞察</span>
-                        <b style="color: #9a3412; font-size: 13.5px;">⭐ 賺最多：${bestDay} &nbsp;|&nbsp; 📉 賺最少：${worstDay}</b>
+                        <b style="color: #9a3412; font-size: 13.5px;">⭐ 賺最多：${bestDay} &nbsp;|&nbsp; 📉 賺最少：${worstDay} <span style="font-size:11px;color:#a8a29e;">（不含星期三平均）</span></b>
                     </div>
                     <div class="profit-row">
                         <span>🎯 距離月回本目標營業額差距</span>
@@ -3913,6 +3990,7 @@
                     </div>
                 </div>
 
+                <div class="profit-card" style="margin:18px 0 10px;padding:14px 16px;background:#fffaf2;border-color:#eadbc7;"><b style="color:#8f5d3d;">📝 本月尚未填寫營業額日期</b><div style="margin-top:7px;font-size:13px;line-height:1.8;color:#72543e;">${missingRevenueHtml}</div></div>
                 <h4 style="color:#c2410c; margin: 20px 0 10px 0;">📅 本月每日營業額明細 (含平台實收試算)</h4>
             `;
 
@@ -4151,10 +4229,6 @@
             const currentMonthKey = getCurrentYearMonth();
             // 各月份在下方迴圈中分別讀取自己的平台抽成設定，歷史月份不套用最新月份比例。
             // 與「每月損益總表與回本試算」相同：使用目前商品平均成本率計算各月回本營業額目標。
-            const averageCostRate = products.length
-                ? products.reduce((sum, item) => sum + calculateCostRate(item), 0) / products.length
-                : 0;
-            const ingredientCostRate = Math.max(0, Number(averageCostRate) || 0) / 100;
             const capitalSettingsData = await getGlobalCapitalSettings();
             const capitalContributions = capitalSettingsData.contributions || Object.fromEntries(CAPITAL_PARTNERS.map(name => [name, 0]));
             const capitalContributionTotal = CAPITAL_PARTNERS.reduce((sum, name) => sum + (Number(capitalContributions[name]) || 0), 0);
@@ -4208,22 +4282,10 @@
                 (Number(e.amount) || 0) > 0
             );
 
-            // 設備每月折舊同時用於營運損益及設備帳面剩餘價值估算；設備本金只在實際現金流付款月份扣除。
-            const depreciationByMonth = Object.fromEntries(monthKeys.map(ym => [ym, 0]));
+            // 設備本金總額用於帳面價值；每月折舊只由 calculateMonthlyMetrics() 計算。
             depreciableItems.forEach(item => {
-                const cost = Number(item.amount) || 0;
-                const years = Math.max(1, Number(item.useful_life_years) || 5);
-                const usefulMonths = years * 12;
                 const purchaseMonth = validMonth(item.date) || currentMonthKey;
-                if (purchaseMonth > currentMonthKey) return;
-                totalEquipmentCost += cost;
-
-                for (const ym of monthKeys) {
-                    const elapsed = monthNumber(ym) - monthNumber(purchaseMonth);
-                    if (elapsed >= 0 && elapsed < usefulMonths) {
-                        depreciationByMonth[ym] += cost / usefulMonths;
-                    }
-                }
+                if (purchaseMonth <= currentMonthKey) totalEquipmentCost += Number(item.amount) || 0;
             });
 
             for (const ym of monthKeys) {
@@ -4232,76 +4294,27 @@
                 const monthPurchases = purchases.filter(x => validMonth(x.date) === ym);
                 const settings = settingsByMonth[ym] || null;
                 const monthPlatformRates = platformRatesFromRows(settingsRows, ym);
-                const ueRate = monthPlatformRates.ubereatsCommissionRate / 100;
-                const fpRate = monthPlatformRates.foodpandaCommissionRate / 100;
-                const hasSettings = !!settings && settings.fixedCostsConfigured !== false;
-
-
-                const monthAds = getMonthlyAdCosts(settings);
-                // 月設定僅讀取瓦斯、木炭、炸油與平台廣告；店租/薪資/水電由 expenses 當月支出讀取。
-                const fixedCost = hasSettings
-                    ? (Number(settings.gas) || 0) +
-                      (Number(settings.oil) || 0) +
-                      (Number(settings.charcoal) || 0) +
-                      monthAds.ubereats + monthAds.foodpanda
-                    : 0;
-                // 現金流的瓦斯、炸油、木炭採購已包含在每日叫貨金額，不可再扣月設定的耗用金額；月設定仍用於營運損益。
-                const cashFixedCost = hasSettings ? monthAds.ubereats + monthAds.foodpanda : 0;
-
-                const grossRevenue = sum(monthRevenues, r =>
-                    (Number(r.onsite) || 0) +
-                    (Number(r.ubereats) || 0) +
-                    (Number(r.foodpanda) || 0)
-                );
-                const ubereatsCommission = sum(monthRevenues, r => Number(r.ubereats) || 0) * ueRate;
-                const foodpandaCommission = sum(monthRevenues, r => Number(r.foodpanda) || 0) * fpRate;
-                const platformCommission = ubereatsCommission + foodpandaCommission;
+                const monthMetrics = calculateMonthlyMetrics(ym, {
+                    products, expenses, revenues, settings: settings || {},
+                    platformRates: monthPlatformRates
+                });
+                const {
+                    hasSettings, monthAds, fixedCost, cashFixedCost,
+                    totalGrossSales: grossRevenue, ueCommission: ubereatsCommission,
+                    fpCommission: foodpandaCommission, totalPlatformCommission: platformCommission,
+                    monthExpenses: monthOperatingExpenses, trackedExpenseTotals, totalExtraIncome: extraIncome,
+                    totalDepreciation: depreciation, estimatedIngredientCost,
+                    operatingProfitEstimate, monthlyBreakEvenRevenue, revenueGap,
+                    totalOtherExpenses
+                } = monthMetrics;
+                const monthExpensesRawForCash = monthMetrics.monthExpenseRows;
                 const netRevenue = grossRevenue - platformCommission;
-
                 const purchasePaid = sum(monthPurchases, p => p.total_price);
-                const extraIncome = sum(monthExpenses.filter(e => e.transaction_type === 'income'), e => e.amount);
-                const ordinaryExpenses = sum(monthExpenses.filter(e =>
-                    (e.transaction_type || 'expense') === 'expense' && e.is_depreciable !== true && !isDepositOrPrepaymentExpense(e.name)
-                ), e => e.amount);
-                const depositsAndPrepayments = sum(monthExpenses.filter(e =>
-                    (e.transaction_type || 'expense') === 'expense' && isDepositOrPrepaymentExpense(e.name)
-                ), e => e.amount);
-                const allCashExpenses = sum(monthExpenses.filter(e =>
-                    (e.transaction_type || 'expense') === 'expense'
-                ), e => e.amount);
-                const trackedExpenseTotals = Object.fromEntries(
-                    TRACKED_EXPENSE_TYPES.map(([type]) => [type, type === 'insurance'
-                        ? getAnnualInsuranceMonthlyAllocation(expenses, ym)
-                        : sumNamedExpenseType(monthExpenses, type)])
-                );
-                const insurancePaidThisMonth = sumNamedExpenseType(monthExpenses, 'insurance');
-                const profitBasisExpenses = allCashExpenses - insurancePaidThisMonth + trackedExpenseTotals.insurance;
-
-                const depreciation = depreciationByMonth[ym] || 0;
-                // 營運損益完全沿用「每月損益總表與回本試算」公式：
-                // 營收－平台抽成－月設定固定費用－一般店內支出（保險按月攤提）＋額外收入－設備月折舊。
-                // 商品叫貨付款、設備購買本金、押金及預付款不直接全額扣入營運損益。
-                const operatingExpenses = sum(monthExpenses.filter(e =>
-                    (e.transaction_type || 'expense') === 'expense' && e.is_depreciable !== true && !isDepositOrPrepaymentExpense(e.name)
-                ), e => e.amount);
-                const insurancePaidForProfit = sumNamedExpenseType(monthExpenses.filter(e =>
-                    (e.transaction_type || 'expense') === 'expense' && e.is_depreciable !== true && !isDepositOrPrepaymentExpense(e.name)
-                ), 'insurance');
-                const profitInsuranceAllocation = getAnnualInsuranceMonthlyAllocation(expenses, ym);
-                const totalOtherExpenses = operatingExpenses - insurancePaidForProfit + profitInsuranceAllocation;
-                const estimatedIngredientCost = grossRevenue * ingredientCostRate;
-                const weightedPlatformCommissionRate = grossRevenue > 0 ? platformCommission / grossRevenue : 0;
-                const operatingProfitEstimate = grossRevenue - estimatedIngredientCost - platformCommission - fixedCost - totalOtherExpenses + extraIncome - depreciation;
-
-                // 回本目標與預估營運損益採相同成本基礎，包含食材成本、平台加權抽成、折舊及額外收入。
-                const monthlyFixedTotalCost = fixedCost + totalOtherExpenses;
-                const contributionMarginRate = 1 - ingredientCostRate - weightedPlatformCommissionRate;
-                const monthlyBreakEvenRevenue = contributionMarginRate > 0
-                    ? (monthlyFixedTotalCost + depreciation - extraIncome) / contributionMarginRate
-                    : Infinity;
-                const revenueGap = grossRevenue - monthlyBreakEvenRevenue;
-
-                // 現金流仍依實際收付款計算；叫貨、設備本金、押金預付款按實際付款月份列入。
+                const ordinaryExpenses = sum(monthOperatingExpenses, e => e.amount);
+                const depositsAndPrepayments = sum(monthExpensesRawForCash.filter(e =>
+                    (e.transaction_type || 'expense') === 'expense' && isDepositOrPrepaymentExpense(e.name)), e => e.amount);
+                const allCashExpenses = sum(monthExpensesRawForCash.filter(e => (e.transaction_type || 'expense') === 'expense'), e => e.amount);
+                const profitBasisExpenses = totalOtherExpenses;
                 const cashMovement = grossRevenue - platformCommission - purchasePaid - allCashExpenses + extraIncome - cashFixedCost;
 
                 cumulativeOperatingProfit += operatingProfitEstimate;
@@ -4315,7 +4328,7 @@
 
                 monthRows.push({
                     month: ym, netRevenue, grossRevenue, ubereatsCommission, foodpandaCommission, platformCommission,
-                    purchasePaid, fixedCost, ordinaryExpenses, extraIncome, depreciation, estimatedIngredientCost,
+                    purchasePaid, fixedCost, cashFixedCost, ordinaryExpenses, extraIncome, depreciation, estimatedIngredientCost,
                     trackedExpenseTotals, operatingProfitEstimate, cashMovement, hasSettings,
                     monthlyBreakEvenRevenue, revenueGap, allCashExpenses, depositsAndPrepayments,
                     ubereatsCommission, foodpandaCommission, profitBasisExpenses, totalOtherExpenses
@@ -4373,13 +4386,13 @@
                                 <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>已付款商品叫貨</span><b>${moneyPlain(row.purchasePaid)}</b></div>
                                 <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>店內實際支出（含設備、押金等）</span><b>${moneyPlain(row.allCashExpenses)}</b></div>
                                 <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>保險費每月攤提（營運損益使用）</span><b>${moneyPlain(row.trackedExpenseTotals.insurance || 0)}</b></div>
-                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>月設定費用（瓦斯、炸油、木炭、平台廣告）</span><b>${moneyPlain(row.fixedCost)}</b></div>
+                                <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>月設定平台廣告費（UE + fp）</span><b>${moneyPlain(row.cashFixedCost)}</b></div>
                                 <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>額外收入</span><b>${moneyPlain(row.extraIncome)}</b></div>
                                 <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>平台抽成</span><b>${moneyPlain(row.platformCommission)}</b></div>
                                 <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;"><span>設備折舊（營運損益使用）</span><b>${moneyPlain(row.depreciation)}</b></div>
                                 <div style="margin-top:8px;padding:10px;border-radius:8px;background:#f8fafc;color:#475569;line-height:1.6;">
                                     <b>現金流怎麼算？</b><br>
-                                    月總營業額 − 平台抽成 − 已付款商品叫貨 − 店內實際支出 − 月設定費用 ＋ 額外收入。<br>
+                                    月總營業額 − 平台抽成 − 已付款商品叫貨 − 店內實際支出 − 月設定平台廣告費（UE + fp） ＋ 額外收入。<br>
                                     設備購買、押金及預付款會依實際付款影響現金流；營運損益則不會把這些款項全部當成當月費用。
                                 </div>
                             </div>
@@ -4416,7 +4429,7 @@
                     <h3 style="margin-top:0;color:#1d4ed8;font-size:18px;">💵 累積實際現金流（已付款叫貨納入）</h3>
                     <div class="profit-row"><span>累積已付款叫貨金額</span><b>${money(cumulativePurchases)}</b></div>
                     <div class="profit-row"><span>現金流公式已逐月扣除平台抽成；廣告費仍依各月設定獨立列入固定支出</span><b>抽成與廣告費分開</b></div>
-                    <div class="profit-row"><span>累積現金流淨額（營收－平台抽成－已付款叫貨－已記錄支出－設定固定成本＋額外收入）</span><b style="color:${cumulativeCashMovement >= 0 ? '#166534' : '#b91c1c'};">${cumulativeCashMovement >= 0 ? '+' : '−'}${money(Math.abs(cumulativeCashMovement))}</b></div>
+                    <div class="profit-row"><span>累積現金流淨額（營收－平台抽成－已付款叫貨－已記錄支出－月設定平台廣告費＋額外收入）</span><b style="color:${cumulativeCashMovement >= 0 ? '#166534' : '#b91c1c'};">${cumulativeCashMovement >= 0 ? '+' : '−'}${money(Math.abs(cumulativeCashMovement))}</b></div>
                     <p style="font-size:12px;color:#78716c;margin:8px 0 0;">營業稅、員工勞健保及網路費依支出月份列示；保險費輸入全年金額後，損益按 12 個月平均攤提。現金流仍於實際付款月份扣除全年保險費，不會重複扣款。</p>
                 </div>
 
@@ -4440,7 +4453,7 @@
                             <p><b>① 月總營業額</b><br>現場營業額＋Uber Eats 營業額＋foodpanda 營業額，這是平台抽成前的營業額。</p>
                             <p><b>② 距離月回本目標</b><br>本月總營業額－月回本營業額目標。負數代表還差多少營業額；正數代表已超過多少。</p>
                             <p><b>③ 本月預估營運損益</b><br>月營業額－預估食材成本（月營業額 × 平均食材成本率）－平台抽成－月設定費用－一般店內支出（保險按月攤提）＋額外收入－設備每月折舊。已付款商品叫貨不再從營運損益扣除。</p>
-                            <p><b>④ 現金流變動</b><br>月總營業額－平台抽成－實際已付款商品叫貨－店內實際支出－月設定費用＋額外收入。這是看實際資金增加或減少。</p>
+                            <p><b>④ 現金流變動</b><br>月總營業額－平台抽成－實際已付款商品叫貨－店內實際支出－月設定平台廣告費（UE + fp）＋額外收入。瓦斯、炸油、木炭的月設定金額只列損益，採購付款已透過叫貨紀錄列入現金流。這是看實際資金增加或減少。</p>
                             <p><b>⑤ 為什麼營運損益和現金流不同？</b><br>商品叫貨付款、設備購買、押金及預付款會影響實際現金流，但不一定全部是當月營運費用。設備購買本金不會一次全部扣進營運損益，而是依使用年限計算每月折舊。</p>
                             <p style="margin-bottom:0;"><b>⑥ 創業本金回收</b><br>初始投入資本是創業時投入的資金；系統另外追蹤實際現金流與目前推算現金餘額，觀察本金回收進度。初始投入資本本身不是營業收入或營運費用。</p>
                         </div>
