@@ -2251,16 +2251,6 @@
             closeWheelPicker();
         }
 
-        // 叫貨帳務分類只做程式端標記，不新增/修改 Supabase 欄位或資料表。
-        // 炸油、瓦斯、木炭屬「燃料／炸油耗材」：採購金額進現金流，不併入商品食材成本率。
-        function classifyPurchaseAccountingItem(item) {
-            const name = String(item && item.item_name || '').replace(/\s/g, '').toLowerCase();
-            if (/炸油|食用油|沙拉油|棕櫚油|大豆油|瓦斯|桶裝瓦斯|木炭|木碳|備長炭|龍眼木炭|竹炭|碳精|炭精/.test(name)) {
-                return { key: 'operating_consumable', label: '燃料／炸油耗材', note: '採購金額列現金流；月設定費用列損益，不計入商品食材成本率' };
-            }
-            return { key: 'food_or_other_purchase', label: '一般叫貨', note: '採購金額列現金流；不直接以叫貨總額計算商品成本率' };
-        }
-
         async function renderPurchasesList() {
             const contentEl = document.getElementById('page-content');
             contentEl.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding: 30px 0;">讀取叫貨記錄中...</p>';
@@ -2380,50 +2370,86 @@
             });
 
             let html = '';
-            let displayList = [...finalData].sort((a,b) => (b.date + b.id).localeCompare(a.date + a.id));
+            let displayList = [...finalData].sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')) || (Number(b.id) - Number(a.id)));
 
             if (displayList.length > 0) {
-                displayList.forEach((item, index) => {
-                    let info = cardHtmlMap[item.id] || { unitPrice: 0, change: null, compareEnabled: true };
-                    let isMoreExpensive = info.change !== null && info.change > 0;
-                    let isCheaper = info.change !== null && info.change < 0;
-                    let cardClass = isMoreExpensive ? 'item-card price-alert-card' : isCheaper ? 'item-card price-cheaper-card' : 'item-card';
-                    let zebraClass = (!isMoreExpensive && !isCheaper && index % 2 === 1) ? 'zebra-alt' : '';
-                    let qty = parseFloat(item.quantity) || 1;
-                    let total = parseFloat(item.total_price) || 0;
-                    let unit = item.unit || '條';
-                    const previousDateText = info.previousDate ? `${new Date(info.previousDate + 'T00:00:00').getFullYear()}年${new Date(info.previousDate + 'T00:00:00').getMonth()+1}月${new Date(info.previousDate + 'T00:00:00').getDate()}日` : '';
-                    let changeBadge = !info.compareEnabled
-                        ? `<div class="purchase-not-compared">⏸ 此筆紀錄不參與比價</div>`
-                        : info.change === null
-                            ? ''
-                            : info.change > 0
-                                ? `<div class="purchase-price-change purchase-price-up">▲ 比上次（${previousDateText}）貴 $${Math.abs(info.change).toFixed(2)} / ${unit}</div>`
-                                : info.change < 0
-                                    ? `<div class="purchase-price-change purchase-price-down">▼ 比上次（${previousDateText}）便宜 $${Math.abs(info.change).toFixed(2)} / ${unit}</div>`
-                                    : `<div class="purchase-price-change purchase-price-same">＝ 與上次（${previousDateText}）價格相同</div>`;
-                    let compareChecked = info.compareEnabled ? 'checked' : '';
+                // 先依日期，再依廠商分組：同一天同一廠商只顯示一張卡片。
+                const dateGroups = new Map();
+                displayList.forEach(item => {
+                    const dateKey = item.date || '未設定日期';
+                    const vendorKey = String(item.vendor || '').trim() || '未設定廠商';
+                    if (!dateGroups.has(dateKey)) dateGroups.set(dateKey, new Map());
+                    const vendorGroups = dateGroups.get(dateKey);
+                    if (!vendorGroups.has(vendorKey)) vendorGroups.set(vendorKey, []);
+                    vendorGroups.get(vendorKey).push(item);
+                });
 
+                dateGroups.forEach((vendorGroups, dateKey) => {
+                    const dateItems = [...vendorGroups.values()].flat();
+                    const dateTotal = dateItems.reduce((sum, item) => sum + (parseFloat(item.total_price) || 0), 0);
                     html += `
-                        <div class="${cardClass} ${zebraClass}" id="purchase-card-${item.id}">
-                            <div class="card-main-info">
-                                <h4>${item.item_name} <span>總價：$${total.toLocaleString()}</span></h4>
-                                <p><b>日期：</b>${item.date}</p>
-                                <p><b>廠商：</b>${item.vendor || '未設定'}</p>
-                                <p><b>帳務分類：</b><span title="${classifyPurchaseAccountingItem(item).note}" style="display:inline-block;padding:2px 8px;border-radius:99px;background:${classifyPurchaseAccountingItem(item).key === 'operating_consumable' ? '#fef3c7' : '#f5f5f4'};color:${classifyPurchaseAccountingItem(item).key === 'operating_consumable' ? '#92400e' : '#57534e'};font-size:12px;font-weight:700;">${classifyPurchaseAccountingItem(item).label}</span></p>
-                                <p><b>數量：</b>${qty} ${unit} &nbsp;|&nbsp; <b>計算單價：</b>$${Math.round(info.unitPrice)} / ${unit}</p>
-                                ${changeBadge}
-                                <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:#806b57;">
-                                    <input type="checkbox" ${compareChecked} onchange="setPurchaseCompareEnabled(${item.id}, this.checked)" style="width:17px;height:17px;accent-color:#b97850;">
-                                    參與價格比較
-                                </label>
+                        <section class="purchase-date-group" style="grid-column:1/-1;margin:8px 0 18px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:10px;border-radius:12px;background:#f3e8d9;border:1px solid #e5d2bd;color:#6f4e37;">
+                                <strong style="font-size:16px;">📅 ${dateKey}</strong>
+                                <span style="font-size:13px;">${dateItems.length} 筆細項・${vendorGroups.size} 家廠商・當日合計 <b>$${dateTotal.toLocaleString()}</b></span>
                             </div>
-                            <div class="card-actions" id="purchase-actions-${item.id}">
-                                <button class="card-btn edit-btn" onclick="renderEditPurchaseForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirmPurchase(${item.id})">🗑️ 刪除</button>
-                            </div>
-                        </div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:12px;">
                     `;
+
+                    vendorGroups.forEach((items, vendorName) => {
+                        const vendorTotal = items.reduce((sum, item) => sum + (parseFloat(item.total_price) || 0), 0);
+                        const itemRows = items.map(item => {
+                            const info = cardHtmlMap[item.id] || { unitPrice: 0, change: null, compareEnabled: true };
+                            const qty = parseFloat(item.quantity) || 1;
+                            const total = parseFloat(item.total_price) || 0;
+                            const unit = item.unit || '條';
+                            const previousDateText = info.previousDate ? `${new Date(info.previousDate + 'T00:00:00').getFullYear()}年${new Date(info.previousDate + 'T00:00:00').getMonth()+1}月${new Date(info.previousDate + 'T00:00:00').getDate()}日` : '';
+                            const changeBadge = !info.compareEnabled
+                                ? `<div class="purchase-not-compared">⏸ 此筆紀錄不參與比價</div>`
+                                : info.change === null ? ''
+                                : info.change > 0
+                                    ? `<div class="purchase-price-change purchase-price-up">▲ 比上次（${previousDateText}）貴 $${Math.abs(info.change).toFixed(2)} / ${unit}</div>`
+                                    : info.change < 0
+                                        ? `<div class="purchase-price-change purchase-price-down">▼ 比上次（${previousDateText}）便宜 $${Math.abs(info.change).toFixed(2)} / ${unit}</div>`
+                                        : `<div class="purchase-price-change purchase-price-same">＝ 與上次（${previousDateText}）價格相同</div>`;
+                            const compareChecked = info.compareEnabled ? 'checked' : '';
+                            const priceClass = info.change > 0 ? 'purchase-price-up' : info.change < 0 ? 'purchase-price-down' : '';
+                            return `
+                                <div class="purchase-vendor-item" style="padding:12px 0;border-top:1px solid #eee2d5;">
+                                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
+                                        <div style="min-width:0;">
+                                            <strong style="color:#5f4634;">${item.item_name || '未命名品項'}</strong>
+                                            <div style="font-size:13px;color:#806b57;margin-top:5px;">數量：${qty} ${unit}　|　單價：$${Math.round(info.unitPrice).toLocaleString()} / ${unit}</div>
+                                            <div style="font-size:13px;color:#806b57;margin-top:3px;">小計：<b>$${total.toLocaleString()}</b></div>
+                                        </div>
+                                        <div class="card-actions" style="flex-shrink:0;">
+                                            <button class="card-btn edit-btn" onclick="renderEditPurchaseForm(${item.id})">✏️ 修改</button>
+                                            <button class="card-btn delete-btn" onclick="showDeleteConfirmPurchase(${item.id})">🗑️ 刪除</button>
+                                        </div>
+                                    </div>
+                                    ${changeBadge}
+                                    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:#806b57;">
+                                        <input type="checkbox" ${compareChecked} onchange="setPurchaseCompareEnabled(${item.id}, this.checked)" style="width:17px;height:17px;accent-color:#b97850;">
+                                        參與價格比較
+                                    </label>
+                                </div>
+                            `;
+                        }).join('');
+
+                        html += `
+                            <details class="purchase-vendor-card" style="background:#fff;border:1px solid #e7d9ca;border-radius:14px;padding:0 14px;box-shadow:0 2px 8px rgba(90,60,35,.06);">
+                                <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 0;color:#654b37;">
+                                    <span style="font-weight:800;">🏢 ${vendorName}</span>
+                                    <span style="font-size:13px;color:#806b57;text-align:right;">${items.length} 筆　合計 <b style="color:#8d5737;">$${vendorTotal.toLocaleString()}</b>　⌄</span>
+                                </summary>
+                                <div style="padding-bottom:8px;">
+                                    ${itemRows}
+                                </div>
+                            </details>
+                        `;
+                    });
+
+                    html += `</div></section>`;
                 });
             } else {
                 html = '<p style="color:var(--text-muted); text-align:center; padding: 40px 0;">此條件下沒有叫貨紀錄。</p>';
