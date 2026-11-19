@@ -3186,26 +3186,54 @@
             `;
 
             html += '<div id="expense-cards-container" class="items-grid">';
-            filteredData.forEach((item, index) => {
-                    let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    let isIncome = item.transaction_type === 'income';
-                    let depreciationBadge = isIncome ? `<div style="color:#166534; font-weight:700; font-size:12.5px; margin-top:4px;">💰 額外收入</div>` : item.is_depreciable ? `<div style="color:#0284c7; font-weight:700; font-size:12.5px; margin-top:4px;">🏷️ 已啟用折舊 (${item.useful_life_years || 5}年攤提)</div>` : `<div style="color:#78716c; font-weight:600; font-size:12.5px; margin-top:4px;">💡 一般支出 (不折舊)</div>`;
-                    html += `
-                        <div class="item-card ${zebraClass}" id="expense-card-${item.id}" data-expense-name="${escapeExpenseSearchAttribute(item.name)}" data-expense-vendor="${escapeExpenseSearchAttribute(item.vendor || '')}" data-expense-amount="${Number(item.amount) || 0}" data-expense-type="${isIncome ? 'income' : 'expense'}">
-                            <div class="card-main-info">
-                                <h4>${isIncome ? '🟢 ' : '🔴 '}${item.name} <span class="total-amount-tag">$${item.amount} 元</span></h4>
-                                <p><b>日期：</b>${item.date}</p>
-                                <p><b>數量：</b>${item.quantity || 1}</p>
-                                <p><b>相關廠商：</b>${item.vendor || '無'}</p>
-                                ${depreciationBadge}
-                            </div>
-                            <div class="card-actions" id="expense-actions-${item.id}">
-                                <button class="card-btn edit-btn" onclick="renderEditExpenseForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirmExpense(${item.id})">🗑️ 刪除</button>
-                            </div>
-                        </div>
-                    `;
-            });
+            if (filteredData.length) {
+                // 與每日叫貨相同：先依日期分組，同一天同一相關廠商集中在同一張可展開卡片。
+                const expenseDateGroups = new Map();
+                filteredData.forEach(item => {
+                    const dateKey = item.date || '未設定日期';
+                    const vendorKey = String(item.vendor || '').trim() || '未設定廠商';
+                    if (!expenseDateGroups.has(dateKey)) expenseDateGroups.set(dateKey, new Map());
+                    const vendorGroups = expenseDateGroups.get(dateKey);
+                    if (!vendorGroups.has(vendorKey)) vendorGroups.set(vendorKey, []);
+                    vendorGroups.get(vendorKey).push(item);
+                });
+                expenseDateGroups.forEach((vendorGroups, dateKey) => {
+                    const dateItems = [...vendorGroups.values()].flat();
+                    const dateExpense = dateItems.filter(x => (x.transaction_type || 'expense') === 'expense').reduce((sum,x)=>sum+(Number(x.amount)||0),0);
+                    const dateIncome = dateItems.filter(x => x.transaction_type === 'income').reduce((sum,x)=>sum+(Number(x.amount)||0),0);
+                    html += `<section class="expense-date-group" data-expense-date-group style="grid-column:1/-1;margin:8px 0 18px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:10px;border-radius:12px;background:#f3e8d9;border:1px solid #e5d2bd;color:#6f4e37;">
+                            <strong style="font-size:16px;">📅 ${dateKey}</strong>
+                            <span style="font-size:13px;">${dateItems.length} 筆收支・${vendorGroups.size} 家廠商　支出 <b>$${dateExpense.toLocaleString()}</b>　收入 <b>$${dateIncome.toLocaleString()}</b></span>
+                        </div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:12px;">`;
+                    vendorGroups.forEach((items, vendorName) => {
+                        const vendorExpense = items.filter(x => (x.transaction_type || 'expense') === 'expense').reduce((sum,x)=>sum+(Number(x.amount)||0),0);
+                        const vendorIncome = items.filter(x => x.transaction_type === 'income').reduce((sum,x)=>sum+(Number(x.amount)||0),0);
+                        const itemRows = items.map(item => {
+                            const isIncome = item.transaction_type === 'income';
+                            const depreciationBadge = isIncome ? `<div style="color:#166534;font-weight:700;font-size:12.5px;margin-top:4px;">💰 額外收入</div>` : item.is_depreciable ? `<div style="color:#0284c7;font-weight:700;font-size:12.5px;margin-top:4px;">🏷️ 已啟用折舊 (${item.useful_life_years || 5}年攤提)</div>` : `<div style="color:#78716c;font-weight:600;font-size:12.5px;margin-top:4px;">💡 一般支出 (不折舊)</div>`;
+                            return `<div class="item-card" id="expense-card-${item.id}" data-expense-name="${escapeExpenseSearchAttribute(item.name)}" data-expense-vendor="${escapeExpenseSearchAttribute(item.vendor || '')}" data-expense-amount="${Number(item.amount)||0}" data-expense-type="${isIncome?'income':'expense'}" style="margin:10px 0 0;box-shadow:none;">
+                                <div class="card-main-info">
+                                    <h4>${isIncome?'🟢 ':'🔴 '}${escapeExpenseSearchAttribute(item.name)} <span class="total-amount-tag">$${Number(item.amount||0).toLocaleString()} 元</span></h4>
+                                    <p><b>數量：</b>${item.quantity || 1}</p>
+                                    ${depreciationBadge}
+                                </div>
+                                <div class="card-actions" id="expense-actions-${item.id}">
+                                    <button class="card-btn edit-btn" onclick="renderEditExpenseForm(${item.id})">✏️ 修改</button>
+                                    <button class="card-btn delete-btn" onclick="showDeleteConfirmExpense(${item.id})">🗑️ 刪除</button>
+                                </div>
+                            </div>`;
+                        }).join('');
+                        html += `<details class="expense-vendor-card" data-expense-vendor-group open style="background:#fff;border:1px solid #e7d9ca;border-radius:14px;padding:0 14px;box-shadow:0 2px 8px rgba(90,60,35,.06);">
+                            <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 0;color:#654b37;">
+                                <span style="font-weight:800;">🏢 ${escapeExpenseSearchAttribute(vendorName)}</span>
+                                <span style="font-size:13px;color:#806b57;text-align:right;">${items.length} 筆　支出 <b style="color:#b45309;">$${vendorExpense.toLocaleString()}</b>${vendorIncome ? `　收入 <b style="color:#166534;">$${vendorIncome.toLocaleString()}</b>` : ''}　⌄</span>
+                            </summary><div style="padding-bottom:10px;">${itemRows}</div>
+                        </details>`;
+                    });
+                    html += '</div></section>';
+                });
+            }
             html += '</div>';
             html += '<p id="expense-no-keyword-results" style="display:none; color:var(--text-muted); text-align:center; padding:30px 0;">沒有找到符合條件的支出紀錄。</p>';
             contentEl.innerHTML = html;
@@ -3354,18 +3382,23 @@
             let visibleIncomeTotal = 0;
 
             cards.forEach(card => {
-                // 只搜尋明確指定的兩個可見欄位：支出項目名稱、相關廠商。
+                // 搜尋支出項目名稱及相關廠商；符合的細項保留在原日期／廠商卡片內。
                 const name = String(card.dataset.expenseName ?? '').toLocaleLowerCase();
                 const vendor = String(card.dataset.expenseVendor ?? '').toLocaleLowerCase();
                 const matched = !keyword || name.includes(keyword) || vendor.includes(keyword);
                 card.style.display = matched ? '' : 'none';
-
                 if (matched) {
                     visibleCount++;
                     const amount = Number(card.dataset.expenseAmount) || 0;
                     if (card.dataset.expenseType === 'income') visibleIncomeTotal += amount;
                     else visibleExpenseTotal += amount;
                 }
+            });
+            container.querySelectorAll('[data-expense-vendor-group]').forEach(group => {
+                group.style.display = group.querySelector('.item-card:not([style*="display: none"])') ? '' : 'none';
+            });
+            container.querySelectorAll('[data-expense-date-group]').forEach(group => {
+                group.style.display = group.querySelector('[data-expense-vendor-group]:not([style*="display: none"])') ? '' : 'none';
             });
 
             const noResults = document.getElementById('expense-no-keyword-results');
@@ -3402,6 +3435,91 @@
         // 質感按鈕群組折舊年限變數
         let selectedDepYears = 5;
 
+        // 店內支出相關廠商選單：沿用每日叫貨的滾輪選擇器操作，不改動資料庫欄位。
+        const EXPENSE_VENDOR_STORAGE_KEY = 'malinji_expense_custom_vendors_v1';
+        let expenseVendorPickerPrefix = '';
+        function escapeExpenseVendorHtml(value) { return escapeExpenseSearchAttribute(value); }
+        function getExpenseVendorOptions(currentVendor = '') {
+            let custom = [];
+            try {
+                const saved = JSON.parse(localStorage.getItem(EXPENSE_VENDOR_STORAGE_KEY) || '[]');
+                if (Array.isArray(saved)) custom = saved.filter(v => typeof v === 'string' && v.trim());
+            } catch (e) {}
+            const existing = (globalExpensesData || []).map(item => String(item.vendor || '').trim()).filter(Boolean);
+            return [...new Set([...custom, ...existing, String(currentVendor || '').trim()].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+        }
+        function saveExpenseVendorOptions(options) {
+            try { localStorage.setItem(EXPENSE_VENDOR_STORAGE_KEY, JSON.stringify(options)); } catch (e) {}
+        }
+        function renderExpenseVendorField(prefix, currentVendor = '') {
+            const selected = String(currentVendor || '');
+            return `<div class="form-group"><label>相關廠商</label>
+                <input type="hidden" id="${prefix}-vendor" value="${escapeExpenseVendorHtml(selected)}">
+                <button type="button" class="order-time-btn" id="${prefix}-vendor-display" onclick="openExpenseVendorFormPicker('${prefix}')" style="width:100%;text-align:left;justify-content:space-between;">
+                    <span>${selected ? escapeExpenseVendorHtml(selected) : '請選擇相關廠商（可留空）'}</span><span>⌄</span>
+                </button>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <input type="text" id="${prefix}-vendor-new" placeholder="有新廠商？輸入名稱" style="flex:1;min-width:0;">
+                    <button type="button" class="card-btn" onclick="addExpenseVendorOption('${prefix}')" style="white-space:nowrap;">＋加入選單</button>
+                </div></div>`;
+        }
+        function setExpenseVendorSelection(prefix, name) {
+            const hidden = document.getElementById(`${prefix}-vendor`);
+            const display = document.getElementById(`${prefix}-vendor-display`);
+            if (hidden) hidden.value = name;
+            if (display) display.innerHTML = `<span>${escapeExpenseVendorHtml(name || '請選擇相關廠商（可留空）')}</span><span>⌄</span>`;
+        }
+        function addExpenseVendorOption(prefix) {
+            const input = document.getElementById(`${prefix}-vendor-new`);
+            const name = input?.value.trim() || '';
+            if (!name) { input?.focus(); return; }
+            const options = getExpenseVendorOptions();
+            if (!options.includes(name)) options.push(name);
+            saveExpenseVendorOptions(options);
+            setExpenseVendorSelection(prefix, name);
+            if (input) input.value = '';
+        }
+        function getExpenseVendorValue(prefix) {
+            const input = document.getElementById(`${prefix}-vendor-new`);
+            const typed = input?.value.trim() || '';
+            if (typed) {
+                const options = getExpenseVendorOptions();
+                if (!options.includes(typed)) options.push(typed);
+                saveExpenseVendorOptions(options);
+                setExpenseVendorSelection(prefix, typed);
+                input.value = '';
+                return typed;
+            }
+            return document.getElementById(`${prefix}-vendor`)?.value.trim() || '';
+        }
+        function openExpenseVendorFormPicker(prefix) {
+            expenseVendorPickerPrefix = prefix;
+            const options = getExpenseVendorOptions();
+            const current = document.getElementById(`${prefix}-vendor`)?.value || '';
+            const selectedIndex = Math.max(0, options.indexOf(current));
+            const overlay = document.createElement('div');
+            overlay.className = 'picker-overlay'; overlay.id = 'wheel-picker-overlay';
+            overlay.innerHTML = `<div class="picker-modal" style="width:340px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:22px 16px;">
+                <h4>🏷️ 選擇相關廠商</h4>
+                <div class="picker-wheels-container" style="justify-content:center;">
+                    <div class="wheel-column" id="wheel-expense-vendor" onscroll="highlightSelected('expense-vendor')" style="width:100%;max-width:100%;">
+                        <div style="height:47.5px;"></div>${options.map((name,index)=>`<div class="wheel-item" data-val="${index}">${escapeExpenseVendorHtml(name)}</div>`).join('')}<div style="height:47.5px;"></div>
+                    </div>
+                </div><div class="picker-btn-group"><button class="picker-btn picker-cancel" onclick="closeWheelPicker()">取消</button><button class="picker-btn picker-confirm" onclick="confirmExpenseVendorPicker()">確定選取</button></div></div>`;
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => {
+                const col = document.getElementById('wheel-expense-vendor');
+                const item = col?.querySelectorAll('.wheel-item')[selectedIndex];
+                if (col && item) { col.scrollTop = item.offsetTop - col.clientHeight / 2 + item.clientHeight / 2; highlightSelected('expense-vendor'); }
+            });
+        }
+        function confirmExpenseVendorPicker() {
+            const index = Number(getSelectedValue('expense-vendor'));
+            const options = getExpenseVendorOptions();
+            if (options[index]) setExpenseVendorSelection(expenseVendorPickerPrefix, options[index]);
+            closeWheelPicker();
+        }
+
         function renderAddExpenseForm() {
             const titleEl = document.getElementById('page-title');
             const contentEl = document.getElementById('page-content');
@@ -3423,7 +3541,7 @@
                     <div class="form-group"><label>項目名稱</label><input type="text" id="exp-name" list="standard-expense-categories" placeholder="例如: 營業用冰箱、瓦斯桶、竹籤"><datalist id="standard-expense-categories"><option value="營業稅"></option><option value="保險費"></option><option value="員工勞健保"></option><option value="網路費"></option></datalist></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="exp-qty" value="1" placeholder="請輸入數量"></div>
                     <div class="form-group"><label>金額 (總金額)</label><input type="number" step="0.01" id="exp-amount" placeholder="請輸入總金額"></div>
-                    <div class="form-group"><label>相關廠商</label><input type="text" id="exp-vendor" placeholder="例如: 餐廳設備行、欣欣瓦斯"></div>
+                    ${renderExpenseVendorField('exp')}
 
                     <!-- 超質感點擊式折舊開關卡片 -->
                     <div class="form-group" id="add-depreciation-group">
@@ -3494,7 +3612,7 @@
             const name = document.getElementById('exp-name').value.trim();
             const quantity = parseFloat(document.getElementById('exp-qty').value) || 1;
             const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
-            const vendor = document.getElementById('exp-vendor').value.trim();
+            const vendor = getExpenseVendorValue('exp');
             const transaction_type = document.getElementById('exp-type').value;
             const is_depreciable = transaction_type === 'expense' && document.getElementById('dep-toggle-card').classList.contains('active');
             const useful_life_years = is_depreciable ? selectedDepYears : 0;
@@ -3535,7 +3653,7 @@
                     <div class="form-group"><label>支出項目名稱</label><input type="text" id="edit-exp-name" list="standard-expense-categories-edit" value="${item.name}"><datalist id="standard-expense-categories-edit"><option value="營業稅"></option><option value="保險費"></option><option value="員工勞健保"></option><option value="網路費"></option></datalist></div>
                     <div class="form-group"><label>數量</label><input type="number" step="1" id="edit-exp-qty" value="${item.quantity || 1}"></div>
                     <div class="form-group"><label>金額</label><input type="number" step="0.01" id="edit-exp-amount" value="${item.amount}"></div>
-                    <div class="form-group"><label>相關廠商</label><input type="text" id="edit-exp-vendor" value="${item.vendor || ''}"></div>
+                    ${renderExpenseVendorField('edit-exp', item.vendor || '')}
 
                     <!-- 超質感點擊式折舊開關卡片 -->
                     <div class="form-group" id="edit-depreciation-group" style="display:${isIncome ? 'none' : 'block'};">
@@ -3581,7 +3699,7 @@
             const name = document.getElementById('edit-exp-name').value.trim();
             const quantity = parseFloat(document.getElementById('edit-exp-qty').value) || 1;
             const amount = parseFloat(document.getElementById('edit-exp-amount').value) || 0;
-            const vendor = document.getElementById('edit-exp-vendor').value.trim();
+            const vendor = getExpenseVendorValue('edit-exp');
             const transaction_type = document.getElementById('edit-exp-type').value;
             const is_depreciable = transaction_type === 'expense' && document.getElementById('edit-dep-toggle-card').classList.contains('active');
             const useful_life_years = is_depreciable ? selectedDepYears : 0;
