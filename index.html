@@ -1093,6 +1093,23 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 
+
+<style id="customer-order-styles">
+.customer-order-wrap{max-width:920px;margin:0 auto;padding:8px 0 36px;color:#49372b}
+.customer-order-brand{text-align:center;padding:18px 12px 22px;background:linear-gradient(135deg,#f8eddb,#fffaf2);border:1px solid #eadbc7;border-radius:18px;margin-bottom:16px}
+.customer-order-brand h1{margin:0 0 5px;font-size:25px;color:#704a32}.customer-order-brand p{margin:0;color:#92765f;font-size:13px}
+.customer-order-group{background:#fff;border:1px solid #eadbc7;border-radius:14px;padding:14px;margin:12px 0}
+.customer-order-group h3{margin:0 0 10px;color:#8f5d3d;font-size:17px}
+.customer-product-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid #f0e7dc}.customer-product-row:first-of-type{border-top:0}
+.customer-product-main{flex:1;min-width:0}.customer-product-name{font-weight:800;font-size:15px}.customer-product-price{font-size:13px;color:#92765f;margin-top:3px}
+.customer-qty{display:flex;align-items:center;gap:8px}.customer-qty button{width:34px;height:34px;border:1px solid #d9c4aa;border-radius:10px;background:#fff8ef;color:#79563c;font-size:20px;font-weight:800}.customer-qty span{min-width:18px;text-align:center;font-weight:800}
+.customer-order-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.customer-order-field{display:flex;flex-direction:column;gap:5px}.customer-order-field.full{grid-column:1/-1}.customer-order-field label{font-size:13px;font-weight:800;color:#72543e}.customer-order-field input,.customer-order-field textarea{width:100%;box-sizing:border-box;border:1px solid #dfcdb8;border-radius:10px;padding:11px;background:#fffdf9;font:inherit;color:#49372b}.customer-order-field textarea{min-height:82px;resize:vertical}
+.customer-order-submit{width:100%;padding:14px;border:0;border-radius:12px;background:#80583b;color:#fff;font-size:16px;font-weight:850;margin-top:13px}.customer-order-submit:disabled{opacity:.55}
+.customer-order-total{display:flex;justify-content:space-between;align-items:center;font-weight:850;font-size:17px;padding:12px 0 0;border-top:1px solid #eadbc7;margin-top:10px}.customer-order-success{padding:24px 15px;text-align:center;background:#f1f8ee;border:1px solid #cfe2c7;border-radius:16px;color:#355d36}.customer-order-success h2{margin:0 0 8px}
+.customer-admin-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}.customer-admin-card{background:#fff;border:1px solid #eadbc7;border-radius:13px;padding:14px;margin:10px 0}.customer-admin-card h3{margin:0 0 8px;color:#704a32}.customer-admin-meta{font-size:13px;line-height:1.8;color:#725e4c}.customer-admin-items{white-space:pre-line;background:#fffaf3;border-radius:9px;padding:9px;margin:8px 0;font-size:14px}.customer-admin-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.customer-admin-actions button,.customer-admin-toolbar button{border:1px solid #d9c4aa;background:#fff8ef;color:#79563c;border-radius:9px;padding:8px 11px;font-weight:750}.customer-admin-login{max-width:430px;margin:25px auto;background:#fff;border:1px solid #eadbc7;border-radius:16px;padding:18px}.customer-admin-login input{width:100%;box-sizing:border-box;margin:6px 0 12px;padding:11px;border:1px solid #dfcdb8;border-radius:9px}.customer-order-muted{color:#92765f;font-size:13px;line-height:1.7}
+@media(max-width:560px){.customer-order-form{grid-template-columns:1fr}.customer-order-field.full{grid-column:auto}.customer-order-brand h1{font-size:22px}}
+</style>
+
 </head>
 <body>
 
@@ -1127,6 +1144,10 @@
                 </div>
                 <div class="menu-card" onclick="openPage('ordering')">
                     <span class="menu-icon">🛒</span><div class="menu-card-content"><h3>快速點餐</h3></div>
+                    <div class="arrow">↗</div>
+                </div>
+                <div class="menu-card" onclick="openPage('customer-orders-admin')">
+                    <span class="menu-icon">🔔</span><div class="menu-card-content"><h3>客人線上訂單</h3></div>
                     <div class="arrow">↗</div>
                 </div>
                 <div class="menu-card" onclick="openPage('menu-generator')">
@@ -1222,6 +1243,9 @@
             } else if (pageName === 'ordering') {
                 titleEl.innerText = '快速點餐';
                 renderOrderView();
+            } else if (pageName === 'customer-orders-admin') {
+                titleEl.innerText = '客人線上訂單管理';
+                renderCustomerOrderAdmin();
             } else if (pageName === 'menu-generator') {
                 titleEl.innerText = '產生菜單';
                 actionContainer.innerHTML = `<button class="action-btn" onclick="refreshIntegratedMenuProducts()">↻ 重新同步販售品項</button>`;
@@ -1521,17 +1545,22 @@
                 filteredData.forEach((item, index) => {
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
                     html += `
-                        <div class="item-card ${zebraClass}" id="recipe-card-${item.id}">
-                            <div class="card-main-info">
-                                <h4>${item.name} <span>[${item.category || '一般'}]</span></h4>
-                                <p><b>📋 配方材料：</b><br><span style="white-space: pre-line; color: #44403c;">${item.ingredients || '無'}</span></p>
-                                <p style="margin-top:8px;"><b>🍳 製作過程與步驟：</b><br><span style="white-space: pre-line; color: #44403c;">${item.steps || '無'}</span></p>
-                                <p style="margin-top:8px;"><b>備註：</b>${parseProductNote(item.note).note || '無'}</p>
-                            </div>
-                            <div class="card-actions" id="recipe-actions-${item.id}">
-                                <button class="card-btn edit-btn" onclick="renderEditRecipeForm(${item.id})">✏️ 修改</button>
-                                <button class="card-btn delete-btn" onclick="showDeleteConfirmRecipe(${item.id})">🗑️ 刪除</button>
-                            </div>
+                        <div class="item-card ${zebraClass}" id="recipe-card-${item.id}" style="padding:14px 16px;">
+                            <details class="recipe-detail-toggle" style="width:100%;">
+                                <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;color:#654b37;font-weight:800;">
+                                    <span>📖 ${escapeOrderHtml(item.name || '未命名品項')} <span style="font-size:12px;color:#9a8068;font-weight:600;">[${escapeOrderHtml(item.category || '一般')}]</span></span>
+                                    <span style="font-size:12px;color:#9a8068;white-space:nowrap;">查看配方細項　⌄</span>
+                                </summary>
+                                <div class="card-main-info" style="padding-top:12px;">
+                                    <p><b>📋 配方材料：</b><br><span style="white-space: pre-line; color: #44403c;">${escapeOrderHtml(item.ingredients || '無')}</span></p>
+                                    <p style="margin-top:8px;"><b>🍳 製作過程與步驟：</b><br><span style="white-space: pre-line; color: #44403c;">${escapeOrderHtml(item.steps || '無')}</span></p>
+                                    <p style="margin-top:8px;"><b>備註：</b>${escapeOrderHtml(parseProductNote(item.note).note || '無')}</p>
+                                </div>
+                                <div class="card-actions" id="recipe-actions-${item.id}">
+                                    <button class="card-btn edit-btn" onclick="renderEditRecipeForm(${item.id})">✏️ 修改</button>
+                                    <button class="card-btn delete-btn" onclick="showDeleteConfirmRecipe(${item.id})">🗑️ 刪除</button>
+                                </div>
+                            </details>
                         </div>
                     `;
                 });
@@ -2437,7 +2466,7 @@
                         }).join('');
 
                         html += `
-                            <details class="purchase-vendor-card" open style="background:#fff;border:1px solid #e7d9ca;border-radius:14px;padding:0 14px;box-shadow:0 2px 8px rgba(90,60,35,.06);">
+                            <details class="purchase-vendor-card" style="background:#fff;border:1px solid #e7d9ca;border-radius:14px;padding:0 14px;box-shadow:0 2px 8px rgba(90,60,35,.06);">
                                 <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 0;color:#654b37;">
                                     <span style="font-weight:800;">🏢 ${vendorName}</span>
                                     <span style="font-size:13px;color:#806b57;text-align:right;">${items.length} 筆　合計 <b style="color:#8d5737;">$${vendorTotal.toLocaleString()}</b>　⌄</span>
@@ -2752,6 +2781,103 @@
         }
 
 
+        // ==================== 客人線上點餐 / 店家訂單管理 ====================
+        // 推播公開金鑰由店家部署時填入；私密 VAPID 金鑰只放在 Edge Function Secrets。
+        const CUSTOMER_PUSH_PUBLIC_KEY = 'REPLACE_WITH_VAPID_PUBLIC_KEY';
+        const CUSTOMER_ORDER_FUNCTION = 'customer-orders';
+        let customerPublicProducts = [];
+        let customerPublicCart = {};
+        let customerOrderRealtime = null;
+        let customerAdminOrders = [];
+        let customerAdminStatusFilter = 'all';
+
+        function customerEscape(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+        function customerMoney(value) { return '$' + (Number(value)||0).toLocaleString('zh-TW'); }
+        function customerCategory(product, settings) {
+            const allowed = ['碳烤伴餐類','雞肉類','牛肉類','豬肉類','羊肉類','海鮮類','蔬菜類','炸物類','飲品類'];
+            const cat = settings?.[String(product.id)]?.category;
+            return allowed.includes(cat) ? cat : '其他餐點';
+        }
+        async function renderCustomerPublicPage() {
+            document.title = '馬鈴吉碳烤｜線上點餐';
+            document.getElementById('home-view').style.display = 'none';
+            document.getElementById('sub-view').style.display = 'block';
+            document.querySelector('.top-bar').style.display = 'none';
+            document.getElementById('page-title').textContent = '線上點餐';
+            document.getElementById('top-action-container').innerHTML = '';
+            const content = document.getElementById('page-content');
+            content.innerHTML = '<p style="text-align:center;padding:35px;color:#92765f;">正在載入菜單…</p>';
+            const [{data:products,error},{data:menuData}] = await Promise.all([
+                _supabase.from('products').select('id,name,price').order('id',{ascending:true}),
+                _supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle()
+            ]);
+            if(error){content.innerHTML='<p style="padding:24px;color:#b91c1c;">目前無法載入菜單，請稍後再試。</p>';return;}
+            customerPublicProducts = products || [];
+            const settings = menuData?.settings_json?.menuItemSettings || {};
+            const groups = [...new Set(customerPublicProducts.map(p=>customerCategory(p,settings)))];
+            content.innerHTML = `<div class="customer-order-wrap">
+              <div class="customer-order-brand"><h1>🔥 馬鈴吉碳烤</h1><p>線上預訂・現場取餐</p></div>
+              <div id="customer-public-menu"></div>
+              <section class="customer-order-group"><h3>🧾 訂單資料</h3>
+                <div id="customer-public-cart"></div>
+                <div class="customer-order-form">
+                  <div class="customer-order-field"><label for="customer-public-name">姓名 *</label><input id="customer-public-name" maxlength="40" autocomplete="name" placeholder="請輸入姓名"></div>
+                  <div class="customer-order-field"><label for="customer-public-phone">聯絡電話 *</label><input id="customer-public-phone" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="請輸入聯絡電話"></div>
+                  <div class="customer-order-field"><label for="customer-public-pickup">取餐時間 *</label><input id="customer-public-pickup" type="datetime-local"></div>
+                  <div class="customer-order-field full"><label for="customer-public-note">餐點備註</label><textarea id="customer-public-note" maxlength="500" placeholder="例如：辣度、不要加香菜、分開裝…"></textarea></div>
+                </div>
+                <div style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true"><label>不要填寫<input id="customer-public-website" tabindex="-1" autocomplete="off"></label></div>
+                <button class="customer-order-submit" id="customer-public-submit" onclick="submitCustomerPublicOrder()">送出訂單</button>
+                <p class="customer-order-muted">送出後由店家確認訂單；請以店家回覆為準。請勿在備註填寫信用卡或其他敏感資料。</p>
+              </section>
+            </div>`;
+            const pickup = document.getElementById('customer-public-pickup');
+            const min = new Date(Date.now()+30*60000); min.setMinutes(Math.ceil(min.getMinutes()/5)*5,0,0);
+            pickup.min = new Date(min.getTime()-min.getTimezoneOffset()*60000).toISOString().slice(0,16);
+            const menu = document.getElementById('customer-public-menu');
+            menu.innerHTML = groups.map(group=>`<section class="customer-order-group"><h3>${customerEscape(group)}</h3>${customerPublicProducts.filter(p=>customerCategory(p,settings)===group).map(p=>`<div class="customer-product-row"><div class="customer-product-main"><div class="customer-product-name">${customerEscape(p.name)}</div><div class="customer-product-price">${customerMoney(p.price)}</div></div><div class="customer-qty"><button type="button" aria-label="減少${customerEscape(p.name)}" onclick="changeCustomerPublicQty(decodeURIComponent('${encodeURIComponent(String(p.id))}'),-1)">−</button><span id="customer-public-qty-${customerEscape(p.id)}">0</span><button type="button" aria-label="增加${customerEscape(p.name)}" onclick="changeCustomerPublicQty(decodeURIComponent('${encodeURIComponent(String(p.id))}'),1)">＋</button></div></div>`).join('')}</section>`).join('') || '<p class="customer-order-muted">目前尚無可點選的餐點。</p>';
+            renderCustomerPublicCart();
+        }
+        function changeCustomerPublicQty(id,delta){const n=Math.max(0,Math.min(99,(Number(customerPublicCart[id])||0)+delta));if(n)customerPublicCart[id]=n;else delete customerPublicCart[id];const el=document.getElementById('customer-public-qty-'+id);if(el)el.textContent=String(n);renderCustomerPublicCart();}
+        function renderCustomerPublicCart(){const el=document.getElementById('customer-public-cart');if(!el)return;const rows=customerPublicProducts.filter(p=>Number(customerPublicCart[p.id])>0);const total=rows.reduce((sum,p)=>sum+(Number(p.price)||0)*Number(customerPublicCart[p.id]),0);el.innerHTML=rows.length?rows.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:14px;"><span>${customerEscape(p.name)} × ${Number(customerPublicCart[p.id])}</span><b>${customerMoney((Number(p.price)||0)*Number(customerPublicCart[p.id]))}</b></div>`).join(''):'<p class="customer-order-muted">尚未選擇餐點，請先從上方菜單加入。</p>';el.innerHTML+=`<div class="customer-order-total"><span>合計</span><span>${customerMoney(total)}</span></div>`;}
+        async function submitCustomerPublicOrder(){
+            const btn=document.getElementById('customer-public-submit');if(!btn)return;
+            const name=document.getElementById('customer-public-name').value.trim();const phone=document.getElementById('customer-public-phone').value.trim();const pickup=document.getElementById('customer-public-pickup').value;const note=document.getElementById('customer-public-note').value.trim();
+            const items=customerPublicProducts.filter(p=>Number(customerPublicCart[p.id])>0).map(p=>({product_id:p.id,quantity:Number(customerPublicCart[p.id])}));
+            if(!items.length){alert('請先選擇餐點。');return;}if(!name){alert('請填寫姓名。');return;}if(!/^[-+() 0-9]{8,20}$/.test(phone)){alert('請輸入有效的聯絡電話。');return;}if(!pickup){alert('請選擇取餐時間。');return;}if(new Date(pickup).getTime()<Date.now()+10*60000){alert('取餐時間至少需在現在 10 分鐘後。');return;}
+            if(document.getElementById('customer-public-website')?.value){return;}
+            btn.disabled=true;btn.textContent='訂單送出中…';
+            try{
+                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'create-order',customer_name:name,customer_phone:phone,pickup_time:new Date(pickup).toISOString(),note,items,website:document.getElementById('customer-public-website')?.value||'',submitted_at:Date.now()}});
+                if(error)throw error; if(!data?.ok)throw new Error(data?.error||'訂單送出失敗');
+                document.querySelector('.customer-order-wrap').innerHTML=`<div class="customer-order-success"><div style="font-size:42px;">✓</div><h2>訂單已送出</h2><p>訂單編號：<b>${customerEscape(data.order_number||data.id||'已建立')}</b></p><p>請留意店家後續確認，謝謝惠顧！</p><button class="customer-order-submit" onclick="location.reload()">返回菜單</button></div>`;
+            }catch(e){console.error('customer order submit failed',e);alert('訂單送出失敗，請稍後再試；若持續失敗請直接聯絡店家。');btn.disabled=false;btn.textContent='重新送出訂單';}
+        }
+        function customerOwnerRole(user){return user?.app_metadata?.role==='store_owner';}
+        async function renderCustomerOrderAdmin(){
+            const content=document.getElementById('page-content');content.innerHTML='<p style="text-align:center;padding:25px;">正在確認店家登入狀態…</p>';
+            const {data:{session}}=await _supabase.auth.getSession();
+            if(!session){renderCustomerAdminLogin();return;}
+            const {data:{user},error}=await _supabase.auth.getUser();if(error||!customerOwnerRole(user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}
+            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><h3>🔔 訂單通知</h3><p class="customer-order-muted">登入後可即時接收新訂單。若要在瀏覽器關閉後收到通知，請在此裝置啟用推播，並允許瀏覽器通知。</p><div class="customer-admin-toolbar"><button onclick="enableCustomerOrderPush()">啟用此手機推播</button><button onclick="refreshCustomerAdminOrders()">重新整理</button><button onclick="customerAdminSignOut()">登出</button></div><div id="customer-push-status" class="customer-order-muted"></div></div><div class="customer-admin-toolbar"><button onclick="setCustomerAdminFilter('all')">全部</button><button onclick="setCustomerAdminFilter('new')">待確認</button><button onclick="setCustomerAdminFilter('confirmed')">已確認</button><button onclick="setCustomerAdminFilter('preparing')">製作中</button><button onclick="setCustomerAdminFilter('completed')">已完成</button><button onclick="setCustomerAdminFilter('cancelled')">已取消</button></div><div id="customer-admin-order-list">載入訂單中…</div></div>`;
+            await refreshCustomerAdminOrders();subscribeCustomerAdminRealtime();
+            const pushStatus=document.getElementById('customer-push-status');if(pushStatus)pushStatus.textContent='此裝置通知權限：'+(('Notification' in window)?Notification.permission:'不支援');
+        }
+        function renderCustomerAdminLogin(message=''){
+            const content=document.getElementById('page-content');content.innerHTML=`<div class="customer-admin-login"><h3 style="margin:0 0 12px;color:#704a32;">店家登入</h3>${message?`<p style="color:#b91c1c;font-size:13px;">${customerEscape(message)}</p>`:''}<label>店家 Email</label><input id="customer-admin-email" type="email" autocomplete="username" placeholder="店家登入 Email"><label>密碼</label><input id="customer-admin-password" type="password" autocomplete="current-password" placeholder="密碼"><button class="customer-order-submit" onclick="customerAdminSignIn()">登入訂單管理</button><p class="customer-order-muted">此登入只用於客人線上訂單管理；請勿將店家密碼提供給客人。</p></div>`;
+        }
+        async function customerAdminSignIn(){const email=document.getElementById('customer-admin-email').value.trim(),password=document.getElementById('customer-admin-password').value;const {data,error}=await _supabase.auth.signInWithPassword({email,password});if(error){renderCustomerAdminLogin('登入失敗，請檢查帳號密碼。');return;}if(!customerOwnerRole(data.user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}renderCustomerOrderAdmin();}
+        async function customerAdminSignOut(){if(customerOrderRealtime){await _supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=null;}await _supabase.auth.signOut();renderCustomerAdminLogin('已登出。');}
+        function setCustomerAdminFilter(value){customerAdminStatusFilter=value;renderCustomerAdminOrderCards();}
+        async function refreshCustomerAdminOrders(){const box=document.getElementById('customer-admin-order-list');if(!box)return;box.textContent='讀取訂單中…';const {data,error}=await _supabase.from('customer_orders').select('id,customer_name,customer_phone,pickup_time,items,total_amount,note,status,created_at').order('created_at',{ascending:false}).limit(100);if(error){box.innerHTML='<p style="color:#b91c1c;">無法讀取訂單。請確認已執行資料庫 SQL，且登入帳號具有店家權限。</p>';console.error(error);return;}customerAdminOrders=data||[];renderCustomerAdminOrderCards();}
+        function renderCustomerAdminOrderCards(){const box=document.getElementById('customer-admin-order-list');if(!box)return;const rows=customerAdminOrders.filter(o=>customerAdminStatusFilter==='all'||(customerAdminStatusFilter==='new'?o.status==='new':o.status===customerAdminStatusFilter));if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:22px;">目前沒有符合條件的訂單。</p>';return;}box.innerHTML=rows.map(o=>{const items=Array.isArray(o.items)?o.items:[];const itemText=items.map(i=>`${customerEscape(i.name)} × ${Number(i.quantity)||0}　${customerMoney(i.subtotal)}`).join('\n');const pickup=new Date(o.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});const created=new Date(o.created_at).toLocaleString('zh-TW');return `<article class="customer-admin-card"><h3>訂單 ${customerEscape(String(o.id).slice(0,8))}　<span style="font-size:13px;">${customerEscape(({new:'待確認',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'})[o.status]||o.status)}</span></h3><div class="customer-admin-meta">客人：${customerEscape(o.customer_name)}　電話：<a href="tel:${customerEscape(o.customer_phone)}">${customerEscape(o.customer_phone)}</a><br>取餐時間：${customerEscape(pickup)}<br>下單時間：${customerEscape(created)}</div><div class="customer-admin-items">${itemText||'（無餐點明細）'}</div><div class="customer-admin-meta">備註：${customerEscape(o.note||'無')}<br><b>總金額：${customerMoney(o.total_amount)}</b></div><div class="customer-admin-actions"><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','confirmed')">確認</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','preparing')">製作中</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','completed')">完成</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','cancelled')">取消</button></div></article>`;}).join('');}
+        async function updateCustomerOrderStatus(id,status){const {error}=await _supabase.from('customer_orders').update({status}).eq('id',id);if(error){alert('更新訂單狀態失敗，請確認店家權限。');return;}await refreshCustomerAdminOrders();}
+        function subscribeCustomerAdminRealtime(){if(customerOrderRealtime)_supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=_supabase.channel('customer-orders-owner').on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},payload=>{refreshCustomerAdminOrders();if(payload.eventType==='INSERT'&&'Notification'in window&&Notification.permission==='granted'){try{new Notification('馬鈴吉碳烤｜新訂單',{body:'收到一筆新的客人訂單，請開啟訂單管理查看。',icon:'./icons/apple-touch-icon.png'});}catch(e){}}}).subscribe();}
+        function customerBase64ToUint8Array(base64){const padding='='.repeat((4-base64.length%4)%4);const raw=atob((base64+padding).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
+        async function enableCustomerOrderPush(){const status=document.getElementById('customer-push-status');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw new Error('此瀏覽器不支援 Web Push。');if(CUSTOMER_PUSH_PUBLIC_KEY.startsWith('REPLACE_'))throw new Error('尚未設定 VAPID 公開金鑰，請先完成部署設定。');const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error('你尚未允許此網站發送通知。');const registration=await navigator.serviceWorker.ready;const subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:customerBase64ToUint8Array(CUSTOMER_PUSH_PUBLIC_KEY)});const json=subscription.toJSON();const {data:{user}}=await _supabase.auth.getUser();const {error}=await _supabase.from('customer_push_subscriptions').upsert({owner_id:user.id,endpoint:json.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,updated_at:new Date().toISOString()},{onConflict:'endpoint'});if(error)throw error;if(status)status.textContent='此裝置已成功啟用背景推播通知。';}catch(e){if(status)status.textContent=e.message||'推播設定失敗。';}}
+
         // ==================== 快速點餐（僅前端暫存，不寫入資料庫） ====================
         const ORDER_MENU_CATEGORIES = ['碳烤伴餐類','雞肉類','牛肉類','豬肉類','羊肉類','海鮮類','蔬菜類','炸物類','飲品類'];
         async function renderOrderView() {
@@ -2909,20 +3035,20 @@
                 renderOrderProducts();
                 return;
             }
-            // 取餐時間也從客人文字中擷取；未標示上午／下午時，一律視為晚上。
-            const timeMatches=[...input.value.matchAll(/(?:^|\n)\s*(\d{1,2}):(\d{2})\s*(?:取餐|取|自取|外帶)?\s*(?=\n|$)/g)];
+            // 取餐時間支援「21:30取餐」及「9點取餐／9時／9取」；只寫小時時分鐘預設為00。
+            // 未標示上午／下午時，1至11點視為晚上；12點維持中午，0點視為午夜。
+            const timeMatches=[...input.value.matchAll(/(?:^|\n)\s*(\d{1,2})(?:(?:[:：](\d{1,2}))|(?:\s*(?:點|時)))?\s*(?:取餐|取|自取|外帶)?\s*(?=\n|$)/g)];
             if(timeMatches.length){
                 const last=timeMatches[timeMatches.length-1];
-                let hour=Number(last[1]); const minute=Number(last[2]);
+                let hour=Number(last[1]); const minute=last[2]===undefined?0:Number(last[2]);
                 if(hour>=0&&hour<=23&&minute>=0&&minute<=59){
                     if(hour>=1&&hour<=11)hour+=12;
-                    else if(hour===0)hour=12;
                     orderSelectedTime=`${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
                     const timeDisplay=document.getElementById('order-time-display');
                     if(timeDisplay)timeDisplay.innerHTML=`<span class=\"order-time-value\">${orderSelectedTime}</span><span class=\"order-time-arrow\">⌄</span>`;
                 }
             }
-            const lines=input.value.split(/\r?\n/).filter(line=>!/^\s*\d{1,2}:\d{2}\s*(?:取餐|取|自取|外帶)?\s*$/.test(line)).flatMap(parseCustomerOrderLine).filter(Boolean);
+            const lines=input.value.split(/\r?\n/).filter(line=>!/^[\s　]*\d{1,2}(?:(?:[:：]\d{1,2})|(?:\s*(?:點|時)))?\s*(?:取餐|取|自取|外帶)?\s*$/.test(line)).flatMap(parseCustomerOrderLine).filter(Boolean);
             const matched=[],unmatched=[];
             lines.forEach(line=>{
                 const normalized=normalizeOrderMatchText(line.name);
@@ -3006,7 +3132,7 @@
         function openOrderTimePicker() {
             const [hour, minute] = orderSelectedTime.split(':').map(Number);
             const overlay = document.createElement('div');
-            overlay.className = 'picker-overlay';
+            overlay.className = 'picker-overlay order-time-picker-overlay';
             overlay.id = 'wheel-picker-overlay';
             overlay.innerHTML = `
                 <div class="picker-modal" style="width:320px;">
@@ -3204,7 +3330,7 @@
                     html += `<section class="expense-date-group" data-expense-date-group style="grid-column:1/-1;margin:8px 0 18px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:10px;border-radius:12px;background:#f3e8d9;border:1px solid #e5d2bd;color:#6f4e37;">
                             <strong style="font-size:16px;">📅 ${dateKey}</strong>
-                            <span style="font-size:13px;">${dateItems.length} 筆收支・${vendorGroups.size} 家廠商　支出 <b>$${dateExpense.toLocaleString()}</b>　收入 <b>$${dateIncome.toLocaleString()}</b></span>
+                            <span style="font-size:13px;">當日共 <b>${vendorGroups.size}</b> 家廠商</span>
                         </div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:12px;">`;
                     vendorGroups.forEach((items, vendorName) => {
                         const vendorExpense = items.filter(x => (x.transaction_type || 'expense') === 'expense').reduce((sum,x)=>sum+(Number(x.amount)||0),0);
@@ -3224,7 +3350,7 @@
                                 </div>
                             </div>`;
                         }).join('');
-                        html += `<details class="expense-vendor-card" data-expense-vendor-group open style="background:#fff;border:1px solid #e7d9ca;border-radius:14px;padding:0 14px;box-shadow:0 2px 8px rgba(90,60,35,.06);">
+                        html += `<details class="expense-vendor-card" data-expense-vendor-group style="background:#fff;border:1px solid #e7d9ca;border-radius:14px;padding:0 14px;box-shadow:0 2px 8px rgba(90,60,35,.06);">
                             <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 0;color:#654b37;">
                                 <span style="font-weight:800;">🏢 ${escapeExpenseSearchAttribute(vendorName)}</span>
                                 <span style="font-size:13px;color:#806b57;text-align:right;">${items.length} 筆　支出 <b style="color:#b45309;">$${vendorExpense.toLocaleString()}</b>${vendorIncome ? `　收入 <b style="color:#166534;">$${vendorIncome.toLocaleString()}</b>` : ''}　⌄</span>
@@ -4884,6 +5010,11 @@
             .catch(function (error) { console.warn('App 離線外殼註冊失敗：', error); });
         });
       }
+      window.addEventListener('DOMContentLoaded', function () {
+        if (new URLSearchParams(location.search).get('customer-order') === '1') {
+          renderCustomerPublicPage();
+        }
+      });
     </script>
 
 </body>
