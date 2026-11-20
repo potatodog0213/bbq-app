@@ -52,6 +52,107 @@ function taiwanDateValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+
+function normalizePhone(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
+}
+async function sha256Hex(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function randomCapabilityToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function ownerUser(req: Request, url: string, anonKey: string | undefined) {
+  if (!anonKey) return null;
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const userClient = createClient(url, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: { user }, error } = await userClient.auth.getUser();
+  if (error || user?.app_metadata?.role !== "store_owner") return null;
+  return user;
+}
+async function notifyOwner(admin: ReturnType<typeof createClient>, title: string, message: string) {
+  const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
+  const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
+  const vapidSubject = Deno.env.get("VAPID_SUBJECT") ?? "mailto:store@example.com";
+  if (!vapidPublic || !vapidPrivate) return;
+  try {
+    webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+    const { data: subs, error } = await admin.from("customer_push_subscriptions").select("id,endpoint,p256dh,auth");
+    if (error) throw error;
+    const payload = JSON.stringify({ title, body: message, url: "/bbq-app/?customer-order-admin=1" });
+    await Promise.allSettled((subs ?? []).map(async (sub: any) => {
+      try {
+        await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+      } catch (e: any) {
+        if (e?.statusCode === 404 || e?.statusCode === 410) await admin.from("customer_push_subscriptions").delete().eq("id", sub.id);
+        console.warn("[customer-orders][push] send failed", e?.statusCode ?? "unknown");
+      }
+    }));
+  } catch (e) {
+    console.warn("[customer-orders][push] delivery skipped", e);
+  }
+}
+async function buildRegularItemSnapshot(admin: ReturnType<typeof createClient>, input: unknown) {
+  if (!Array.isArray(input) || input.length < 1 || input.length > 40) {
+    throw new Error("餐點內容不正確");
+  }
+  const quantities = new Map<string, number>();
+  const variants = new Map<string, { productId: string; spice: string | null }>();
+  for (const item of input as any[]) {
+    const id = String(item?.product_id ?? "").trim();
+    const qty = Number(item?.quantity);
+    const spice = item?.spice_level == null ? null : String(item.spice_level);
+    if (!/^\d+$/.test(id) || !Number.isInteger(qty) || qty < 1 || qty > 30) throw new Error("餐點數量不正確");
+    if (spice !== null && !["不辣", "小辣", "中辣", "大辣"].includes(spice)) throw new Error("辣度選項不正確");
+    const key = `${id}::${spice ?? "__none__"}`;
+    quantities.set(key, (quantities.get(key) ?? 0) + qty);
+    variants.set(key, { productId: id, spice });
+  }
+  if ([...quantities.values()].some((q) => q > 30)) throw new Error("同一餐點、同一辣度的數量超過限制");
+  const ids = [...new Set([...variants.values()].map((v) => v.productId))];
+  const [{ data: products, error: productError }, { data: settingsRow, error: settingsError }] = await Promise.all([
+    admin.from("products").select("id,name,price").in("id", ids),
+    admin.from("menu_generator_settings").select("settings_json").eq("id", "default").maybeSingle(),
+  ]);
+  if (productError) throw productError;
+  if (settingsError) throw settingsError;
+  if (!products || products.length !== ids.length) throw new Error("部分餐點已下架，請重新整理菜單");
+  const settings = settingsRow?.settings_json ?? {};
+  const spicySettings = settings.customerOrderSpicySettings ?? {};
+  const soldOutIds = settings.customerOrderSoldOutDate === taiwanDateValue(new Date())
+    ? new Set((settings.customerOrderSoldOutProductIds ?? []).map(String)) : new Set<string>();
+  const productMap = new Map(products.map((p: any) => [String(p.id), p]));
+  const snapshot = [...quantities.keys()].map((key) => {
+    const variant = variants.get(key)!;
+    const product: any = productMap.get(variant.productId);
+    if (soldOutIds.has(variant.productId)) throw new Error(`「${String(product?.name ?? "餐點")}」今日已售完，請移除後重新送出`);
+    const price = Number(product?.price);
+    if (!product || !Number.isFinite(price) || price < 0) throw new Error("商品價格資料異常");
+    const config = spicySettings[variant.productId] ?? {};
+    const spicyEnabled = config.enabled !== false;
+    const allowedLevels = Array.isArray(config.levels) && config.levels.length ? config.levels : ["不辣", "小辣", "中辣", "大辣"];
+    if (spicyEnabled && (!variant.spice || !allowedLevels.includes(variant.spice))) throw new Error(`「${String(product.name)}」請選擇有效辣度，或重新載入菜單`);
+    if (!spicyEnabled && variant.spice) throw new Error(`「${String(product.name)}」目前未開放辣度選擇，請重新載入菜單`);
+    const quantity = quantities.get(key)!;
+    return {
+      product_id: variant.productId,
+      name: String(product.name ?? "商品").slice(0, 100),
+      unit_price: price,
+      quantity,
+      subtotal: Math.round(price * quantity * 100) / 100,
+      ...(variant.spice ? { spice_level: variant.spice } : {}),
+    };
+  });
+  const total = Math.round(snapshot.reduce((sum: number, item: any) => sum + item.subtotal, 0) * 100) / 100;
+  return { snapshot, total };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return reply({ ok: false, error: "Method not allowed" }, 405);
@@ -66,35 +167,47 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action ?? "");
 
-    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-menu-history-gift-time-speed-spice-20261120" });
+    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-addon-change-20261120" });
 
-    // 以客人下單時提供的手機號碼查詢訂單歷史。
     if (action === "lookup-orders") {
-      const phone = String(body.customer_phone ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
+      const phone = normalizePhone(body.customer_phone);
       if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "手機號碼格式不正確" }, 400);
       const { data: orders, error } = await admin.from("customer_orders")
         .select("id,items,total_amount,status,pickup_time,created_at,note")
         .eq("customer_phone", phone).order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
+      const ids = (orders ?? []).map((o: any) => o.id);
+      await admin.from("customer_order_change_requests")
+        .update({ status: "expired", capability_hash: null })
+        .eq("customer_phone", phone).eq("status", "approved")
+        .not("expires_at", "is", null).lte("expires_at", new Date().toISOString());
+      const [addonResult, requestResult] = ids.length ? await Promise.all([
+        admin.from("customer_order_addons").select("id,order_id,items,total_amount,created_at").in("order_id", ids).order("created_at", { ascending: true }),
+        admin.from("customer_order_change_requests").select("id,order_id,proposal_text,reason,status,requested_at,reviewed_at,expires_at,completed_at").in("order_id", ids).order("requested_at", { ascending: false }),
+      ]) : [{ data: [], error: null }, { data: [], error: null }];
+      if (addonResult.error) throw addonResult.error;
+      if (requestResult.error) throw requestResult.error;
       const safeOrders = (orders ?? []).map((order: any) => {
         const { meta } = readNote(String(order.note ?? ""));
         return {
           id: order.id, items: order.items, total_amount: order.total_amount,
           status: order.status, pickup_time: order.pickup_time, created_at: order.created_at,
           proposed_pickup_time: typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : null,
+          addons: (addonResult.data ?? []).filter((a: any) => a.order_id === order.id),
+          change_requests: (requestResult.data ?? []).filter((r: any) => r.order_id === order.id),
         };
       });
       return reply({ ok: true, orders: safeOrders });
     }
 
-    // 客人查詢自己的訂單狀態：只回傳狀態與取餐時間，不回傳個資。
     if (action === "get-order") {
       const id = String(body.order_id ?? "").trim();
-      if (!id) return reply({ ok: false, error: "訂單編號不正確" }, 400);
+      const phone = normalizePhone(body.customer_phone);
+      if (!id || !/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "訂單資料不正確" }, 400);
       const { data: order, error } = await admin.from("customer_orders")
-        .select("id,status,pickup_time,note").eq("id", id).maybeSingle();
+        .select("id,status,pickup_time,note").eq("id", id).eq("customer_phone", phone).maybeSingle();
       if (error) throw error;
-      if (!order) return reply({ ok: false, error: "找不到訂單" }, 404);
+      if (!order) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
       const { meta } = readNote(String(order.note ?? ""));
       return reply({ ok: true, status: order.status, pickup_time: order.pickup_time,
         proposed_pickup_time: typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : null,
@@ -104,9 +217,10 @@ Deno.serve(async (req) => {
     // 客人回覆店家提出的時間；同意才正式寫入 pickup_time 並確認訂單。
     if (action === "respond-time") {
       const id = String(body.order_id ?? "").trim();
-      if (!id || typeof body.accepted !== "boolean") return reply({ ok: false, error: "回覆資料不正確" }, 400);
+      const phone = normalizePhone(body.customer_phone);
+      if (!id || !/^09\d{8}$/.test(phone) || typeof body.accepted !== "boolean") return reply({ ok: false, error: "回覆資料不正確" }, 400);
       const { data: order, error: readError } = await admin.from("customer_orders")
-        .select("id,status,pickup_time,note").eq("id", id).maybeSingle();
+        .select("id,status,pickup_time,note").eq("id", id).eq("customer_phone", phone).maybeSingle();
       if (readError) throw readError;
       if (!order) return reply({ ok: false, error: "找不到訂單" }, 404);
       const { customerNote, meta } = readNote(String(order.note ?? ""));
@@ -125,6 +239,125 @@ Deno.serve(async (req) => {
       }).eq("id", id);
       if (error) throw error;
       return reply({ ok: true, status: order.status, customer_response: "declined" });
+    }
+
+    if (action === "add-on-order") {
+      const orderId = String(body.order_id ?? "").trim();
+      const phone = normalizePhone(body.customer_phone);
+      const idempotencyKey = String(body.idempotency_key ?? "").trim();
+      if (!orderId || !/^09\d{8}$/.test(phone) || !/^[0-9a-f-]{36}$/i.test(idempotencyKey)) {
+        return reply({ ok: false, error: "加點資料不正確，請重新操作" }, 400);
+      }
+      const { snapshot, total } = await buildRegularItemSnapshot(admin, body.items);
+      const { data, error } = await admin.rpc("add_customer_order_addon_atomic", {
+        p_order_id: orderId, p_customer_phone: phone, p_idempotency_key: idempotencyKey,
+        p_items: snapshot, p_total_amount: total,
+      });
+      if (error) {
+        if (error.code === "P0002") return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+        if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
+        throw error;
+      }
+      const result = Array.isArray(data) ? data[0] : data;
+      if (!result?.was_duplicate) {
+        const addedAt = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false });
+        const task = notifyOwner(admin, "馬鈴吉碳烤｜訂單加點", `訂單 ${orderId.slice(0, 8)}（${phone}）於 ${addedAt} 新增加點：${snapshot.map((i: any) => `${i.name} × ${i.quantity}${i.spice_level ? `（${i.spice_level}）` : ""}`).join("、")}；加點金額 $${total.toLocaleString("zh-TW")}。`);
+        const runtime = (globalThis as any).EdgeRuntime;
+        if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
+      }
+      return reply({ ok: true, addon_id: result?.addon_id, created_at: result?.created_at, total_amount: result?.order_total, duplicate: !!result?.was_duplicate });
+    }
+
+    if (action === "request-order-change") {
+      const orderId = String(body.order_id ?? "").trim();
+      const phone = normalizePhone(body.customer_phone);
+      const proposal = String(body.proposal_text ?? "").trim();
+      const reason = String(body.reason ?? "").trim();
+      if (!orderId || !/^09\d{8}$/.test(phone) || !proposal || proposal.length > 500 || !reason || reason.length > 300) {
+        return reply({ ok: false, error: "請填寫修改內容與原因（修改內容最多 500 字、原因最多 300 字）" }, 400);
+      }
+      const { data: requestId, error } = await admin.rpc("create_customer_order_change_request_atomic", {
+        p_order_id: orderId, p_customer_phone: phone, p_proposal_text: proposal, p_reason: reason,
+      });
+      if (error) {
+        if (error.code === "P0002") return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+        if (error.code === "23505") return reply({ ok: false, error: "此訂單已有待審核的修改申請" }, 409);
+        if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
+        throw error;
+      }
+      const requestedAt = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false });
+      const task = notifyOwner(admin, "馬鈴吉碳烤｜訂單修改申請", `訂單 ${orderId.slice(0, 8)}（${phone}）於 ${requestedAt} 提出修改申請：${proposal}；原因：${reason}。請至訂單管理審核。`);
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
+      return reply({ ok: true, request_id: requestId });
+    }
+
+    if (action === "owner-review-order-change") {
+      const user = await ownerUser(req, url, anonKey);
+      if (!user) return reply({ ok: false, error: "未授權的店家帳號" }, 403);
+      const requestId = String(body.request_id ?? "").trim();
+      if (!requestId || typeof body.approved !== "boolean") return reply({ ok: false, error: "審核資料不正確" }, 400);
+      const { error } = await admin.rpc("review_customer_order_change_request_atomic", {
+        p_request_id: requestId, p_owner_id: user.id, p_approved: body.approved,
+        p_capability_hash: null, p_expires_at: null,
+      });
+      if (error) {
+        if (error.code === "P0002") return reply({ ok: false, error: "找不到修改申請" }, 404);
+        if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
+        throw error;
+      }
+      return reply({ ok: true, status: body.approved ? "approved" : "rejected" });
+    }
+
+    if (action === "issue-order-change-token") {
+      const requestId = String(body.request_id ?? "").trim();
+      const phone = normalizePhone(body.customer_phone);
+      if (!requestId || !/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "修改授權資料不正確" }, 400);
+      const token = randomCapabilityToken();
+      const tokenHash = await sha256Hex(token);
+      const expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
+      const { error } = await admin.rpc("issue_customer_order_change_token_atomic", {
+        p_request_id: requestId, p_customer_phone: phone,
+        p_capability_hash: tokenHash, p_expires_at: expiresAt,
+      });
+      if (error) {
+        if (error.code === "P0002") return reply({ ok: false, error: "找不到符合手機號碼的修改申請" }, 404);
+        if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
+        throw error;
+      }
+      return reply({ ok: true, capability_token: token, expires_at: expiresAt });
+    }
+
+    if (action === "submit-order-change") {
+      const orderId = String(body.order_id ?? "").trim();
+      const phone = normalizePhone(body.customer_phone);
+      const token = String(body.capability_token ?? "").trim();
+      if (!orderId || !/^09\d{8}$/.test(phone) || !/^[0-9a-f]{64}$/i.test(token)) {
+        return reply({ ok: false, error: "修改資料或授權碼不正確" }, 400);
+      }
+      const { snapshot, total } = await buildRegularItemSnapshot(admin, body.items);
+      const { data: currentOrder, error: currentOrderError } = await admin.from("customer_orders")
+        .select("items,note").eq("id", orderId).eq("customer_phone", phone).maybeSingle();
+      if (currentOrderError) throw currentOrderError;
+      if (!currentOrder) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+      const giftItems = (Array.isArray(currentOrder.items) ? currentOrder.items : []).filter((item: any) => item?.is_gift === true);
+      const finalItems = [...snapshot, ...giftItems];
+      const tokenHash = await sha256Hex(token);
+      const { meta: existingMeta } = readNote(String(currentOrder.note ?? ""));
+      const submittedNote = typeof body.note === "string" ? body.note.trim().slice(0, 500) : "";
+      const newNote = submittedNote ? writeNote(submittedNote, existingMeta) : null;
+      const { data, error } = await admin.rpc("apply_customer_order_change_atomic", {
+        p_order_id: orderId, p_customer_phone: phone, p_capability_hash: tokenHash,
+        p_new_items: finalItems, p_new_base_total: total, p_new_note: newNote,
+      });
+      if (error) {
+        if (error.code === "P0002") return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+        if (error.code === "42501") return reply({ ok: false, error: "修改授權不正確或已使用" }, 403);
+        if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
+        throw error;
+      }
+      const result = Array.isArray(data) ? data[0] : data;
+      return reply({ ok: true, total_amount: result?.new_total });
     }
 
     // 店家提出其他時間。此動作必須是已登入且授權的店家管理帳號。
@@ -265,32 +498,16 @@ Deno.serve(async (req) => {
       }
       snapshot.push({ product_id: id, name: String(p.name ?? "贈品飲料").slice(0, 100), unit_price: 0, quantity, subtotal: 0, is_gift: true });
     }
-    const { data: order, error: insertError } = await admin.from("customer_orders").insert({
-      customer_name: name, customer_phone: phone, pickup_time: pickup.toISOString(),
-      items: snapshot, total_amount: total, note, status: "new",
-    }).select("id,created_at").single();
-    if (insertError) throw insertError;
-
-    const notificationTask = (async () => {
-      const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
-      const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
-      const vapidSubject = Deno.env.get("VAPID_SUBJECT") ?? "mailto:store@example.com";
-      if (!vapidPublic || !vapidPrivate) return;
-      try {
-        webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
-        const { data: subs, error: subsError } = await admin.from("customer_push_subscriptions").select("id,endpoint,p256dh,auth");
-        if (subsError) throw subsError;
-        const payload = JSON.stringify({ title: "馬鈴吉碳烤｜新訂單", body: `收到新訂單（${name}），金額 $${total.toLocaleString("zh-TW")}，請開啟訂單管理查看。`, url: "/bbq-app/?customer-order-admin=1" });
-        await Promise.allSettled((subs ?? []).map(async (sub: any) => {
-          try {
-            await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
-          } catch (e: any) {
-            if (e?.statusCode === 404 || e?.statusCode === 410) await admin.from("customer_push_subscriptions").delete().eq("id", sub.id);
-            console.warn("[customer-orders][push] send failed", e?.statusCode ?? "unknown");
-          }
-        }));
-      } catch (e) { console.warn("[customer-orders][push] delivery skipped; order remains saved", e); }
-    })();
+    const { data: orderRows, error: insertError } = await admin.rpc("create_customer_order_atomic", {
+      p_customer_name: name, p_customer_phone: phone, p_pickup_time: pickup.toISOString(),
+      p_items: snapshot, p_total_amount: total, p_note: note,
+    });
+    if (insertError) {
+      if (insertError.code === "23505") return reply({ ok: false, error: insertError.message || "此手機號碼已有尚未完成的訂單，請使用加點功能" }, 409);
+      throw insertError;
+    }
+    const order = Array.isArray(orderRows) ? orderRows[0] : orderRows;
+    const notificationTask = notifyOwner(admin, "馬鈴吉碳烤｜新訂單", `收到新訂單（${name}／${phone}），金額 $${total.toLocaleString("zh-TW")}，請開啟訂單管理查看。`);
     const edgeRuntime = (globalThis as any).EdgeRuntime;
     if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(notificationTask);
     else await notificationTask;
