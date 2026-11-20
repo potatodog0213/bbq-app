@@ -27,6 +27,30 @@ function readNote(raw: string) {
 function writeNote(customerNote: string, meta: Record<string, unknown>) {
   return `${customerNote}${META_PREFIX}${JSON.stringify(meta)}${META_SUFFIX}`;
 }
+function taiwanHourMinute(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? -1);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? -1);
+  return { hour, minute };
+}
+function isAllowedPickupTime(date: Date) {
+  const { hour, minute } = taiwanHourMinute(date);
+  return (hour === 17 && minute >= 30 && minute <= 55 && minute % 5 === 0)
+    || (hour >= 18 && hour <= 23 && minute % 5 === 0)
+    || ((hour === 0 || hour === 1) && minute % 5 === 0)
+    || (hour === 2 && minute === 0);
+}
+function taiwanDateValue(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value ?? "0000";
+  const month = parts.find((p) => p.type === "month")?.value ?? "00";
+  const day = parts.find((p) => p.type === "day")?.value ?? "00";
+  return `${year}-${month}-${day}`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -42,17 +66,25 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action ?? "");
 
-    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "phone-history-card-picker-20261120" });
+    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-menu-history-gift-time-20261120" });
 
     // 以客人下單時提供的手機號碼查詢訂單歷史。
     if (action === "lookup-orders") {
       const phone = String(body.customer_phone ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
       if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "手機號碼格式不正確" }, 400);
       const { data: orders, error } = await admin.from("customer_orders")
-        .select("id,items,total_amount,status,pickup_time,created_at")
+        .select("id,items,total_amount,status,pickup_time,created_at,note")
         .eq("customer_phone", phone).order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
-      return reply({ ok: true, orders: orders ?? [] });
+      const safeOrders = (orders ?? []).map((order: any) => {
+        const { meta } = readNote(String(order.note ?? ""));
+        return {
+          id: order.id, items: order.items, total_amount: order.total_amount,
+          status: order.status, pickup_time: order.pickup_time, created_at: order.created_at,
+          proposed_pickup_time: typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : null,
+        };
+      });
+      return reply({ ok: true, orders: safeOrders });
     }
 
     // 客人查詢自己的訂單狀態：只回傳狀態與取餐時間，不回傳個資。
@@ -107,8 +139,8 @@ Deno.serve(async (req) => {
       if (authError || user?.app_metadata?.role !== "store_owner") return reply({ ok: false, error: "未授權的店家帳號" }, 403);
       const id = String(body.order_id ?? "").trim();
       const proposed = new Date(body.proposed_pickup_time);
-      if (!id || !Number.isFinite(proposed.getTime()) || proposed.getTime() < Date.now() + 10 * 60_000) {
-        return reply({ ok: false, error: "請選擇至少 10 分鐘後的可取餐時間" }, 400);
+      if (!id || !Number.isFinite(proposed.getTime()) || proposed.getTime() < Date.now() + 30 * 60_000 || proposed.getTime() > Date.now() + 14 * 24 * 60 * 60_000 || !isAllowedPickupTime(proposed)) {
+        return reply({ ok: false, error: "請選擇至少 30 分鐘後、17:30 至隔日凌晨 02:00 的取餐時間（每 5 分鐘一個時段）" }, 400);
       }
       const { data: order, error: readError } = await admin.from("customer_orders")
         .select("id,status,note").eq("id", id).maybeSingle();
@@ -134,12 +166,13 @@ Deno.serve(async (req) => {
     if (!name || name.length > 40) return reply({ ok: false, error: "姓名格式不正確" }, 400);
     if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "請填寫正確的 10 碼手機號碼（09 開頭）" }, 400);
     if (note.length > 500) return reply({ ok: false, error: "備註過長" }, 400);
-    if (!Number.isFinite(pickup.getTime()) || pickup.getTime() < Date.now() + 10 * 60_000 || pickup.getTime() > Date.now() + 14 * 24 * 60 * 60_000) {
-      return reply({ ok: false, error: "希望取餐時間不在允許範圍" }, 400);
+    if (!Number.isFinite(pickup.getTime()) || pickup.getTime() < Date.now() + 30 * 60_000 || pickup.getTime() > Date.now() + 14 * 24 * 60 * 60_000 || !isAllowedPickupTime(pickup)) {
+      return reply({ ok: false, error: "希望取餐時間需在 30 分鐘後、未來 14 天內，且限 17:30 至隔日凌晨 02:00（每 5 分鐘一個時段）" }, 400);
     }
     if (!Array.isArray(input) || input.length < 1 || input.length > 40) return reply({ ok: false, error: "餐點內容不正確" }, 400);
 
     const quantities = new Map<string, number>();
+    const giftQuantities = new Map<string, number>();
     const spiceById = new Map<string, string | null>();
     for (const item of input) {
       const id = String(item?.product_id ?? "").trim();
@@ -150,7 +183,17 @@ Deno.serve(async (req) => {
     }
     if ([...quantities.values()].some(q => q > 30)) return reply({ ok: false, error: "單項餐點數量超過限制" }, 400);
 
-    const ids = [...quantities.keys()];
+    const freeDrinkInput = Array.isArray(body.free_drinks) ? body.free_drinks : [];
+    if (freeDrinkInput.length > 20) return reply({ ok: false, error: "贈品飲料選擇過多" }, 400);
+    for (const item of freeDrinkInput) {
+      const id = String(item?.product_id ?? "").trim();
+      const qty = Number(item?.quantity);
+      if (!id || !Number.isInteger(qty) || qty < 1 || qty > 20) return reply({ ok: false, error: "贈品飲料數量不正確" }, 400);
+      giftQuantities.set(id, (giftQuantities.get(id) ?? 0) + qty);
+    }
+    if ([...giftQuantities.values()].some(q => q > 20)) return reply({ ok: false, error: "單項贈品飲料數量超過限制" }, 400);
+
+    const ids = [...new Set([...quantities.keys(), ...giftQuantities.keys()])];
     const [{ data: products, error: readError }, { data: settingsRow, error: settingsError }] = await Promise.all([
       admin.from("products").select("id,name,price").in("id", ids),
       admin.from("menu_generator_settings").select("settings_json").eq("id", "default").maybeSingle(),
@@ -158,9 +201,20 @@ Deno.serve(async (req) => {
     if (readError) throw readError;
     if (settingsError) throw settingsError;
     if (!products || products.length !== ids.length) return reply({ ok: false, error: "部分餐點已下架，請重新整理菜單" }, 400);
-    const spicySettings = settingsRow?.settings_json?.customerOrderSpicySettings ?? {};
+
+    const allSettings = settingsRow?.settings_json ?? {};
+    const spicySettings = allSettings.customerOrderSpicySettings ?? {};
+    const menuItemSettings = allSettings.menuItemSettings ?? {};
+    const soldOutIds = allSettings.customerOrderSoldOutDate === taiwanDateValue(new Date())
+      ? new Set((allSettings.customerOrderSoldOutProductIds ?? []).map(String)) : new Set<string>();
+    const explicitGiftIds = Array.isArray(allSettings.customerOrderGiftDrinkProductIds)
+      ? new Set(allSettings.customerOrderGiftDrinkProductIds.map(String)) : null;
     const productMap = new Map(products.map((p: any) => [String(p.id), p]));
-    const snapshot = ids.map(id => {
+    for (const id of ids) {
+      if (soldOutIds.has(id)) return reply({ ok: false, error: `「${String((productMap.get(id) as any)?.name ?? "餐點")}」今日已售完，請移除後重新送出` }, 409);
+    }
+
+    const snapshot: any[] = [...quantities.keys()].map(id => {
       const p: any = productMap.get(id);
       const price = Number(p?.price), quantity = quantities.get(id)!;
       if (!p || !Number.isFinite(price) || price < 0) throw new Error("商品價格資料異常");
@@ -176,6 +230,31 @@ Deno.serve(async (req) => {
       };
     });
     const total = Math.round(snapshot.reduce((sum, item) => sum + item.subtotal, 0) * 100) / 100;
+    const giftLimit = Math.floor(total / 400);
+    const selectedGiftCount = [...giftQuantities.values()].reduce((sum, qty) => sum + qty, 0);
+    const configuredGiftIds = explicitGiftIds
+      ? [...explicitGiftIds]
+      : Object.keys(menuItemSettings).filter((id) => menuItemSettings[id]?.category === "飲品類");
+    let availableGiftIds: string[] = [];
+    if (configuredGiftIds.length) {
+      const { data: giftCatalog, error: giftCatalogError } = await admin.from("products")
+        .select("id").in("id", configuredGiftIds);
+      if (giftCatalogError) throw giftCatalogError;
+      availableGiftIds = (giftCatalog ?? []).map((p: any) => String(p.id));
+    }
+    const hasAvailableGift = availableGiftIds.some((id) => !soldOutIds.has(String(id)));
+    if (selectedGiftCount > giftLimit) return reply({ ok: false, error: `此訂單最多可選 ${giftLimit} 杯滿額贈飲料` }, 400);
+    if (giftLimit > 0 && hasAvailableGift && selectedGiftCount !== giftLimit) {
+      return reply({ ok: false, error: `此訂單可選 ${giftLimit} 杯滿額贈飲料，請選滿贈品數量` }, 400);
+    }
+    for (const [id, quantity] of giftQuantities) {
+      const p: any = productMap.get(id);
+      const isDrink = menuItemSettings[id]?.category === "飲品類";
+      if (!p || !isDrink || (explicitGiftIds && !explicitGiftIds.has(id))) {
+        return reply({ ok: false, error: "所選贈品飲料已不在店家提供的品項中，請重新選擇" }, 400);
+      }
+      snapshot.push({ product_id: id, name: String(p.name ?? "贈品飲料").slice(0, 100), unit_price: 0, quantity, subtotal: 0, is_gift: true });
+    }
     const { data: order, error: insertError } = await admin.from("customer_orders").insert({
       customer_name: name, customer_phone: phone, pickup_time: pickup.toISOString(),
       items: snapshot, total_amount: total, note, status: "new",
@@ -190,7 +269,7 @@ Deno.serve(async (req) => {
         webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
         const { data: subs, error: subsError } = await admin.from("customer_push_subscriptions").select("id,endpoint,p256dh,auth");
         if (subsError) throw subsError;
-        const payload = JSON.stringify({ title: "馬鈴吉碳烤｜新訂單", body: `收到新訂單（${name}），金額 $${total.toLocaleString("zh-TW")}，請開啟訂單管理查看。`, url: "/" });
+        const payload = JSON.stringify({ title: "馬鈴吉碳烤｜新訂單", body: `收到新訂單（${name}），金額 $${total.toLocaleString("zh-TW")}，請開啟訂單管理查看。`, url: "/bbq-app/?customer-order-admin=1" });
         for (const sub of subs ?? []) {
           try {
             await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
