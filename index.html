@@ -2822,15 +2822,14 @@
             document.getElementById('top-action-container').innerHTML = '';
             const content = document.getElementById('page-content');
             content.innerHTML = '<p style="text-align:center;padding:35px;color:#92765f;">正在載入菜單…</p>';
-            const [{data:products,error},{data:menuSettingsData,error:menuSettingsError}] = await Promise.all([
+            const [{data:products,error},{data:menuData}] = await Promise.all([
                 _supabase.from('products').select('id,name,price').order('id',{ascending:true}),
-                // 只讀取客人點餐需要的兩個 JSON 子欄位，避免下載整包 1.8 MB 的設定資料。
-                _supabase.from('menu_generator_settings').select('menuItemSettings:settings_json->menuItemSettings,customerOrderSpicySettings:settings_json->customerOrderSpicySettings').eq('id','default').maybeSingle()
+                _supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle()
             ]);
             if(error){content.innerHTML='<p style="padding:24px;color:#b91c1c;">目前無法載入菜單，請稍後再試。</p>';return;}
             customerPublicProducts = products || [];
-            const settings = menuSettingsError ? {} : (menuSettingsData?.menuItemSettings || {});
-            customerPublicSpicySettings = menuSettingsError ? {} : (menuSettingsData?.customerOrderSpicySettings || {});
+            const settings = menuData?.settings_json?.menuItemSettings || {};
+            customerPublicSpicySettings = menuData?.settings_json?.customerOrderSpicySettings || {};
             const groups = [...new Set(customerPublicProducts.map(p=>customerCategory(p,settings)))];
             content.innerHTML = `<div class="customer-order-wrap">
               <div class="customer-order-brand"><h1>🔥 馬鈴吉碳烤</h1><p>線上預訂・現場取餐</p></div>
