@@ -1,11 +1,8 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script>
-      (function(){const p=new URLSearchParams(location.search);if(p.get('customer-order')==='1'||p.get('customer-history')==='1'){document.documentElement.classList.add('customer-public-route');}})();
-    </script>
     <title>馬鈴吉碳烤 - 智慧營運管理系統</title>
     <!-- 引入 Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -27,23 +24,6 @@
             --shadow-hover: 0 20px 25px -5px rgba(234, 88, 12, 0.15), 0 10px 10px -5px rgba(234, 88, 12, 0.08);
         }
 
-        html.customer-public-route body{padding:0;background:#fffaf4}
-        html.customer-public-route #home-view{display:none!important}
-        html.customer-public-route #sub-view{display:block!important;padding:0!important;margin:0!important}
-        html.customer-public-route .top-bar{display:none!important}
-        html.customer-public-route .container{max-width:100%;margin:0;padding:0}
-        .customer-spice-first{position:sticky;top:0;z-index:120;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 13px;background:rgba(255,248,239,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid #eadbc7;border-radius:0 0 14px 14px;margin:0 -2px 14px;box-shadow:0 5px 16px rgba(91,62,38,.12);isolation:isolate}
-        .customer-spice-first strong{font-size:13px;color:#79563c;margin-right:2px}
-        .customer-spice-first button{border:1px solid #dfcbb5;background:#fff;color:#79563c;border-radius:999px;padding:9px 15px;min-height:40px;font-weight:800;touch-action:manipulation}
-        .customer-spice-first button.active{background:#80583b;color:#fff;border-color:#80583b;box-shadow:0 2px 8px #80583b30}
-        .customer-manage-count{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0 13px}
-        .customer-manage-count span{background:#f7eee3;color:#79563c;border-radius:10px;padding:8px 11px;font-size:13px;font-weight:850}
-        .customer-manage-spice{padding:12px;border:1px solid #e8d8c5;border-radius:12px;background:linear-gradient(135deg,#fffaf3,#fff);margin-top:10px}
-        .customer-manage-spice .spice-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px}
-        .customer-manage-spice .spice-head b{color:#80583b;font-size:13px}
-        .customer-manage-spice .spice-enable{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:#f7eee3;font-weight:800;color:#694a34}
-        .customer-manage-spice .spice-levels{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
-        .customer-manage-spice .spice-levels label{display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border:1px solid #e5d4c1;border-radius:999px;background:#fff;font-size:12px;font-weight:750}
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             background: var(--bg-color); 
@@ -1127,78 +1107,19 @@
 .customer-order-submit{width:100%;padding:14px;border:0;border-radius:12px;background:#80583b;color:#fff;font-size:16px;font-weight:850;margin-top:13px}.customer-order-submit:disabled{opacity:.55}
 .customer-order-total{display:flex;justify-content:space-between;align-items:center;font-weight:850;font-size:17px;padding:12px 0 0;border-top:1px solid #eadbc7;margin-top:10px}.customer-order-success{padding:24px 15px;text-align:center;background:#f1f8ee;border:1px solid #cfe2c7;border-radius:16px;color:#355d36}.customer-order-success h2{margin:0 0 8px}
 .customer-admin-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}.customer-admin-card.is-unread{border-left:5px solid #d97706;background:#fffaf1}.customer-unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;padding:0 6px;margin-left:7px;border-radius:999px;background:#dc4b35;color:#fff;font-size:11px;font-weight:900;vertical-align:middle}.customer-admin-actions button.primary{background:#80583b;color:#fff;border-color:#80583b}.customer-admin-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #eadbc7;border-radius:12px;margin:8px 0;background:#fffdf9}.customer-admin-setting-row strong{display:block}.customer-admin-setting-row label{display:inline-flex;align-items:center;gap:5px;margin:6px 10px 0 0;font-size:13px}.customer-admin-card{background:#fff;border:1px solid #eadbc7;border-radius:13px;padding:14px;margin:10px 0}.customer-admin-card h3{margin:0 0 8px;color:#704a32}.customer-admin-meta{font-size:13px;line-height:1.8;color:#725e4c}.customer-admin-items{white-space:pre-line;background:#fffaf3;border-radius:9px;padding:9px;margin:8px 0;font-size:14px}.customer-admin-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.customer-admin-actions button,.customer-admin-toolbar button{border:1px solid #d9c4aa;background:#fff8ef;color:#79563c;border-radius:9px;padding:8px 11px;font-weight:750}.customer-admin-login{max-width:430px;margin:25px auto;background:#fff;border:1px solid #eadbc7;border-radius:16px;padding:18px}.customer-admin-login input{width:100%;box-sizing:border-box;margin:6px 0 12px;padding:11px;border:1px solid #dfcdb8;border-radius:9px}.customer-order-muted{color:#92765f;font-size:13px;line-height:1.7}
+.customer-public-spice-bar{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:10px 12px;margin:0 0 12px;background:rgba(255,250,242,.97);border:1px solid #eadbc7;border-radius:13px;box-shadow:0 4px 12px rgba(91,62,38,.10);backdrop-filter:blur(8px)}
+.customer-public-spice-label{font-size:14px;font-weight:850;color:#704a32;margin-right:3px}
+.customer-public-spice-bar button{min-width:58px;padding:8px 12px;border:1px solid #dfcdb8;border-radius:999px;background:#fff;color:#79563c;font-size:14px;font-weight:800}
+.customer-public-spice-bar button.active{background:#80583b;color:#fff;border-color:#80583b}
+.customer-product-tap{cursor:pointer;transition:background .15s,border-color .15s;user-select:none}
+.customer-product-tap:active{background:#fff3e4;border-color:#c69a70}
+.customer-product-tap:focus-visible{outline:3px solid #c69a70;outline-offset:2px}
+.customer-add-hint{flex-shrink:0;padding:8px 11px;border-radius:999px;background:#fff0df;color:#80583b;font-size:13px;font-weight:850}
+.customer-cart-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #f0e5d8;font-size:14px}
+.customer-cart-qty{display:flex;gap:5px}
+.customer-cart-qty button{width:30px;height:30px;border:1px solid #d9c4aa;border-radius:9px;background:#fff8ef;color:#79563c;font-size:18px;font-weight:800}
+@media(max-width:560px){.customer-cart-row{grid-template-columns:minmax(0,1fr) auto}.customer-cart-row>b{grid-column:1/-1;text-align:right}.customer-public-spice-bar{gap:6px;padding:9px 6px}.customer-public-spice-bar button{min-width:54px;padding:8px 9px}}
 @media(max-width:560px){.customer-order-form{grid-template-columns:1fr}.customer-order-field.full{grid-column:auto}.customer-order-brand h1{font-size:22px}}
-
-/* 客人線上點餐：快速點餐式商品卡片 */
-.customer-menu-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:11px;margin-top:12px}.customer-menu-card{content-visibility:auto;contain-intrinsic-size:118px}
-.customer-menu-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:9px;min-height:116px;padding:15px;text-align:left;border:1px solid #e5d2bc;border-radius:16px;background:linear-gradient(145deg,#fffdf9,#fff6eb);color:#49372b;box-shadow:0 3px 10px rgba(91,62,38,.06);cursor:pointer;transition:transform .12s,border-color .12s,box-shadow .12s}
-.customer-menu-card:active{transform:scale(.98)}
-.customer-menu-card.is-selected{border:2px solid #a66f4d;background:linear-gradient(145deg,#fff7eb,#f5e3cd);box-shadow:0 5px 14px rgba(128,88,59,.13);padding:14px}
-.customer-menu-card-name{font-size:15px;font-weight:850;line-height:1.4;word-break:break-word}
-.customer-menu-card-bottom{width:100%;display:flex;justify-content:space-between;align-items:center;gap:6px}
-.customer-menu-card-price{font-size:14px;font-weight:850;color:#986344}
-.customer-menu-card-hint{font-size:11px;color:#a58a70}
-.customer-menu-card-qty{display:inline-flex;align-items:center;justify-content:center;min-width:25px;height:25px;padding:0 7px;border-radius:99px;background:#80583b;color:#fff;font-size:12px;font-weight:900}
-.customer-menu-card .customer-spice-options{width:100%;padding-top:7px;border-top:1px solid #eadbc7}
-.customer-menu-card .customer-spice-options button{padding:6px 9px;font-size:12px}
-.customer-pickup-open{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:14px 15px;border:1px solid #d9c4aa;border-radius:13px;background:linear-gradient(135deg,#fffaf2,#f7ead9);color:#704a32;font:inherit;font-weight:850;text-align:left;cursor:pointer}
-.customer-pickup-open span:last-child{font-size:20px;color:#a77a59}
-.customer-pickup-overlay{position:fixed;inset:0;z-index:10050;background:rgba(44,31,22,.56);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
-.customer-pickup-modal{width:min(430px,100%);max-height:90vh;overflow:auto;background:#fffdf9;border:1px solid #eadbc7;border-radius:22px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);color:#49372b}
-.customer-pickup-modal h3{margin:0 0 5px;font-size:20px;color:#704a32}
-.customer-pickup-modal .sub{margin:0 0 17px;color:#92765f;font-size:13px}
-.customer-pickup-modal label{display:block;margin:12px 0 6px;font-size:13px;font-weight:850;color:#72543e}
-.customer-pickup-modal input,.customer-pickup-modal select{width:100%;box-sizing:border-box;padding:13px;border:1px solid #dfcdb8;border-radius:12px;background:#fff;color:#49372b;font:inherit;font-size:16px}
-.customer-pickup-time-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.customer-pickup-preview{margin-top:15px;padding:13px;border-radius:13px;background:#f8eddb;color:#704a32;text-align:center;font-size:18px;font-weight:900}
-.customer-pickup-actions{display:flex;gap:9px;margin-top:16px}
-.customer-pickup-actions button{flex:1;padding:13px;border:0;border-radius:12px;font-size:15px;font-weight:850;cursor:pointer}
-.customer-pickup-cancel{background:#f2e9df;color:#79563c}
-.customer-pickup-confirm{background:#80583b;color:#fff}
-@media(max-width:430px){.customer-menu-card-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.customer-menu-card{min-height:108px;padding:12px}.customer-menu-card.is-selected{padding:11px}.customer-pickup-modal{padding:17px}}
-.customer-menu-card.is-soldout{opacity:.72;background:#f3eee8;border-style:dashed;cursor:not-allowed;box-shadow:none}
-.customer-menu-card-soldout{font-size:12px;font-weight:900;color:#b44532;background:#fbe8e2;border-radius:99px;padding:5px 9px}
-.customer-pickup-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}
-.customer-pickup-calendar-head strong{font-size:16px;color:#704a32}
-.customer-pickup-calendar-head button{width:36px;height:36px;border:1px solid #e5d2bc;border-radius:11px;background:#fff7ed;color:#80583b;font-size:20px}
-.customer-pickup-weekdays,.customer-pickup-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
-.customer-pickup-weekdays span{text-align:center;font-size:11px;font-weight:800;color:#a18469;padding:6px 0}
-.customer-pickup-day{min-width:0;aspect-ratio:1;border:1px solid transparent;border-radius:11px;background:#fff8ef;color:#6c4b34;font-weight:800;font-size:13px}
-.customer-pickup-day:disabled{opacity:.22;background:transparent}
-.customer-pickup-day.selected{background:#80583b;color:#fff;box-shadow:0 3px 8px #80583b33}
-.customer-pickup-day.today{border-color:#c99a70}
-.customer-pickup-time-hint{margin:9px 0 0;color:#98785c;font-size:12px;line-height:1.6}
-.customer-pickup-open{min-height:52px}
-.customer-gift-panel{margin-top:14px;padding:13px;border:1px solid #e8d5bd;border-radius:14px;background:linear-gradient(145deg,#fffaf2,#f8eddb)}
-.customer-gift-panel h4{margin:0 0 5px;color:#80583b;font-size:15px}
-.customer-gift-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #eadbc7}
-.customer-gift-controls{display:flex;align-items:center;gap:8px}
-.customer-gift-controls button{width:30px;height:30px;border:1px solid #d9c4aa;border-radius:9px;background:#fff;color:#79563c;font-size:18px}
-.customer-gift-count{min-width:18px;text-align:center;font-weight:900}
-.customer-history-progress{display:flex;gap:4px;margin:10px 0 7px}
-.customer-history-progress span{height:6px;flex:1;border-radius:99px;background:#eadfd2}
-.customer-history-progress span.done{background:#a87953}
-.customer-history-status{display:inline-flex;align-items:center;padding:5px 9px;border-radius:99px;background:#f4eadc;color:#80583b;font-size:12px;font-weight:900}
-.customer-history-status.active{background:#e8f2e5;color:#477343}
-.customer-manage-wrap{display:grid;gap:14px}
-.customer-manage-section{background:#fff;border:1px solid #eadbc7;border-radius:16px;padding:15px;box-shadow:0 4px 14px rgba(91,62,38,.045)}
-.customer-manage-section h3{margin:0 0 6px;color:#704a32;font-size:18px}
-.customer-manage-section>p{margin:0 0 12px;color:#92765f;font-size:13px;line-height:1.6}
-.customer-manage-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:10px}
-.customer-manage-product{content-visibility:auto;contain-intrinsic-size:190px;padding:13px;border:1px solid #eadbc7;border-radius:13px;background:#fffdf9;min-width:0}
-.customer-manage-product-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
-.customer-manage-product-head strong{font-size:15px;color:#563d2d;line-height:1.4}
-.customer-manage-product-price{font-size:12px;color:#a18469;white-space:nowrap}
-.customer-manage-toggle{display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 10px;border-radius:10px;background:#f8f1e8;font-size:13px;font-weight:800;color:#77573f}
-.customer-manage-toggle.soldout{background:#fbe9e4;color:#a53d2d}
-.customer-manage-spice{margin-top:10px;padding-top:9px;border-top:1px solid #efe4d7}
-.customer-manage-spice label,.customer-manage-drink label{display:inline-flex;align-items:center;gap:5px;margin:5px 10px 0 0;font-size:12px;color:#79563c}
-.customer-manage-drink{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
-.customer-manage-drink label{padding:11px;border:1px solid #eadbc7;border-radius:11px;background:#fffdf9;font-size:14px;font-weight:800;margin:0}
-.customer-manage-save{position:sticky;bottom:10px;width:100%;padding:14px;border:0;border-radius:13px;background:#80583b;color:#fff;font-size:16px;font-weight:900;box-shadow:0 7px 18px #4b301f2b}
-.customer-admin-actions .customer-time-action{background:#80583b;color:#fff;border-color:#80583b}
-@media(max-width:430px){.customer-manage-grid{grid-template-columns:1fr}.customer-history-progress{gap:3px}}
-
 </style>
 
 </head>
@@ -2880,7 +2801,6 @@
         const CUSTOMER_PUSH_PUBLIC_KEY = 'BDk2KVu03H_HZi41S0DDGx9cLljPfpEfEp6FTvEuYr_KHElfvd1Oyz41sMak_blSSMhipiPlGaY83f7RGC10p_g';
         const CUSTOMER_ORDER_FUNCTION = 'customer-orders';
         let customerPublicProducts = [];
-        let customerPublicProductById = new Map();
         let customerPublicCart = {};
         let customerOrderRealtime = null;
         let customerHomeRealtime = null;
@@ -2888,21 +2808,9 @@
         let customerAdminOrders = [];
         let customerAdminStatusFilter = 'all';
         let customerPublicSpicySettings = {};
-        let customerPublicSpicyChoice = {};
-        let customerPublicSelectedSpiceLevel = '不辣';
-        let customerPublicSubmitInFlight = false;
-        let customerHistoryLookupInFlight = false;
+        let customerPublicSpicyChoice = '不辣';
         let customerAdminSettingsJson = {};
         let customerAdminRefreshTimer = null;
-        let customerPublicSoldOutIds = new Set();
-        let customerPublicGiftDrinkIds = [];
-        let customerPublicGiftDrinkQty = {};
-        let customerAdminProducts = [];
-        let customerAdminProductsLoaded = false;
-        let customerAdminSettingsLoaded = false;
-        let customerHistoryRefreshTimer = null;
-        let customerHistoryLastPhone = '';
-        let customerPickupPickerState = null;
         const CUSTOMER_READ_ORDER_KEY = 'malinji_customer_order_read_ids_v1';
         function customerReadOrderIds(){try{return new Set(JSON.parse(localStorage.getItem(CUSTOMER_READ_ORDER_KEY)||'[]').map(String));}catch(e){return new Set();}}
         function customerSaveReadOrderIds(ids){localStorage.setItem(CUSTOMER_READ_ORDER_KEY,JSON.stringify([...ids].slice(-500)));}
@@ -2926,151 +2834,98 @@
             document.getElementById('top-action-container').innerHTML = '';
             const content = document.getElementById('page-content');
             content.innerHTML = '<p style="text-align:center;padding:35px;color:#92765f;">正在載入菜單…</p>';
-            const [{data:products,error},{data:menuData}] = await Promise.all([
+            const [productsResult,menuSettingsResult] = await Promise.all([
                 _supabase.from('products').select('id,name,price').order('id',{ascending:true}),
-                _supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle()
+                // 只讀取公開點餐頁會用到的兩個 JSON 子欄位，避免下載整包大型設定。
+                _supabase.from('menu_generator_settings').select('menuItemSettings:settings_json->menuItemSettings,customerOrderSpicySettings:settings_json->customerOrderSpicySettings').eq('id','default').maybeSingle()
             ]);
+            const {data:products,error} = productsResult;
             if(error){content.innerHTML='<p style="padding:24px;color:#b91c1c;">目前無法載入菜單，請稍後再試。</p>';return;}
             customerPublicProducts = products || [];
-            const allSettings = menuData?.settings_json || {};
-            const settings = allSettings.menuItemSettings || {};
-            customerPublicSpicySettings = allSettings.customerOrderSpicySettings || {};
-            customerPublicSoldOutIds = allSettings.customerOrderSoldOutDate === customerLocalDateValue(new Date()) ? new Set((allSettings.customerOrderSoldOutProductIds || []).map(String)) : new Set();
-            const allDrinkIds = customerPublicProducts.filter(p=>customerCategory(p,settings)==='飲品類').map(p=>String(p.id));
-            customerPublicGiftDrinkIds = Array.isArray(allSettings.customerOrderGiftDrinkProductIds)
-                ? allSettings.customerOrderGiftDrinkProductIds.map(String).filter(id=>allDrinkIds.includes(id))
-                : allDrinkIds;
-            customerPublicGiftDrinkQty = {};
-            customerPublicProductById = new Map(customerPublicProducts.map(p=>[String(p.id),p]));
-            const groupedProducts = new Map();
-            for (const product of customerPublicProducts) {
-                const category = customerCategory(product, settings);
-                if (!groupedProducts.has(category)) groupedProducts.set(category, []);
-                groupedProducts.get(category).push(product);
+            let publicMenuSettings = menuSettingsResult?.data || null;
+            const projectionIncomplete = publicMenuSettings && (!Object.prototype.hasOwnProperty.call(publicMenuSettings,'menuItemSettings') || !Object.prototype.hasOwnProperty.call(publicMenuSettings,'customerOrderSpicySettings'));
+            // 若目前 Supabase/PostgREST 不支援上述欄位投影，改回原本完整讀取方式，確保舊功能不會失效。
+            if(menuSettingsResult?.error || projectionIncomplete){
+                const {data:fallbackMenuData,error:fallbackMenuError} = await _supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle();
+                if(!fallbackMenuError) publicMenuSettings = {
+                    menuItemSettings:fallbackMenuData?.settings_json?.menuItemSettings || {},
+                    customerOrderSpicySettings:fallbackMenuData?.settings_json?.customerOrderSpicySettings || {}
+                };
             }
-            const groups = [...groupedProducts.keys()];
+            const settings = publicMenuSettings?.menuItemSettings || {};
+            customerPublicSpicySettings = publicMenuSettings?.customerOrderSpicySettings || {};
+            customerPublicSpicyChoice = '不辣';
+            const groups = [...new Set(customerPublicProducts.map(p=>customerCategory(p,settings)))];
             content.innerHTML = `<div class="customer-order-wrap">
               <div class="customer-order-brand"><h1>🔥 馬鈴吉碳烤</h1><p>線上預訂・現場取餐</p></div>
+              <div id="customer-public-spice-bar" class="customer-public-spice-bar" role="group" aria-label="選擇辣度"></div>
               <div id="customer-public-menu"></div>
               <section class="customer-order-group"><h3>🧾 訂單資料</h3>
                 <div id="customer-public-cart"></div>
-                <div id="customer-public-gift-drinks"></div>
                 <div class="customer-order-form">
                   <div class="customer-order-field"><label for="customer-public-name">姓名 *</label><input id="customer-public-name" maxlength="40" autocomplete="name" placeholder="請輸入姓名"></div>
-                  <div class="customer-order-field"><label for="customer-public-phone">手機號碼 *</label><input id="customer-public-phone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="09xxxxxxxx"></div>
-                  <div class="customer-order-field full"><label>希望取餐時間 *</label><button type="button" class="customer-pickup-open" id="customer-pickup-open" onclick="openCustomerPickupPicker()"><span id="customer-pickup-display">📅 選擇取餐日期與時間</span><span>⌄</span></button><input id="customer-public-pickup" type="hidden"><div id="customer-pickup-confirmed" class="customer-order-muted">尚未選擇取餐時間</div></div>
+                  <div class="customer-order-field"><label for="customer-public-pickup">希望取餐時間 *</label><input id="customer-public-pickup" type="datetime-local"></div>
+                  <div class="customer-order-field full"><button type="button" class="customer-order-submit" style="margin:0" onclick="confirmCustomerDesiredPickup()">確認希望取餐時間</button><div id="customer-pickup-confirmed" class="customer-order-muted">尚未確認希望取餐時間</div></div>
                   <div class="customer-order-field full"><label for="customer-public-note">餐點備註</label><textarea id="customer-public-note" maxlength="500" placeholder="其他餐點需求…"></textarea></div>
                 </div>
                 <div style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true"><label>不要填寫<input id="customer-public-website" tabindex="-1" autocomplete="off"></label></div>
                 <button class="customer-order-submit" id="customer-public-submit" onclick="submitCustomerPublicOrder()">送出訂單</button>
               </section>
             </div>`;
+            const pickup = document.getElementById('customer-public-pickup');
+            const min = new Date(Date.now()+30*60000); min.setMinutes(Math.ceil(min.getMinutes()/5)*5,0,0);
+            pickup.min = new Date(min.getTime()-min.getTimezoneOffset()*60000).toISOString().slice(0,16);
+            pickup.addEventListener('change',()=>{customerDesiredPickupConfirmed=false;const c=document.getElementById('customer-pickup-confirmed');if(c)c.textContent='時間已變更，請再次確認';});
+            const hasSpicyProducts = customerPublicProducts.some(p=>customerPublicSpicySettings[String(p.id)]?.enabled);
+            const spiceBar = document.getElementById('customer-public-spice-bar');
+            if(spiceBar){
+                spiceBar.style.display = hasSpicyProducts ? 'flex' : 'none';
+                spiceBar.innerHTML = hasSpicyProducts ? `<span class="customer-public-spice-label">選擇辣度</span>${['不辣','小辣','中辣','大辣'].map(level=>`<button type="button" class="${customerPublicSpicyChoice===level?'active':''}" aria-pressed="${customerPublicSpicyChoice===level}" onclick="setCustomerPublicSpicy('${level}')">${level}</button>`).join('')}` : '';
+            }
             const menu = document.getElementById('customer-public-menu');
-            const hasSpicyProducts=customerPublicProducts.some(p=>customerPublicSpicySettings[String(p.id)]?.enabled!==false);
-            const spicePicker=hasSpicyProducts?`<div class="customer-spice-first"><strong>① 先選辣度</strong>${['不辣','小辣','中辣','大辣'].map(level=>`<button type="button" class="${customerPublicSelectedSpiceLevel===level?'active':''}" onclick="selectCustomerPublicSpiceLevel('${level}')">${level}</button>`).join('')}<span class="customer-order-muted">② 再點選下方餐點</span></div>`:'';
-            menu.innerHTML = spicePicker + groups.map(group=>`<section class="customer-order-group"><h3>${customerEscape(group)}</h3><div class="customer-menu-card-grid">${groupedProducts.get(group).map(p=>{
-                const id=String(p.id),soldOut=customerPublicSoldOutIds.has(id),spice=customerPublicSpicySettings[id],enabled=spice?.enabled!==false;
-                const qty=Object.entries(customerPublicCart).filter(([key])=>key.startsWith(id+'::')).reduce((sum,[,n])=>sum+(Number(n)||0),0);
-                return `<article data-product-id="${customerEscape(id)}" class="customer-menu-card ${qty>0?'is-selected ':''}${soldOut?'is-soldout':''}" ${soldOut?'aria-disabled="true"':'role="button" tabindex="0"'} aria-label="${customerEscape(p.name)}，${customerMoney(p.price)}${soldOut?'，今日已售完':'，依上方所選辣度點擊加入一份'}" ${soldOut?'':'onclick="changeCustomerPublicQty(decodeURIComponent(\''+encodeURIComponent(id)+'\'),1)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();changeCustomerPublicQty(decodeURIComponent(\''+encodeURIComponent(id)+'\'),1)}"'}><div class="customer-menu-card-name">${customerEscape(p.name)}</div><div class="customer-menu-card-bottom"><span class="customer-menu-card-price">${customerMoney(p.price)}</span>${soldOut?'<span class="customer-menu-card-soldout">今日已售完</span>':qty>0?`<span class="customer-menu-card-qty">已點 ${qty}</span>`:'<span class="customer-menu-card-hint">點擊加入＋1</span>'}</div></article>`;
-            }).join('')}</div></section>`).join('') || '<p class="customer-order-muted">目前尚無可點選的餐點。</p>';
+            menu.innerHTML = groups.map(group=>`<section class="customer-order-group"><h3>${customerEscape(group)}</h3>${customerPublicProducts.filter(p=>customerCategory(p,settings)===group).map(p=>`<article class="customer-product-row customer-product-tap" role="button" tabindex="0" aria-label="點擊加入${customerEscape(p.name)}" onclick="addCustomerPublicProduct(decodeURIComponent('${encodeURIComponent(String(p.id))}'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();addCustomerPublicProduct(decodeURIComponent('${encodeURIComponent(String(p.id))}'));}"><div class="customer-product-top"><div class="customer-product-main"><div class="customer-product-name">${customerEscape(p.name)}</div><div class="customer-product-price">${customerMoney(p.price)}</div></div><span class="customer-add-hint">點擊加入 ＋</span></div></article>`).join('')}</section>`).join('') || '<p class="customer-order-muted">目前尚無可點選的餐點。</p>';
             renderCustomerPublicCart();
         }
         let customerDesiredPickupConfirmed=false;
-        function customerLocalDateValue(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;}
-        function customerParseLocalDate(value){const [y,m,d]=String(value||'').split('-').map(Number);return new Date(y||2000,(m||1)-1,d||1,12,0,0,0);}
-        function customerDateAddDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d;}
-        function customerAllowedMinutes(hour){return Array.from({length:12},(_,i)=>String(i*5).padStart(2,'0'));}
-        function customerIsAllowedPickup(date){const h=date.getHours(),m=date.getMinutes();return (h===17&&m>=30&&m<=55&&m%5===0)||(h>=18&&h<=23&&m%5===0)||((h===0||h===1)&&m%5===0)||(h===2&&m===0);}
-        function customerNextValidPickupDateTime(){let candidate=new Date(Date.now()+30*60000);candidate.setSeconds(0,0);candidate.setMinutes(Math.ceil(candidate.getMinutes()/5)*5);for(let i=0;i<14*24*12;i++,candidate=new Date(candidate.getTime()+5*60000)){if(customerIsAllowedPickup(candidate))return candidate;}return new Date(Date.now()+24*60*60000);}
-        function openCustomerPickupPicker(){openCustomerDateTimePicker({mode:'public'});}
-        function openCustomerAdminProposeTimePicker(orderId,currentValue){openCustomerDateTimePicker({mode:'admin',orderId,currentValue});}
-        function openCustomerDateTimePicker(options={}){
-            document.getElementById('customer-pickup-overlay')?.remove();
-            const minDate=customerLocalDateValue(new Date()),maxDate=customerLocalDateValue(customerDateAddDays(new Date(),14));
-            let initial=options.currentValue?new Date(options.currentValue):null;
-            if(!initial||!Number.isFinite(initial.getTime())||initial.getTime()<Date.now()+30*60000||!customerIsAllowedPickup(initial))initial=customerNextValidPickupDateTime();
-            const overlay=document.createElement('div');overlay.id='customer-pickup-overlay';overlay.className='customer-pickup-overlay';
-            customerPickupPickerState={mode:options.mode||'public',orderId:options.orderId||'',date:customerLocalDateValue(initial),month:new Date(initial.getFullYear(),initial.getMonth(),1),minDate,maxDate,hour:initial.getHours(),minute:String(initial.getMinutes()).padStart(2,'0')};
-            overlay.innerHTML=`<section class="customer-pickup-modal" role="dialog" aria-modal="true" aria-labelledby="customer-pickup-title"><h3 id="customer-pickup-title">${customerPickupPickerState.mode==='admin'?'🕒 提出其他取餐時間':'🗓️ 選擇取餐日期與時間'}</h3><p class="sub">可預約時段為每日 17:30 至隔日凌晨 02:00</p><div class="customer-pickup-calendar-head"><button type="button" aria-label="上個月" onclick="changeCustomerPickupMonth(-1)">‹</button><strong id="customer-pickup-month-label"></strong><button type="button" aria-label="下個月" onclick="changeCustomerPickupMonth(1)">›</button></div><div class="customer-pickup-weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div><div class="customer-pickup-calendar" id="customer-pickup-calendar"></div><div class="customer-pickup-time-row"><div><label for="customer-pickup-hour">取餐小時</label><select id="customer-pickup-hour" onchange="customerPickupHourChanged()"></select></div><div><label for="customer-pickup-minute">取餐分鐘</label><select id="customer-pickup-minute" onchange="updateCustomerPickupPreview()"></select></div></div><p class="customer-pickup-time-hint">18:00～01:55 每小時皆可選 00、05、10…55；17 點從 30 分開始，02 點只提供 00 分。</p><div class="customer-pickup-preview" id="customer-pickup-preview"></div><div class="customer-pickup-actions"><button type="button" class="customer-pickup-cancel" onclick="closeCustomerPickupPicker()">取消</button><button type="button" class="customer-pickup-confirm" onclick="confirmCustomerPickupFromPicker()">✓ 確認時間</button></div></section>`;
-            overlay.addEventListener('click',e=>{if(e.target===overlay)closeCustomerPickupPicker();});document.body.appendChild(overlay);
-            renderCustomerPickupCalendar();populateCustomerPickupTimeOptions();updateCustomerPickupPreview();
+        function confirmCustomerDesiredPickup(){const pickup=document.getElementById('customer-public-pickup')?.value;if(!pickup){alert('請先選擇希望取餐時間');return;}if(new Date(pickup).getTime()<Date.now()+10*60000){alert('希望取餐時間至少需在現在 10 分鐘後');return;}customerDesiredPickupConfirmed=true;const el=document.getElementById('customer-pickup-confirmed');if(el)el.textContent='✓ 已確認希望取餐時間：'+new Date(pickup).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
+        function setCustomerPublicSpicy(level){customerPublicSpicyChoice=level;const bar=document.getElementById('customer-public-spice-bar');if(bar)bar.querySelectorAll('button').forEach(button=>{const active=button.textContent===level;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});}
+        function customerPublicCartKey(id,spice){return JSON.stringify([String(id),spice||'']);}
+        function addCustomerPublicProduct(id){
+            const product=customerPublicProducts.find(p=>String(p.id)===String(id));if(!product)return;
+            const config=customerPublicSpicySettings[String(product.id)];
+            const allowed=(config?.levels||['不辣','小辣','中辣','大辣']).filter(level=>['不辣','小辣','中辣','大辣'].includes(level));
+            const spice=config?.enabled?(allowed.includes(customerPublicSpicyChoice)?customerPublicSpicyChoice:(allowed[0]||'不辣')):null;
+            const key=customerPublicCartKey(product.id,spice);customerPublicCart[key]=Math.min(99,(Number(customerPublicCart[key])||0)+1);renderCustomerPublicCart();
         }
-        function renderCustomerPickupCalendar(){const state=customerPickupPickerState;if(!state)return;const label=document.getElementById('customer-pickup-month-label'),grid=document.getElementById('customer-pickup-calendar');if(!label||!grid)return;const y=state.month.getFullYear(),m=state.month.getMonth();label.textContent=`${y} 年 ${String(m+1).padStart(2,'0')} 月`;const first=new Date(y,m,1),offset=first.getDay(),days=new Date(y,m+1,0).getDate(),cells=[];for(let i=0;i<offset;i++)cells.push('<span></span>');for(let day=1;day<=days;day++){const d=new Date(y,m,day,12),value=customerLocalDateValue(d),disabled=value<state.minDate||value>state.maxDate,selected=value===state.date,today=value===state.minDate;cells.push(`<button type="button" class="customer-pickup-day ${selected?'selected':''} ${today?'today':''}" ${disabled?'disabled':''} onclick="selectCustomerPickupDate('${value}')">${day}</button>`);}grid.innerHTML=cells.join('');const prev=new Date(y,m-1,1),next=new Date(y,m+1,1),minMonth=state.minDate.slice(0,7),maxMonth=state.maxDate.slice(0,7);const buttons=document.querySelectorAll('#customer-pickup-overlay .customer-pickup-calendar-head button');if(buttons[0])buttons[0].disabled=customerLocalDateValue(prev).slice(0,7)<minMonth;if(buttons[1])buttons[1].disabled=customerLocalDateValue(next).slice(0,7)>maxMonth;}
-        function changeCustomerPickupMonth(delta){if(!customerPickupPickerState)return;const s=customerPickupPickerState;s.month=new Date(s.month.getFullYear(),s.month.getMonth()+delta,1);renderCustomerPickupCalendar();}
-        function selectCustomerPickupDate(value){if(!customerPickupPickerState)return;customerPickupPickerState.date=value;customerPickupPickerState.month=new Date(Number(value.slice(0,4)),Number(value.slice(5,7))-1,1);renderCustomerPickupCalendar();updateCustomerPickupPreview();}
-        function populateCustomerPickupTimeOptions(){const state=customerPickupPickerState,hourSelect=document.getElementById('customer-pickup-hour'),minuteSelect=document.getElementById('customer-pickup-minute');if(!state||!hourSelect||!minuteSelect)return;const hours=[17,18,19,20,21,22,23,0,1,2];hourSelect.innerHTML=hours.map(h=>`<option value="${h}" ${h===state.hour?'selected':''}>${String(h).padStart(2,'0')} 時</option>`).join('');const mins=customerAllowedMinutes(state.hour),isValidMinute=m=>(state.hour===17?Number(m)>=30:state.hour===2?Number(m)===0:true);if(!mins.includes(state.minute)||!isValidMinute(state.minute))state.minute=state.hour===17?'30':'00';minuteSelect.innerHTML=mins.map(m=>`<option value="${m}" ${!isValidMinute(m)?'disabled':''} ${m===state.minute?'selected':''}>${m} 分</option>`).join('');}
-        function customerPickupHourChanged(){if(!customerPickupPickerState)return;customerPickupPickerState.hour=Number(document.getElementById('customer-pickup-hour').value);customerPickupPickerState.minute=customerPickupPickerState.hour===17?'30':'00';populateCustomerPickupTimeOptions();updateCustomerPickupPreview();}
-        function updateCustomerPickupPreview(){const state=customerPickupPickerState,preview=document.getElementById('customer-pickup-preview');if(!state||!preview)return;const hour=Number(document.getElementById('customer-pickup-hour')?.value??state.hour),minute=document.getElementById('customer-pickup-minute')?.value??state.minute;state.hour=hour;state.minute=minute;const d=customerParseLocalDate(state.date),dateText=d.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'short'});preview.textContent=`${dateText}　${String(hour).padStart(2,'0')}:${minute}`;}
-        function closeCustomerPickupPicker(){document.getElementById('customer-pickup-overlay')?.remove();customerPickupPickerState=null;}
-        async function confirmCustomerPickupFromPicker(){
-            const state=customerPickupPickerState;if(!state)return;const date=state.date,hour=Number(document.getElementById('customer-pickup-hour')?.value),minute=Number(document.getElementById('customer-pickup-minute')?.value);if(!date){alert('請選擇取餐日期');return;}
-            const selected=new Date(`${date}T${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:00`),now=Date.now();
-            if(!customerIsAllowedPickup(selected)){alert('請選擇 17:30 至隔日凌晨 02:00 的營業時段。');return;}if(selected.getTime()<now+30*60000){alert('取餐時間至少需要在現在 30 分鐘後。');return;}if(selected.getTime()>now+14*86400000){alert('取餐時間最多只能預約未來 14 天。');return;}
-            if(state.mode==='admin'){
-                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'propose-time',order_id:state.orderId,proposed_pickup_time:selected.toISOString()}});
-                if(error||!data?.ok){alert(data?.error||'提出時間失敗，請稍後再試');return;}closeCustomerPickupPicker();alert('已將新取餐時間送給客人確認。');await refreshCustomerAdminOrders();return;
-            }
-            const hidden=document.getElementById('customer-public-pickup');if(hidden)hidden.value=`${date}T${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;customerDesiredPickupConfirmed=true;
-            const label=selected.toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false});const display=document.getElementById('customer-pickup-display');if(display)display.textContent=label;const status=document.getElementById('customer-pickup-confirmed');if(status)status.textContent='✓ 已確認取餐時間';closeCustomerPickupPicker();
-        }
-        function selectCustomerPublicSpiceLevel(level){if(!['不辣','小辣','中辣','大辣'].includes(level))return;customerPublicSelectedSpiceLevel=level;document.querySelectorAll('.customer-spice-first button').forEach(b=>b.classList.toggle('active',b.textContent===level));}
-        function customerCartKey(id,level){return String(id)+'::'+(level||'__none__');}
-        function customerCartEntriesForProduct(id){return Object.entries(customerPublicCart).filter(([key])=>key.startsWith(String(id)+'::'));}
-        function changeCustomerPublicQty(id,delta,explicitLevel){if(customerPublicSoldOutIds.has(String(id)))return;const product=customerPublicProductById.get(String(id));if(!product)return;const cfg=customerPublicSpicySettings[String(id)]||{};const enabled=cfg.enabled!==false;const allowed=(cfg.levels?.length?cfg.levels:['不辣','小辣','中辣','大辣']).filter(x=>['不辣','小辣','中辣','大辣'].includes(x));let level=enabled?(explicitLevel||customerPublicSelectedSpiceLevel||'不辣'):null;if(enabled&&!allowed.includes(level)){level=allowed[0]||'不辣';}const key=customerCartKey(id,level),n=Math.max(0,Math.min(99,(Number(customerPublicCart[key])||0)+delta));if(n)customerPublicCart[key]=n;else delete customerPublicCart[key];const card=document.querySelector('.customer-menu-card[data-product-id="'+CSS.escape(String(id))+'"]');if(card){const totalQty=customerCartEntriesForProduct(id).reduce((sum,[,v])=>sum+(Number(v)||0),0);card.classList.toggle('is-selected',totalQty>0);const bottom=card.querySelector('.customer-menu-card-bottom');if(bottom)bottom.innerHTML=`<span class="customer-menu-card-price">${customerMoney(product.price)}</span>${totalQty>0?`<span class="customer-menu-card-qty">已點 ${totalQty}</span>`:'<span class="customer-menu-card-hint">點擊加入＋1</span>'}`;}renderCustomerPublicCart();}
-        function customerPublicCartTotal(){let total=0;for(const [key,qty] of Object.entries(customerPublicCart)){const id=key.split('::')[0],p=customerPublicProductById.get(id);if(p&&!customerPublicSoldOutIds.has(id))total+=(Number(p.price)||0)*(Number(qty)||0);}return total;}
-        function customerGiftDrinkCount(){return Object.values(customerPublicGiftDrinkQty).reduce((sum,n)=>sum+(Number(n)||0),0);}
-        function changeCustomerGiftDrinkQty(id,delta){const max=Math.floor(customerPublicCartTotal()/400),current=Number(customerPublicGiftDrinkQty[id])||0;if(delta>0&&customerGiftDrinkCount()>=max)return;const next=Math.max(0,Math.min(max,current+delta));if(next)customerPublicGiftDrinkQty[id]=next;else delete customerPublicGiftDrinkQty[id];renderCustomerPublicCart();}
+        function changeCustomerPublicQty(key,delta){const next=Math.max(0,Math.min(99,(Number(customerPublicCart[key])||0)+delta));if(next)customerPublicCart[key]=next;else delete customerPublicCart[key];renderCustomerPublicCart();}
         function renderCustomerPublicCart(){
-            const el=document.getElementById('customer-public-cart');if(!el)return;const rows=Object.entries(customerPublicCart).filter(([key,qty])=>Number(qty)>0&&!customerPublicSoldOutIds.has(key.split('::')[0])).map(([key,qty])=>{const [id,levelKey]=key.split('::');return {key,id,level:levelKey==='__none__'?'':levelKey,qty:Number(qty),product:customerPublicProductById.get(id)};}).filter(x=>x.product);const total=customerPublicCartTotal();
-            el.innerHTML=rows.length?rows.map(row=>{const {product:p,qty,level,key}=row;const pid=encodeURIComponent(String(p.id)),plevel=encodeURIComponent(level||'');return `<div style="display:flex;justify-content:space-between;align-items:center;gap:9px;padding:8px 0;font-size:14px;border-bottom:1px solid #f0e5d8;"><span style="flex:1;min-width:0">${customerEscape(p.name)} ${level?`（${customerEscape(level)}）`:''} × ${qty}</span><span style="white-space:nowrap;font-weight:800">${customerMoney((Number(p.price)||0)*qty)}</span><span style="display:flex;gap:5px"><button type="button" aria-label="減少${customerEscape(p.name)}" onclick="changeCustomerPublicQty(decodeURIComponent('${pid}'),-1,decodeURIComponent('${plevel}'))" style="width:30px;height:30px;border:1px solid #d9c4aa;border-radius:9px;background:#fff8ef;color:#79563c;font-size:18px">−</button><button type="button" aria-label="增加${customerEscape(p.name)}" onclick="changeCustomerPublicQty(decodeURIComponent('${pid}'),1,decodeURIComponent('${plevel}'))" style="width:30px;height:30px;border:1px solid #d9c4aa;border-radius:9px;background:#fff8ef;color:#79563c;font-size:18px">＋</button></span></div>`;}).join(''):'<p class="customer-order-muted">尚未選擇餐點，請先從上方卡片加入。</p>';
-            el.innerHTML+=`<div class="customer-order-total"><span>餐點合計</span><span>${customerMoney(total)}</span></div>`;
-            const giftBox=document.getElementById('customer-public-gift-drinks');if(!giftBox)return;const giftLimit=Math.floor(total/400);let excess=customerGiftDrinkCount()-giftLimit;if(excess>0){for(const id of Object.keys(customerPublicGiftDrinkQty).reverse()){const take=Math.min(excess,Number(customerPublicGiftDrinkQty[id])||0);customerPublicGiftDrinkQty[id]-=take;excess-=take;if(customerPublicGiftDrinkQty[id]<=0)delete customerPublicGiftDrinkQty[id];if(excess<=0)break;}}const selected=customerGiftDrinkCount();
-            if(giftLimit<1){giftBox.innerHTML='<div class="customer-gift-panel"><h4>🎁 滿額贈飲料</h4><div class="customer-order-muted">每滿 $400 贈送 1 杯，餐點滿 $400 即可選擇贈品。</div></div>';return;}
-            if(!customerPublicGiftDrinkIds.length){giftBox.innerHTML=`<div class="customer-gift-panel"><h4>🎁 滿額贈飲料</h4><b>已達 ${giftLimit} 杯贈品資格</b><p class="customer-order-muted">目前店家尚未設定可贈送的飲料，請聯絡店家。</p></div>`;return;}
-            const drinks=customerPublicProducts.filter(p=>customerPublicGiftDrinkIds.includes(String(p.id))&&!customerPublicSoldOutIds.has(String(p.id)));
-            giftBox.innerHTML=`<div class="customer-gift-panel"><h4>🎁 滿額贈飲料</h4><div style="font-size:13px;color:#79563c;font-weight:800">已達 ${giftLimit} 杯贈品資格，已選 ${selected}/${giftLimit} 杯</div><div class="customer-order-muted">每滿 $400 請選滿 1 杯，贈品不計入金額。</div>${drinks.map(p=>{const id=String(p.id),qty=Number(customerPublicGiftDrinkQty[id])||0;return `<div class="customer-gift-row"><strong>${customerEscape(p.name)}</strong><div class="customer-gift-controls"><button type="button" onclick="changeCustomerGiftDrinkQty('${customerEscape(id)}',-1)">−</button><span class="customer-gift-count">${qty}</span><button type="button" onclick="changeCustomerGiftDrinkQty('${customerEscape(id)}',1)" ${selected>=giftLimit?'disabled':''}>＋</button></div></div>`;}).join('')||'<p class="customer-order-muted">目前可贈送的飲料皆已售完。</p>'}</div>`;
+            const el=document.getElementById('customer-public-cart');if(!el)return;
+            const rows=Object.entries(customerPublicCart).map(([key,quantity])=>{let parts;try{parts=JSON.parse(key);}catch(e){return null;}const product=customerPublicProducts.find(p=>String(p.id)===String(parts[0]));return product&&Number(quantity)>0?{key,product,quantity:Number(quantity),spice:parts[1]||null}:null;}).filter(Boolean);
+            const total=rows.reduce((sum,row)=>sum+(Number(row.product.price)||0)*row.quantity,0);
+            el.innerHTML=rows.length?rows.map(row=>`<div class="customer-cart-row"><span>${customerEscape(row.product.name)} ${row.spice?`（${customerEscape(row.spice)}）`:''} × ${row.quantity}</span><div class="customer-cart-qty"><button type="button" aria-label="減少一份" onclick="changeCustomerPublicQty(decodeURIComponent('${encodeURIComponent(row.key)}'),-1)">−</button><button type="button" aria-label="增加一份" onclick="changeCustomerPublicQty(decodeURIComponent('${encodeURIComponent(row.key)}'),1)">＋</button></div><b>${customerMoney((Number(row.product.price)||0)*row.quantity)}</b></div>`).join(''):'<p class="customer-order-muted">尚未選擇餐點，請先從上方菜單加入。</p>';
+            el.innerHTML+=`<div class="customer-order-total"><span>合計</span><span>${customerMoney(total)}</span></div>`;
         }
         async function submitCustomerPublicOrder(){
-            const btn=document.getElementById('customer-public-submit');if(!btn||customerPublicSubmitInFlight||btn.disabled)return;
-            const name=document.getElementById('customer-public-name').value.trim(),phone=document.getElementById('customer-public-phone').value.replace(/\D/g,''),pickup=document.getElementById('customer-public-pickup').value,note=document.getElementById('customer-public-note').value.trim();
-            const items=Object.entries(customerPublicCart).filter(([key,qty])=>Number(qty)>0&&!customerPublicSoldOutIds.has(key.split('::')[0])).map(([key,qty])=>{const [id,levelKey]=key.split('::');return {product_id:id,quantity:Number(qty),spice_level:levelKey==='__none__'?null:levelKey};});
-            const free_drinks=Object.entries(customerPublicGiftDrinkQty).filter(([,quantity])=>Number(quantity)>0).map(([product_id,quantity])=>({product_id,quantity:Number(quantity)}));
-            const giftLimit=Math.floor(customerPublicCartTotal()/400),giftAvailable=customerPublicProducts.some(p=>customerPublicGiftDrinkIds.includes(String(p.id))&&!customerPublicSoldOutIds.has(String(p.id)));
-            if(!items.length){alert('請先選擇餐點。');return;}if(giftLimit>0&&giftAvailable&&customerGiftDrinkCount()!==giftLimit){alert(`此訂單可選 ${giftLimit} 杯滿額贈飲料，請選滿贈品數量。`);return;}if(!name){alert('請填寫姓名。');return;}if(!/^09\d{8}$/.test(phone)){alert('請填寫正確的 10 碼手機號碼（09 開頭）。');return;}if(!pickup||!customerDesiredPickupConfirmed){alert('請先選擇並確認希望取餐時間。');return;}const selectedPickup=new Date(pickup);if(selectedPickup.getTime()<Date.now()+30*60000||!customerIsAllowedPickup(selectedPickup)){alert('取餐時間需在 30 分鐘後，且限 17:30 至隔日凌晨 02:00。');return;}
-            if(document.getElementById('customer-public-website')?.value)return;
-            customerPublicSubmitInFlight=true;btn.disabled=true;btn.textContent='訂單送出中…';
+            const btn=document.getElementById('customer-public-submit');if(!btn)return;
+            const name=document.getElementById('customer-public-name').value.trim();const pickup=document.getElementById('customer-public-pickup').value;const note=document.getElementById('customer-public-note').value.trim();
+            const items=Object.entries(customerPublicCart).map(([key,quantity])=>{let parts;try{parts=JSON.parse(key);}catch(e){return null;}const product=customerPublicProducts.find(p=>String(p.id)===String(parts[0]));if(!product||Number(quantity)<=0)return null;return {product_id:product.id,quantity:Number(quantity),spice_level:parts[1]||null};}).filter(Boolean);
+            if(!items.length){alert('請先選擇餐點。');return;}if(!name){alert('請填寫姓名。');return;}if(!pickup||!customerDesiredPickupConfirmed){alert('請先選擇並確認希望取餐時間。');return;}if(new Date(pickup).getTime()<Date.now()+10*60000){alert('希望取餐時間至少需在現在 10 分鐘後。');return;}
+            if(document.getElementById('customer-public-website')?.value){return;}
+            btn.disabled=true;btn.textContent='訂單送出中…';
             try{
-                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'create-order',customer_name:name,customer_phone:phone,pickup_time:selectedPickup.toISOString(),note,items,free_drinks,website:document.getElementById('customer-public-website')?.value||'',submitted_at:Date.now()}});
-                if(error)throw error;if(!data?.ok)throw new Error(data?.error||'訂單送出失敗');
-                document.querySelector('.customer-order-wrap').innerHTML=`<div class="customer-order-success"><div style="font-size:42px;">✓</div><h2>訂單已送出</h2><p>訂單編號：<b>${customerEscape(data.order_number||data.id||'已建立')}</b></p><p>訂單已成立。若要查看目前進度，請使用店家提供的「訂單查詢網址」。</p><a href="?customer-order=1" style="display:block;margin-top:14px;color:#80583b;font-weight:800">返回點餐</a></div>`;
-            }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('customer order submit failed',e,detail);alert('訂單送出失敗：'+detail);customerPublicSubmitInFlight=false;btn.disabled=false;btn.textContent='重新送出訂單';}
-        }
-        async function renderCustomerHistoryPage(){
-            document.title='馬鈴吉碳烤｜訂單查詢';document.getElementById('home-view').style.display='none';document.getElementById('sub-view').style.display='block';document.querySelector('.top-bar').style.display='none';document.getElementById('page-title').textContent='訂單查詢';document.getElementById('top-action-container').innerHTML='';
-            document.getElementById('page-content').innerHTML=`<div class="customer-order-wrap"><div class="customer-order-brand"><h1>📋 訂單查詢</h1><p>輸入下單時的手機號碼，即可查看歷史訂單與目前進度</p></div><section class="customer-order-group"><div class="customer-order-field"><label for="customer-history-phone">訂單電話號碼</label><input id="customer-history-phone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="請輸入 09 開頭的手機號碼"></div><button type="button" class="customer-order-submit" onclick="lookupCustomerOrders()">查詢訂單</button><div id="customer-history-results" style="margin-top:14px"></div></section><p style="text-align:center"><a href="?customer-order=1" style="color:#80583b;font-weight:800">← 返回線上點餐</a></p></div>`;
-        }
-        async function lookupCustomerOrders(silent=false){
-            if(customerHistoryLookupInFlight)return;customerHistoryLookupInFlight=true;
-            const input=document.getElementById('customer-history-phone'),box=document.getElementById('customer-history-results');if(!input||!box){customerHistoryLookupInFlight=false;return;}const phone=input.value.replace(/\D/g,'');
-            if(!/^09\d{8}$/.test(phone)){customerHistoryLookupInFlight=false;if(!silent)alert('請輸入正確的 10 碼手機號碼（09 開頭）。');return;}
-            if(!silent){customerHistoryLastPhone=phone;box.innerHTML='<p class="customer-order-muted">正在查詢訂單…</p>';if(customerHistoryRefreshTimer)clearInterval(customerHistoryRefreshTimer);}
-            try{
-                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'lookup-orders',customer_phone:phone}});if(error)throw error;if(!data?.ok)throw new Error(data?.error||'查詢失敗');
-                const rows=Array.isArray(data.orders)?data.orders:[];if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:18px">查無此手機號碼的訂單。</p>';return;}
-                const statusLabel={new:'等待店家確認',confirmed:'已確認・等待製作',preparing:'製作中',completed:'已完成',cancelled:'已取消'};
-                const activeRank={new:0,confirmed:1,preparing:2,completed:3,cancelled:4};rows.sort((a,b)=>(activeRank[a.status]??5)-(activeRank[b.status]??5)||new Date(b.created_at)-new Date(a.created_at));
-                box.innerHTML=rows.map(o=>{const items=Array.isArray(o.items)?o.items:[],itemText=items.map(i=>`${customerEscape(i.name)} × ${Number(i.quantity)||0}${i.spice_level?`（${customerEscape(i.spice_level)}）`:''}${i.is_gift?'（滿額贈）':''}`).join('<br>'),created=o.created_at?new Date(o.created_at).toLocaleString('zh-TW'):'',pickup=o.pickup_time?new Date(o.pickup_time).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'',active=['new','confirmed','preparing'].includes(o.status),steps=['new','confirmed','preparing','completed'],stepIndex=o.status==='cancelled'?-1:steps.indexOf(o.status),proposal=o.proposed_pickup_time?new Date(o.proposed_pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'';return `<article class="customer-admin-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>訂單 ${customerEscape(String(o.id).slice(0,8))}</b><span class="customer-history-status ${active?'active':''}">${customerEscape(statusLabel[o.status]||o.status)}</span></div>${active?`<div class="customer-history-progress">${steps.map((step,i)=>`<span class="${stepIndex>=i?'done':''}"></span>`).join('')}</div>`:''}<div class="customer-admin-meta">下單時間：${customerEscape(created)}<br>目前取餐時間：${customerEscape(pickup)}</div>${proposal?`<div style="margin:10px 0;padding:12px;border-radius:12px;background:#fff4df;border:1px solid #e8c99c"><b>店家提出其他取餐時間</b><p style="margin:6px 0">${customerEscape(proposal)}</p><div class="customer-admin-actions"><button class="primary" onclick="respondCustomerPickup('${customerEscape(o.id)}',true)">可以，接受新時間</button><button onclick="respondCustomerPickup('${customerEscape(o.id)}',false)">不方便，請店家再安排</button></div></div>`:''}<div class="customer-admin-items">${itemText||'（無餐點明細）'}</div><b>總金額：${customerMoney(o.total_amount)}</b></article>`;}).join('');
-                if(!customerHistoryRefreshTimer)customerHistoryRefreshTimer=setInterval(()=>{const current=document.getElementById('customer-history-phone');if(current&&current.value.replace(/\D/g,'')===customerHistoryLastPhone)lookupCustomerOrders(true);},30000);
-            }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('lookup customer orders failed',e,detail);if(!silent)box.textContent='查詢失敗：'+detail;}finally{customerHistoryLookupInFlight=false;}
+                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'create-order',customer_name:name,customer_phone:'',pickup_time:new Date(pickup).toISOString(),note,items,website:document.getElementById('customer-public-website')?.value||'',submitted_at:Date.now()}});
+                if(error)throw error; if(!data?.ok)throw new Error(data?.error||'訂單送出失敗');
+                document.querySelector('.customer-order-wrap').innerHTML=`<div class="customer-order-success"><div style="font-size:42px;">✓</div><h2>訂單已送出</h2><p>訂單編號：<b>${customerEscape(data.order_number||data.id||'已建立')}</b></p><div id="customer-order-live-status">等待店家確認希望取餐時間…</div><button class="customer-order-submit" onclick="location.href=location.pathname+'?customer-order=1'">返回菜單</button></div>`;customerWatchOrder(data.id);
+            }catch(e){console.error('customer order submit failed',e);alert('訂單送出失敗，請稍後再試；若持續失敗請直接聯絡店家。');btn.disabled=false;btn.textContent='重新送出訂單';}
         }
         async function customerWatchOrder(orderId){if(customerOrderWatchTimer)clearInterval(customerOrderWatchTimer);const check=async()=>{try{const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'get-order',order_id:orderId}});if(error||!data?.ok)return;const el=document.getElementById('customer-order-live-status');if(!el)return;if(data.status==='confirmed'){el.innerHTML=`<h3>✓ 店家已確認取餐時間</h3><p>${customerEscape(new Date(data.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))}</p>`;clearInterval(customerOrderWatchTimer);customerOrderWatchTimer=null;return;}if(data.proposed_pickup_time){el.innerHTML=`<h3>店家提出新的取餐時間</h3><p>${customerEscape(new Date(data.proposed_pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))}</p><button class="customer-order-submit" onclick="respondCustomerPickup('${customerEscape(orderId)}',true)">可以，確認這個時間</button><button class="customer-order-submit" style="background:#9b8978" onclick="respondCustomerPickup('${customerEscape(orderId)}',false)">不方便，請店家再安排</button>`;}}catch(e){console.warn('customer order status polling failed',e);}};await check();customerOrderWatchTimer=setInterval(check,12000);}
-        async function respondCustomerPickup(orderId,accepted){const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'respond-time',order_id:orderId,accepted}});if(error||!data?.ok){alert(data?.error||'回覆未能送出，請稍後再試');return;}if(document.getElementById('customer-history-results'))await lookupCustomerOrders(true);else alert(accepted?'已接受店家提出的新取餐時間。':'已告知店家此時間不方便，等待店家重新安排。');}
+        async function respondCustomerPickup(orderId,accepted){const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'respond-time',order_id:orderId,accepted}});if(error||!data?.ok){alert('回覆未能送出，請稍後再試');return;}const el=document.getElementById('customer-order-live-status');if(el)el.textContent=accepted?'已回覆店家，取餐時間確認中…':'已告知店家此時間不方便，等待店家重新安排…';}
         function customerOwnerRole(user){return user?.app_metadata?.role==='store_owner';}
         async function renderCustomerOrderAdmin(){
             const content=document.getElementById('page-content');content.innerHTML='<p style="text-align:center;padding:25px;">正在載入訂單工作台…</p>';
-            const [{data:{session}},{data:{user},error}]=await Promise.all([_supabase.auth.getSession(),_supabase.auth.getUser()]);if(!session){renderCustomerAdminLogin();return;}
-            if(error||!customerOwnerRole(user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}
-            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="margin:0">訂單工作台</h3><div class="customer-admin-toolbar" style="margin:0"><button onclick="enableCustomerOrderPush()">啟用訂單通知</button><button onclick="customerAdminSignOut()">登出</button></div></div><div id="customer-push-status" class="customer-order-muted" style="margin-top:8px"></div></div><div class="customer-admin-toolbar"><button onclick="setCustomerAdminFilter('all')">全部</button><button onclick="setCustomerAdminFilter('new')">待確認</button><button onclick="setCustomerAdminFilter('confirmed')">已確認</button><button onclick="setCustomerAdminFilter('preparing')">製作中</button><button onclick="setCustomerAdminFilter('completed')">已完成</button><button onclick="setCustomerAdminFilter('cancelled')">已取消</button><button onclick="renderCustomerMenuManagement()">餐點管理</button></div><div id="customer-admin-order-list">載入訂單中…</div></div>`;
+            const {data:{session}}=await _supabase.auth.getSession();if(!session){renderCustomerAdminLogin();return;}
+            const {data:{user},error}=await _supabase.auth.getUser();if(error||!customerOwnerRole(user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}
+            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="margin:0">訂單工作台</h3><div class="customer-admin-toolbar" style="margin:0"><button onclick="enableCustomerOrderPush()">啟用訂單通知</button><button onclick="customerAdminSignOut()">登出</button></div></div><div id="customer-push-status" class="customer-order-muted" style="margin-top:8px"></div></div><div class="customer-admin-toolbar"><button onclick="setCustomerAdminFilter('all')">全部</button><button onclick="setCustomerAdminFilter('new')">待確認</button><button onclick="setCustomerAdminFilter('confirmed')">已確認</button><button onclick="setCustomerAdminFilter('preparing')">製作中</button><button onclick="setCustomerAdminFilter('completed')">已完成</button><button onclick="setCustomerAdminFilter('cancelled')">已取消</button><button onclick="renderCustomerSpicySettings()">餐點辣度管理</button></div><div id="customer-admin-order-list">載入訂單中…</div></div>`;
             await refreshCustomerAdminOrders(true);subscribeCustomerAdminRealtime();
             const pushStatus=document.getElementById('customer-push-status');if(pushStatus){const enabled=('Notification'in window)&&Notification.permission==='granted';pushStatus.textContent=enabled?'✓ 此裝置已啟用訂單通知':'此裝置尚未啟用訂單通知';}
         }
@@ -3078,38 +2933,15 @@
         async function customerAdminSignIn(){const email=document.getElementById('customer-admin-email').value.trim(),password=document.getElementById('customer-admin-password').value;const {data,error}=await _supabase.auth.signInWithPassword({email,password});if(error){renderCustomerAdminLogin('登入失敗，請檢查帳號密碼。');return;}if(!customerOwnerRole(data.user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}renderCustomerOrderAdmin();}
         async function customerAdminSignOut(){if(customerOrderRealtime){await _supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=null;}await _supabase.auth.signOut();renderCustomerAdminLogin();}
         function setCustomerAdminFilter(value){customerAdminStatusFilter=value;renderCustomerAdminOrderCards();}
-        async function refreshCustomerAdminOrders(initial=false){const box=document.getElementById('customer-admin-order-list');if(!box)return;if(initial)box.textContent='載入訂單中…';const {data,error}=await _supabase.from('customer_orders').select('id,customer_name,customer_phone,pickup_time,items,total_amount,note,status,created_at').order('created_at',{ascending:false}).limit(50);if(error){if(initial)box.innerHTML='<p style="color:#b91c1c;">目前無法載入訂單。</p>';console.error(error);return;}customerAdminOrders=data||[];renderCustomerAdminOrderCards();customerUpdateUnreadBadge();}
-        function renderCustomerAdminOrderCards(){const box=document.getElementById('customer-admin-order-list');if(!box)return;const read=customerReadOrderIds();const rows=customerAdminOrders.filter(o=>customerAdminStatusFilter==='all'||(customerAdminStatusFilter==='new'?o.status==='new':o.status===customerAdminStatusFilter));if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:22px;">目前沒有符合條件的訂單。</p>';return;}box.innerHTML=rows.map(o=>{const items=Array.isArray(o.items)?o.items:[];const itemText=items.map(i=>`${customerEscape(i.name)} × ${Number(i.quantity)||0}${i.spice_level?`（${customerEscape(i.spice_level)}）`:''}${i.is_gift?'（滿額贈）':''}　${customerMoney(i.subtotal)}`).join('\n');const pickup=new Date(o.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});const created=new Date(o.created_at).toLocaleString('zh-TW');const unread=o.status==='new'&&!read.has(String(o.id));const visibleNote=String(o.note||'無').replace(/\n\n\[\[MALINJI_ORDER_META:[\s\S]*?\]\]$/,'')||'無';const proposalMatch=String(o.note||'').match(/\[\[MALINJI_ORDER_META:([\s\S]*?)\]\]$/);let proposedTime='';try{const meta=proposalMatch?JSON.parse(proposalMatch[1]):{};if(meta.proposed_pickup_time)proposedTime=meta.proposed_pickup_time;}catch(e){}const actions=o.status==='new'?(proposedTime?'<span class="customer-order-muted">已提出新時間，等待客人回覆</span>':`<button class="primary" onclick="acceptCustomerDesiredTime('${customerEscape(o.id)}')">✓ 接受希望時間</button><button class="customer-time-action" onclick="openCustomerAdminProposeTimePicker('${customerEscape(o.id)}','${customerEscape(o.pickup_time)}')">提出其他時間</button>`):o.status==='confirmed'?`<button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','preparing')">開始製作</button>`:o.status==='preparing'?`<button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','completed')">完成訂單</button>`:'';return `<article class="customer-admin-card ${unread?'is-unread':''}"><h3>訂單 ${customerEscape(String(o.id).slice(0,8))}　<span style="font-size:13px;">${customerEscape(({new:'待確認',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'})[o.status]||o.status)}</span>${unread?'<span class="customer-unread-badge">未讀</span>':''}</h3><div class="customer-admin-meta">客人：${customerEscape(o.customer_name)}<br>手機：<a href="tel:${customerEscape(o.customer_phone||'')}">${customerEscape(o.customer_phone||'未提供')}</a><br>希望取餐時間：${customerEscape(pickup)}${proposedTime?'<br><b>已提出待客人回覆：'+customerEscape(new Date(proposedTime).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))+'</b>':''}<br>下單時間：${customerEscape(created)}</div><div class="customer-admin-items">${itemText||'（無餐點明細）'}</div><div class="customer-admin-meta">備註：${customerEscape(visibleNote)}<br><b>總金額：${customerMoney(o.total_amount)}</b></div><div class="customer-admin-actions"><button onclick="markCustomerOrderRead('${customerEscape(o.id)}')">標記已讀</button>${actions}<button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','cancelled')">取消訂單</button></div></article>`;}).join('');customerUpdateUnreadBadge();}
+        async function refreshCustomerAdminOrders(initial=false){const box=document.getElementById('customer-admin-order-list');if(!box)return;if(initial)box.textContent='載入訂單中…';const {data,error}=await _supabase.from('customer_orders').select('id,customer_name,customer_phone,pickup_time,items,total_amount,note,status,created_at').order('created_at',{ascending:false}).limit(100);if(error){if(initial)box.innerHTML='<p style="color:#b91c1c;">目前無法載入訂單。</p>';console.error(error);return;}customerAdminOrders=data||[];renderCustomerAdminOrderCards();customerUpdateUnreadBadge();}
+        function renderCustomerAdminOrderCards(){const box=document.getElementById('customer-admin-order-list');if(!box)return;const read=customerReadOrderIds();const rows=customerAdminOrders.filter(o=>customerAdminStatusFilter==='all'||(customerAdminStatusFilter==='new'?o.status==='new':o.status===customerAdminStatusFilter));if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:22px;">目前沒有符合條件的訂單。</p>';return;}box.innerHTML=rows.map(o=>{const items=Array.isArray(o.items)?o.items:[];const itemText=items.map(i=>`${customerEscape(i.name)} × ${Number(i.quantity)||0}${i.spice_level?`（${customerEscape(i.spice_level)}）`:''}　${customerMoney(i.subtotal)}`).join('\n');const pickup=new Date(o.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});const created=new Date(o.created_at).toLocaleString('zh-TW');const unread=o.status==='new'&&!read.has(String(o.id));const visibleNote=String(o.note||'無').replace(/\n\n\[\[MALINJI_ORDER_META:[\s\S]*?\]\]$/,'')||'無';const proposalMatch=String(o.note||'').match(/\[\[MALINJI_ORDER_META:([\s\S]*?)\]\]$/);let proposedLabel='';try{const meta=proposalMatch?JSON.parse(proposalMatch[1]):{};if(meta.proposed_pickup_time)proposedLabel='<br><b>已提出待客人確認：'+customerEscape(new Date(meta.proposed_pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))+'</b>';}catch(e){}return `<article class="customer-admin-card ${unread?'is-unread':''}"><h3>訂單 ${customerEscape(String(o.id).slice(0,8))}　<span style="font-size:13px;">${customerEscape(({new:'待確認',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'})[o.status]||o.status)}</span>${unread?'<span class="customer-unread-badge">未讀</span>':''}</h3><div class="customer-admin-meta">客人：${customerEscape(o.customer_name)}<br>希望取餐時間：${customerEscape(pickup)}${proposedLabel}<br>下單時間：${customerEscape(created)}</div><div class="customer-admin-items">${itemText||'（無餐點明細）'}</div><div class="customer-admin-meta">備註：${customerEscape(visibleNote)}<br><b>總金額：${customerMoney(o.total_amount)}</b></div><div class="customer-admin-actions"><button onclick="markCustomerOrderRead('${customerEscape(o.id)}')">標記已讀</button><button class="primary" onclick="acceptCustomerDesiredTime('${customerEscape(o.id)}')">接受希望時間</button><input type="datetime-local" id="customer-propose-time-${customerEscape(o.id)}" style="padding:8px;border:1px solid #d9c4aa;border-radius:9px;max-width:210px"><button onclick="proposeCustomerPickupTime('${customerEscape(o.id)}')">提出其他時間</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','confirmed')">確認訂單</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','preparing')">製作中</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','completed')">完成</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','cancelled')">取消</button></div></article>`;}).join('');customerUpdateUnreadBadge();}
         function markCustomerOrderRead(id){const ids=customerReadOrderIds();ids.add(String(id));customerSaveReadOrderIds(ids);renderCustomerAdminOrderCards();}
         async function updateCustomerOrderStatus(id,status){const {error}=await _supabase.from('customer_orders').update({status}).eq('id',id);if(error){alert('更新訂單狀態失敗，請確認店家權限。');return;}const ids=customerReadOrderIds();ids.add(String(id));customerSaveReadOrderIds(ids);await refreshCustomerAdminOrders();}
         async function acceptCustomerDesiredTime(id){const {error}=await _supabase.from('customer_orders').update({status:'confirmed'}).eq('id',id);if(error){alert('確認時間失敗');return;}const ids=customerReadOrderIds();ids.add(String(id));customerSaveReadOrderIds(ids);await refreshCustomerAdminOrders();}
-
+        async function proposeCustomerPickupTime(id){const value=document.getElementById('customer-propose-time-'+id)?.value;if(!value){alert('請先選擇可取餐時間');return;}const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'propose-time',order_id:id,proposed_pickup_time:new Date(value).toISOString()}});if(error||!data?.ok){alert(data?.error||'提出時間失敗，請稍後再試');return;}alert('已將新取餐時間送給客人確認。');}
         function subscribeCustomerAdminRealtime(){if(customerOrderRealtime)_supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=_supabase.channel('customer-orders-owner').on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},payload=>{if(customerAdminRefreshTimer)clearTimeout(customerAdminRefreshTimer);customerAdminRefreshTimer=setTimeout(()=>refreshCustomerAdminOrders(false),450);if(payload.eventType==='INSERT'){const badge=document.getElementById('customer-home-unread-badge');if(badge){const current=Number(badge.textContent)||0;badge.textContent=String(current+1);badge.style.display='inline-flex';}}}).subscribe();}
-        async function renderCustomerMenuManagement(forceRefresh=false){
-            const box=document.getElementById('customer-admin-order-list');if(!box)return;box.innerHTML='<p class="customer-order-muted">載入餐點管理…</p>';
-            {
-                const requests=[];
-                if(forceRefresh||!customerAdminProductsLoaded)requests.push(_supabase.from('products').select('id,name,price').order('id',{ascending:true}).then(r=>({kind:'products',...r})));
-                // 餐點供應／辣度設定每次進入管理頁都重新讀取，避免其他管理功能更新後顯示舊狀態。
-                requests.push(_supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle().then(r=>({kind:'settings',...r})));
-                const results=await Promise.all(requests);const failed=results.find(r=>r.error);if(failed){box.innerHTML='<p style="color:#b91c1c">無法讀取餐點設定，請重新整理後再試。</p>';return;}
-                for(const r of results){if(r.kind==='products'){customerAdminProducts=r.data||[];customerAdminProductsLoaded=true;}else{customerAdminSettingsJson=r.data?.settings_json||{};customerAdminSettingsLoaded=true;}}
-            }
-            const products=customerAdminProducts;const row={settings_json:customerAdminSettingsJson};const cfg=customerAdminSettingsJson.customerOrderSpicySettings||{},soldOut=customerAdminSettingsJson.customerOrderSoldOutDate===customerLocalDateValue(new Date())?new Set((customerAdminSettingsJson.customerOrderSoldOutProductIds||[]).map(String)):new Set(),menuSettings=customerAdminSettingsJson.menuItemSettings||{},drinkIds=customerAdminSettingsJson.customerOrderGiftDrinkProductIds;
-            const drinkProducts=customerAdminProducts.filter(p=>customerCategory(p,menuSettings)==='飲品類'),giftIds=new Set(Array.isArray(drinkIds)?drinkIds.map(String):drinkProducts.map(p=>String(p.id)));
-            box.innerHTML=`<div class="customer-manage-wrap"><section class="customer-manage-section"><h3>🍢 餐點管理</h3><p>集中管理今日供應狀態、辣度選項，以及滿額贈飲料內容。</p></section><section class="customer-manage-section"><h3>今日餐點供應</h3><div class="customer-manage-count"><span>目前共有 <b id="customer-menu-total-count">${customerAdminProducts.length}</b> 種品項</span><span>今日供應 <b id="customer-menu-available-count">${customerAdminProducts.filter(p=>!soldOut.has(String(p.id))).length}</b> 種</span></div><p>勾選「今日已售完」後，客人點餐頁仍會看見品項，但無法加入購物車，並顯示「今日已售完」；隔天會自動恢復供應狀態。</p><div class="customer-manage-grid">${customerAdminProducts.map(p=>{const id=String(p.id),v=cfg[id]||{enabled:true,levels:['不辣','小辣','中辣','大辣']},levels=v.levels||['不辣','小辣','中辣','大辣'];return `<article class="customer-manage-product"><div class="customer-manage-product-head"><strong>${customerEscape(p.name)}</strong><span class="customer-manage-product-price">${customerMoney(p.price)}</span></div><label class="customer-manage-toggle soldout"><input type="checkbox" id="soldout-${customerEscape(id)}" ${soldOut.has(id)?'checked':''} onchange="updateCustomerMenuSupplyCount()"> 今日已售完</label><div class="customer-manage-spice"><div class="spice-head"><b>🌶️ 辣度設定</b><span class="customer-order-muted">預設開啟</span></div><label class="spice-enable"><input type="checkbox" id="spicy-enabled-${customerEscape(id)}" ${v.enabled!==false?'checked':''}> 開放客人選擇辣度</label><div class="spice-levels">${['不辣','小辣','中辣','大辣'].map(level=>`<label><input type="checkbox" class="spicy-level-${customerEscape(id)}" value="${level}" ${levels.includes(level)?'checked':''}> ${level}</label>`).join('')}</div></div></article>`;}).join('')||'<p class="customer-order-muted">目前沒有販售品項。</p>'}</div></section><section class="customer-manage-section"><h3>🥤 滿額贈飲料</h3><p>每滿 $400 可贈送 1 杯。勾選目前可供客人選擇的贈品飲料；已售完的飲料也可在上方品項卡片標示售完。</p><div class="customer-manage-drink">${drinkProducts.map(p=>`<label><input type="checkbox" class="gift-drink-option" value="${customerEscape(p.id)}" ${giftIds.has(String(p.id))?'checked':''}> ${customerEscape(p.name)}</label>`).join('')||'<p class="customer-order-muted">目前販售品項中沒有分類為「飲品類」的品項，請先到菜單分類設定飲品。</p>'}</div><p class="customer-order-muted" style="margin-top:12px">客人訂單滿 $400／$800／$1,200 時，分別可選 1／2／3 杯贈品，贈品金額為 $0。</p></section><button class="customer-manage-save" onclick="saveCustomerMenuManagement()">儲存餐點管理設定</button></div>`;
-        }
-        function updateCustomerMenuSupplyCount(){const total=document.getElementById('customer-menu-total-count'),available=document.getElementById('customer-menu-available-count');if(total)total.textContent=String(customerAdminProducts.length);if(available)available.textContent=String(customerAdminProducts.filter(p=>!document.getElementById('soldout-'+String(p.id))?.checked).length);}
-        async function saveCustomerMenuManagement(){
-            const products=customerAdminProducts||[];const spicy={...(customerAdminSettingsJson.customerOrderSpicySettings||{})},soldOut=[];
-            for(const p of products){const id=String(p.id),enabled=document.getElementById('spicy-enabled-'+id)?.checked!==false,levels=[...document.querySelectorAll('.spicy-level-'+CSS.escape(id)+':checked')].map(x=>x.value);if(enabled&&!levels.length){alert(`「${p.name}」已開放辣度，至少請勾選一種辣度。`);return;}spicy[id]={enabled,levels};if(document.getElementById('soldout-'+id)?.checked)soldOut.push(id);}
-            const giftDrinkIds=[...document.querySelectorAll('.gift-drink-option:checked')].map(x=>String(x.value));
-            customerAdminSettingsJson.customerOrderSpicySettings=spicy;customerAdminSettingsJson.customerOrderSoldOutProductIds=soldOut;customerAdminSettingsJson.customerOrderSoldOutDate=customerLocalDateValue(new Date());customerAdminSettingsJson.customerOrderGiftDrinkProductIds=giftDrinkIds;
-            const {error}=await _supabase.from('menu_generator_settings').upsert({id:'default',settings_json:customerAdminSettingsJson,updated_at:new Date().toISOString()},{onConflict:'id'});
-            if(error){alert('儲存餐點管理失敗：'+error.message);return;}customerAdminSettingsLoaded=true;const saveButton=document.querySelector('.customer-manage-save');if(saveButton){saveButton.textContent='✓ 已儲存';saveButton.disabled=true;setTimeout(()=>{if(saveButton.isConnected){saveButton.textContent='儲存餐點管理設定';saveButton.disabled=false;}},1600);}alert('餐點管理設定已儲存，客人點餐頁將同步更新。');
-        }
-        // 舊函式名稱保留相容，避免既有入口呼叫失效。
-        async function renderCustomerSpicySettings(){return renderCustomerMenuManagement();}
+        async function renderCustomerSpicySettings(){const box=document.getElementById('customer-admin-order-list');if(!box)return;box.innerHTML='<p class="customer-order-muted">載入餐點設定…</p>';const [{data:products,error},{data:row,error:settingsError}]=await Promise.all([_supabase.from('products').select('id,name').order('id',{ascending:true}),_supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle()]);if(error||settingsError){box.innerHTML='<p style="color:#b91c1c">無法讀取餐點設定。</p>';return;}customerAdminSettingsJson=row?.settings_json||{};const cfg=customerAdminSettingsJson.customerOrderSpicySettings||{};box.innerHTML=`<section class="customer-order-group"><h3>餐點辣度管理</h3><p class="customer-order-muted">每個餐點可獨立決定是否提供辣度，以及開放哪些辣度選項。</p>${(products||[]).map(p=>{const v=cfg[String(p.id)]||{};return `<div class="customer-admin-setting-row"><div style="flex:1;min-width:0"><strong>${customerEscape(p.name)}</strong><label><input type="checkbox" id="spicy-enabled-${customerEscape(p.id)}" ${v.enabled?'checked':''}> 開放辣度選擇</label><div>${['不辣','小辣','中辣','大辣'].map(level=>`<label><input type="checkbox" class="spicy-level-${customerEscape(p.id)}" value="${level}" ${(v.levels||['不辣','小辣','中辣','大辣']).includes(level)?'checked':''}> ${level}</label>`).join('')}</div></div></div>`;}).join('')}<button class="customer-order-submit" onclick="saveCustomerSpicySettings()">儲存辣度設定</button></section>`;}
+        async function saveCustomerSpicySettings(){const {data:products,error}=await _supabase.from('products').select('id').order('id',{ascending:true});if(error){alert('讀取餐點失敗');return;}const cfg={...(customerAdminSettingsJson.customerOrderSpicySettings||{})};for(const p of products||[]){const id=String(p.id);cfg[id]={enabled:!!document.getElementById('spicy-enabled-'+id)?.checked,levels:[...document.querySelectorAll('.spicy-level-'+CSS.escape(id)+':checked')].map(x=>x.value)};}customerAdminSettingsJson.customerOrderSpicySettings=cfg;const {error:saveError}=await _supabase.from('menu_generator_settings').upsert({id:'default',settings_json:customerAdminSettingsJson,updated_at:new Date().toISOString()},{onConflict:'id'});if(saveError){alert('儲存辣度設定失敗：'+saveError.message);return;}alert('辣度設定已儲存，客人端菜單將同步更新。');}
         function customerBase64ToUint8Array(base64){const padding='='.repeat((4-base64.length%4)%4);const raw=atob((base64+padding).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
         async function enableCustomerOrderPush(){const status=document.getElementById('customer-push-status');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw new Error('此瀏覽器不支援 Web Push。');if(CUSTOMER_PUSH_PUBLIC_KEY.startsWith('REPLACE_'))throw new Error('尚未設定 VAPID 公開金鑰，請先完成部署設定。');const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error('你尚未允許此網站發送通知。');const registration=await navigator.serviceWorker.ready;const subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:customerBase64ToUint8Array(CUSTOMER_PUSH_PUBLIC_KEY)});const json=subscription.toJSON();const {data:{user}}=await _supabase.auth.getUser();const {error}=await _supabase.from('customer_push_subscriptions').upsert({owner_id:user.id,endpoint:json.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,updated_at:new Date().toISOString()},{onConflict:'endpoint'});if(error)throw error;if(status)status.textContent='✓ 訂單通知已啟用';}catch(e){if(status)status.textContent='無法啟用訂單通知，請確認裝置通知設定後再試。';}}
 
@@ -5246,13 +5078,8 @@
         });
       }
       window.addEventListener('DOMContentLoaded', function () {
-        const params = new URLSearchParams(location.search);
-        if (params.get('customer-order') === '1') {
+        if (new URLSearchParams(location.search).get('customer-order') === '1') {
           renderCustomerPublicPage();
-        } else if (params.get('customer-history') === '1') {
-          renderCustomerHistoryPage();
-        } else if (params.get('customer-order-admin') === '1') {
-          openPage('customer-orders-admin');
         } else {
           initCustomerHomeOrderRealtime();
         }
