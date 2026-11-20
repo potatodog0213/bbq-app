@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
       const phone = normalizePhone(body.customer_phone);
       if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "手機號碼格式不正確" }, 400);
       const { data: orders, error } = await admin.from("customer_orders")
-        .select("id,items,total_amount,status,pickup_time,created_at,note")
+        .select("id,items,total_amount,status,pickup_time,created_at,note,confirmed_at,preparing_at,completed_at,cancelled_at")
         .eq("customer_phone", phone).order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
       const ids = (orders ?? []).map((o: any) => o.id);
@@ -192,6 +192,7 @@ Deno.serve(async (req) => {
         return {
           id: order.id, items: order.items, total_amount: order.total_amount,
           status: order.status, pickup_time: order.pickup_time, created_at: order.created_at,
+          confirmed_at: order.confirmed_at, preparing_at: order.preparing_at, completed_at: order.completed_at, cancelled_at: order.cancelled_at,
           proposed_pickup_time: typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : null,
           addons: (addonResult.data ?? []).filter((a: any) => a.order_id === order.id),
           change_requests: (requestResult.data ?? []).filter((r: any) => r.order_id === order.id),
@@ -361,8 +362,16 @@ Deno.serve(async (req) => {
         return reply({ ok: false, error: `目前訂單狀態（${currentStatus}）不能變更為 ${nextStatus}` }, 409);
       }
 
+      const statusTimestampColumn: Record<string, string> = {
+        confirmed: "confirmed_at",
+        preparing: "preparing_at",
+        completed: "completed_at",
+        cancelled: "cancelled_at",
+      };
+      const timestampColumn = statusTimestampColumn[nextStatus];
       const { data: updated, error: updateError } = await admin.from("customer_orders")
-        .update({ status: nextStatus }).eq("id", orderId).eq("status", currentStatus)
+        .update({ status: nextStatus, [timestampColumn]: new Date().toISOString() })
+        .eq("id", orderId).eq("status", currentStatus)
         .select("id,status").maybeSingle();
       if (updateError) throw updateError;
       if (!updated) return reply({ ok: false, error: "訂單狀態已被其他操作更新，請重新整理後再試" }, 409);
