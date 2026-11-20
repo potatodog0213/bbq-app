@@ -1,10 +1,22 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
-      (function(){const p=new URLSearchParams(location.search);if(p.get('customer-order')==='1'||p.get('customer-history')==='1'){document.documentElement.classList.add('customer-public-route');}})();
+      (function(){
+        const p = new URLSearchParams(location.search);
+        if (p.get('customer-order') === '1' || p.get('customer-history') === '1') {
+          document.documentElement.classList.add('customer-public-route');
+        }
+
+        // 移除由 ChatGPT 分享連結附加的追蹤參數，保留點餐等其他網址參數。
+        const currentUrl = new URL(location.href);
+        if (currentUrl.searchParams.get('utm_source') === 'chatgpt.com') {
+          currentUrl.searchParams.delete('utm_source');
+          history.replaceState(history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash);
+        }
+      })();
     </script>
     <title>馬鈴吉碳烤 - 智慧營運管理系統</title>
     <!-- 引入 Supabase -->
