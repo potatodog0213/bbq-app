@@ -1196,13 +1196,14 @@
 .customer-gift-controls{display:flex;align-items:center;gap:8px}
 .customer-gift-controls button{width:30px;height:30px;border:1px solid #d9c4aa;border-radius:9px;background:#fff;color:#79563c;font-size:18px}
 .customer-gift-count{min-width:18px;text-align:center;font-weight:900}
-.customer-history-progress{position:relative;display:flex;gap:4px;margin:13px 0 9px;padding:2px 0;overflow:hidden}
-.customer-history-progress span{position:relative;height:8px;flex:1;border-radius:99px;background:#e8e2d9;overflow:hidden}
+.customer-history-progress{position:relative;display:flex;gap:4px;margin:13px 0 9px;padding:2px 0;overflow:hidden;border-radius:99px;isolation:isolate}
+.customer-history-progress span{position:relative;height:9px;flex:1;border-radius:99px;background:#e8e2d9;overflow:hidden}
 .customer-history-progress span.done{background:#d9ead4}
-.customer-history-progress span.done:after{content:"";position:absolute;inset:0;border-radius:99px;background:linear-gradient(90deg,#72b86a,#28a745,#72b86a);background-size:220% 100%;animation:customerProgressFlow 1.35s linear infinite}
-.customer-history-progress.is-finished span.done:after{animation:none;background:#35a853}
+.customer-history-progress span.done:after{content:"";position:absolute;inset:0;border-radius:99px;background:#35a853}
+.customer-history-progress:not(.is-finished):not(.is-cancelled)::after{content:"";position:absolute;z-index:2;left:0;top:2px;bottom:2px;width:100%;border-radius:99px;background:linear-gradient(90deg,rgba(53,168,83,0) 0%,rgba(53,168,83,.2) 18%,rgba(40,167,69,.92) 48%,rgba(53,168,83,.25) 82%,rgba(53,168,83,0) 100%);transform:scaleX(0);transform-origin:left center;animation:customerProgressFill 2.1s cubic-bezier(.45,0,.55,1) infinite;pointer-events:none}
+.customer-history-progress.is-finished span.done:after{background:#35a853}
 .customer-history-progress.is-cancelled span{background:#f0d8d4}
-@keyframes customerProgressFlow{from{background-position:-120% 0}to{background-position:100% 0}}
+@keyframes customerProgressFill{0%{transform:scaleX(0);opacity:.35}75%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
 .customer-order-timeline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0 13px}
 .customer-order-timeline-item{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid #eee6dc;border-radius:11px;background:#fffdf9;min-width:0}
 .customer-order-timeline-dot{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#cfc5b9}
@@ -1211,13 +1212,19 @@
 .customer-order-timeline-copy strong{font-size:12px;color:#604832}
 .customer-order-timeline-copy time{font-size:11px;color:#8b7968;font-variant-numeric:tabular-nums}
 .customer-order-dialog-backdrop{position:fixed;inset:0;z-index:10080;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(35,25,18,.55);backdrop-filter:blur(5px);animation:customerDialogFade .16s ease-out}
-.customer-order-dialog{width:min(100%,390px);border:1px solid #eadbc9;border-radius:22px;background:linear-gradient(155deg,#fffdf9,#fff7ed);box-shadow:0 24px 70px rgba(35,22,12,.28);padding:23px 21px 18px;animation:customerDialogPop .2s ease-out}
-.customer-order-dialog-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:16px;background:#f2e5d5;color:#80583b;font-size:24px;margin-bottom:13px}
-.customer-order-dialog h3{margin:0 0 8px;color:#593c28;font-size:19px}
+.customer-order-dialog{--dialog-accent:#80583b;--dialog-soft:#f4e8d9;width:min(100%,420px);position:relative;overflow:hidden;border:1px solid #eadbc9;border-radius:26px;background:linear-gradient(155deg,#fffefa 0%,#fff8ef 100%);box-shadow:0 28px 90px rgba(35,22,12,.34);padding:25px 23px 20px;animation:customerDialogPop .24s cubic-bezier(.2,.8,.2,1)}
+.customer-order-dialog:before{content:"";position:absolute;inset:0 0 auto;height:5px;background:linear-gradient(90deg,var(--dialog-accent),color-mix(in srgb,var(--dialog-accent),white 42%))}
+.customer-order-dialog.tone-preparing{--dialog-accent:#b86a27;--dialog-soft:#fff0df}.customer-order-dialog.tone-completed{--dialog-accent:#34834b;--dialog-soft:#e8f5e9}.customer-order-dialog.tone-cancelled{--dialog-accent:#b83d32;--dialog-soft:#fbe9e6}.customer-order-dialog.tone-confirmed{--dialog-accent:#477b9c;--dialog-soft:#e9f2f8}
+.customer-order-dialog-eyebrow{font-size:10px;letter-spacing:1.8px;font-weight:900;color:var(--dialog-accent);margin-bottom:10px}
+.customer-order-dialog-icon{width:58px;height:58px;display:grid;place-items:center;border-radius:19px;background:var(--dialog-soft);color:var(--dialog-accent);font-size:28px;margin-bottom:15px;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dialog-accent),transparent 86%)}
+.customer-order-dialog h3{margin:0 0 7px;color:#493323;font-size:22px;font-weight:900;letter-spacing:-.4px}
 .customer-order-dialog p{margin:0;color:#796451;line-height:1.7;font-size:14px;white-space:pre-line}
-.customer-order-dialog-actions{display:flex;gap:9px;margin-top:21px}
+.customer-order-dialog-detail{margin-top:16px;padding:13px 14px;border:1px solid #eee1d1;border-radius:16px;background:rgba(255,255,255,.78)}
+.customer-order-dialog-detail-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px;color:#8b7764}.customer-order-dialog-detail-row strong{color:#543b29;text-align:right;font-weight:850}
+.customer-order-dialog-note{display:flex;gap:9px;align-items:flex-start;margin-top:13px;padding:11px 12px;border-radius:13px;background:var(--dialog-soft);color:#6e5744;font-size:12px;line-height:1.55}
+.customer-order-dialog-actions{display:flex;gap:10px;margin-top:21px}
 .customer-order-dialog-actions button{flex:1;min-height:44px;border:1px solid #dfcbb6;border-radius:12px;background:#fff;color:#79563c;font-weight:800;padding:9px 12px}
-.customer-order-dialog-actions button.primary{border-color:#80583b;background:linear-gradient(135deg,#80583b,#a7653b);color:#fff;box-shadow:0 4px 10px rgba(128,88,59,.2)}
+.customer-order-dialog-actions button.primary{border-color:var(--dialog-accent);background:linear-gradient(135deg,var(--dialog-accent),color-mix(in srgb,var(--dialog-accent),#1c130d 12%));color:#fff;box-shadow:0 6px 15px color-mix(in srgb,var(--dialog-accent),transparent 78%);font-weight:900}.customer-order-dialog-actions button:focus-visible{outline:3px solid color-mix(in srgb,var(--dialog-accent),white 55%);outline-offset:2px}
 @keyframes customerDialogFade{from{opacity:0}to{opacity:1}}@keyframes customerDialogPop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:430px){.customer-manage-grid{grid-template-columns:1fr}.customer-history-progress{gap:3px}.customer-order-timeline{gap:6px}.customer-order-timeline-item{padding:8px}.customer-order-dialog{padding:20px 17px 16px}}
 .customer-history-status{display:inline-flex;align-items:center;padding:5px 9px;border-radius:99px;background:#f4eadc;color:#80583b;font-size:12px;font-weight:900}
@@ -3109,21 +3116,17 @@
                 document.querySelector('.customer-order-wrap').innerHTML=`<div class="customer-order-success"><div style="font-size:42px;">✓</div><h2>訂單已送出</h2><p>訂單編號：<b>${customerEscape(data.order_number||data.id||'已建立')}</b></p><p>訂單已成立。若要查看目前進度，請使用店家提供的「訂單查詢網址」。</p><a href="?customer-order=1" style="display:block;margin-top:14px;color:#80583b;font-weight:800">返回點餐</a></div>`;
             }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('customer order submit failed',e,detail);customerOrderAlert('訂單送出失敗：'+detail);customerPublicSubmitInFlight=false;btn.disabled=false;btn.textContent='重新送出訂單';}
         }
-        function customerOrderDialog(message,{title='訂單通知',icon='✦',confirm=false,confirmText='確定',cancelText='再想一下',danger=false}={}){
+        function customerOrderDialog(message,{title='訂單通知',icon='✦',confirm=false,confirmText='確定',cancelText='再想一下',tone='default',eyebrow='MALINJI ORDER',detailHtml='',note='',danger=false}={}){
             return new Promise(resolve=>{
                 document.getElementById('customer-order-dialog-backdrop')?.remove();
-                const backdrop=document.createElement('div');backdrop.id='customer-order-dialog-backdrop';backdrop.className='customer-order-dialog-backdrop';backdrop.innerHTML=`<section class="customer-order-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-order-dialog-title"><div class="customer-order-dialog-icon">${icon}</div><h3 id="customer-order-dialog-title"></h3><p class="customer-order-dialog-message"></p><div class="customer-order-dialog-actions">${confirm?`<button type="button" data-dialog-cancel>${cancelText}</button>`:''}<button type="button" class="primary" data-dialog-ok>${confirmText}</button></div></section>`;
-                backdrop.querySelector('h3').textContent=title;backdrop.querySelector('.customer-order-dialog-message').textContent=String(message??'');
+                const backdrop=document.createElement('div');backdrop.id='customer-order-dialog-backdrop';backdrop.className='customer-order-dialog-backdrop';backdrop.innerHTML=`<section class="customer-order-dialog tone-${tone}" role="dialog" aria-modal="true" aria-labelledby="customer-order-dialog-title"><div class="customer-order-dialog-eyebrow">${eyebrow}</div><div class="customer-order-dialog-icon" aria-hidden="true">${icon}</div><h3 id="customer-order-dialog-title"></h3><p class="customer-order-dialog-message"></p>${detailHtml?`<div class="customer-order-dialog-detail">${detailHtml}</div>`:''}${note?`<div class="customer-order-dialog-note"><span aria-hidden="true">ⓘ</span><span class="customer-order-dialog-note-text"></span></div>`:''}<div class="customer-order-dialog-actions">${confirm?`<button type="button" data-dialog-cancel>${cancelText}</button>`:''}<button type="button" class="primary" data-dialog-ok>${confirmText}</button></div></section>`;
+                backdrop.querySelector('h3').textContent=title;backdrop.querySelector('.customer-order-dialog-message').textContent=String(message??'');if(note)backdrop.querySelector('.customer-order-dialog-note-text').textContent=note;
                 let settled=false;const onKey=e=>{if(e.key==='Escape'||e.key==='Enter'){e.preventDefault();finish(e.key==='Escape'&&confirm?false:true);}};const finish=value=>{if(settled)return;settled=true;document.removeEventListener('keydown',onKey);backdrop.remove();resolve(value);};
-                backdrop.querySelector('[data-dialog-ok]').addEventListener('click',()=>finish(true));
-                backdrop.querySelector('[data-dialog-cancel]')?.addEventListener('click',()=>finish(false));
-                backdrop.addEventListener('click',e=>{if(e.target===backdrop&&!confirm)finish(true);});
-                document.addEventListener('keydown',onKey);
-                document.body.appendChild(backdrop);backdrop.querySelector('[data-dialog-ok]').focus();
+                backdrop.querySelector('[data-dialog-ok]').addEventListener('click',()=>finish(true));backdrop.querySelector('[data-dialog-cancel]')?.addEventListener('click',()=>finish(false));backdrop.addEventListener('click',e=>{if(e.target===backdrop&&!confirm)finish(true);});document.addEventListener('keydown',onKey);document.body.appendChild(backdrop);backdrop.querySelector('[data-dialog-ok]').focus();
             });
         }
-        function customerOrderAlert(message,options={}){customerOrderDialog(message,{title:options.title||'訂單通知',icon:options.icon||'✦',confirm:false,confirmText:'知道了'});}
-        function customerOrderConfirm(message,options={}){return customerOrderDialog(message,{title:options.title||'請確認操作',icon:options.icon||'？',confirm:true,confirmText:options.confirmText||'確認',cancelText:options.cancelText||'取消'});}
+        function customerOrderAlert(message,options={}){customerOrderDialog(message,{title:options.title||'訂單通知',icon:options.icon||'✦',confirm:false,confirmText:'知道了',tone:options.tone||'default',eyebrow:options.eyebrow||'ORDER NOTICE',note:options.note||''});}
+        function customerOrderConfirm(message,options={}){return customerOrderDialog(message,{title:options.title||'請確認操作',icon:options.icon||'？',confirm:true,confirmText:options.confirmText||'確認',cancelText:options.cancelText||'取消',tone:options.tone||'default',eyebrow:options.eyebrow||'ACTION REQUIRED',detailHtml:options.detailHtml||'',note:options.note||''});}
         async function renderCustomerHistoryPage(){
             if(customerHistoryRefreshTimer){clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=null;}customerHistoryLastPhone='';
             document.title='馬鈴吉碳烤｜訂單查詢';document.getElementById('home-view').style.display='none';document.getElementById('sub-view').style.display='block';document.querySelector('.top-bar').style.display='none';document.getElementById('page-title').textContent='訂單查詢';document.getElementById('top-action-container').innerHTML='';
@@ -3200,9 +3203,19 @@
             const order=customerAdminOrders.find(o=>String(o.id)===String(orderId));
             const allowed={new:['confirmed','cancelled'],confirmed:['preparing','cancelled'],preparing:['completed'],completed:[],cancelled:[]};
             if(order&&!(allowed[order.status]||[]).includes(nextStatus)){customerOrderAlert('目前訂單狀態不允許這項操作，請重新整理訂單。',{title:'訂單狀態已變更',icon:'!'});return false;}
-            const customer=order?.customer_name?`（${order.customer_name}）`:'';
-            const prompts={confirmed:`確定接受訂單 ${String(orderId).slice(0,8)} ${customer} 的取餐時間並確認訂單嗎？`,preparing:`確定要開始製作訂單 ${String(orderId).slice(0,8)} ${customer} 嗎？`,completed:`確定訂單 ${String(orderId).slice(0,8)} ${customer} 已完成嗎？`,cancelled:`確定要取消訂單 ${String(orderId).slice(0,8)} ${customer} 嗎？\n取消後將無法恢復，請先確認尚未開始製作。`};
-            const ok=await customerOrderConfirm(prompts[nextStatus],{title:`${labels[nextStatus]}｜訂單確認`,icon:nextStatus==='cancelled'?'⚠':'✓',confirmText:nextStatus==='cancelled'?'確認取消':`確認${labels[nextStatus]}`,cancelText:'返回檢查'});if(!ok)return false;
+            const customer=order?.customer_name||'未提供姓名';
+            const shortId=String(orderId).slice(0,8);
+            const pickup=order?.pickup_time?new Date(order.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'未設定';
+            const itemCount=(Array.isArray(order?.items)?order.items:[]).reduce((sum,item)=>sum+(Number(item.quantity)||0),0);
+            const amount=order?.total_amount!=null?customerMoney(order.total_amount):'未載入';
+            const detailHtml=`<div class="customer-order-dialog-detail-row"><span>訂單編號</span><strong>#${customerEscape(shortId)}</strong></div><div class="customer-order-dialog-detail-row"><span>顧客姓名</span><strong>${customerEscape(customer)}</strong></div><div class="customer-order-dialog-detail-row"><span>預定取餐</span><strong>${customerEscape(pickup)}</strong></div><div class="customer-order-dialog-detail-row"><span>餐點數量</span><strong>${itemCount} 件</strong></div><div class="customer-order-dialog-detail-row"><span>訂單金額</span><strong>${customerEscape(amount)}</strong></div>`;
+            const actionCopy={
+                confirmed:{title:'確認接下這筆訂單？',message:'請再次核對客人的取餐時間。確認後，客人端會立即顯示「店家已確認」。',icon:'✓',tone:'confirmed',eyebrow:'CONFIRM ORDER',button:'確認接單',note:'接單後即可在預定時間前安排製作。'},
+                preparing:{title:'現在開始製作？',message:'開始後，訂單進度會更新為「製作中」，客人也會同步看到進度變化。',icon:'🔥',tone:'preparing',eyebrow:'START PREPARATION',button:'開始製作',note:'請先確認餐點與備料已準備好，再開始計時。'},
+                completed:{title:'這筆訂單已經完成了嗎？',message:'確認完成後，客人端會顯示「已完成」，這筆訂單將結束製作流程。',icon:'✓',tone:'completed',eyebrow:'COMPLETE ORDER',button:'確認已完成',note:'請確認餐點已全部製作完成，可以交付客人。'},
+                cancelled:{title:'確定要取消這筆訂單？',message:'取消後客人端會立即顯示訂單已取消，請確認不是誤觸。',icon:'!',tone:'cancelled',eyebrow:'CANCEL ORDER',button:'確定取消訂單',note:'取消操作會留下紀錄，請確認已與客人溝通。'}
+            }[nextStatus];
+            const ok=await customerOrderConfirm(actionCopy.message,{title:actionCopy.title,icon:actionCopy.icon,tone:actionCopy.tone,eyebrow:actionCopy.eyebrow,detailHtml,note:actionCopy.note,confirmText:actionCopy.button,cancelText:'先不要'});if(!ok)return false;
             const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'owner-update-status',order_id:orderId,status:nextStatus}});
             if(error||!data?.ok){customerOrderAlert(data?.error||'更新訂單狀態失敗，請稍後重試。',{title:'更新失敗',icon:'!'});return false;}
             await refreshCustomerAdminOrders(false);
