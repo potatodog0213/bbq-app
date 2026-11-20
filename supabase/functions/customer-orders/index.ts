@@ -42,6 +42,19 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action ?? "");
 
+    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "phone-history-card-picker-20261120" });
+
+    // 以客人下單時提供的手機號碼查詢訂單歷史。
+    if (action === "lookup-orders") {
+      const phone = String(body.customer_phone ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
+      if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "手機號碼格式不正確" }, 400);
+      const { data: orders, error } = await admin.from("customer_orders")
+        .select("id,items,total_amount,status,pickup_time,created_at")
+        .eq("customer_phone", phone).order("created_at", { ascending: false }).limit(50);
+      if (error) throw error;
+      return reply({ ok: true, orders: orders ?? [] });
+    }
+
     // 客人查詢自己的訂單狀態：只回傳狀態與取餐時間，不回傳個資。
     if (action === "get-order") {
       const id = String(body.order_id ?? "").trim();
@@ -114,11 +127,12 @@ Deno.serve(async (req) => {
     if (typeof body.website === "string" && body.website.trim()) return reply({ ok: true });
 
     const name = String(body.customer_name ?? "").trim();
-    const phone = ""; // 客人端不再蒐集電話；保留既有欄位但不存電話資料。
+    const phone = String(body.customer_phone ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
     const note = String(body.note ?? "").trim();
     const pickup = new Date(body.pickup_time);
     const input = body.items;
     if (!name || name.length > 40) return reply({ ok: false, error: "姓名格式不正確" }, 400);
+    if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "請填寫正確的 10 碼手機號碼（09 開頭）" }, 400);
     if (note.length > 500) return reply({ ok: false, error: "備註過長" }, 400);
     if (!Number.isFinite(pickup.getTime()) || pickup.getTime() < Date.now() + 10 * 60_000 || pickup.getTime() > Date.now() + 14 * 24 * 60 * 60_000) {
       return reply({ ok: false, error: "希望取餐時間不在允許範圍" }, 400);
@@ -191,6 +205,8 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("customer-orders error", error);
     const message = error instanceof Error ? error.message : "訂單處理失敗，請稍後再試";
-    return reply({ ok: false, error: message }, 500);
+    const details = error && typeof error === "object" && "code" in error ? String((error as any).code) : undefined;
+    console.error("[customer-orders][diagnostic]", { message, code: details });
+    return reply({ ok: false, error: message, code: details }, 500);
   }
 });
