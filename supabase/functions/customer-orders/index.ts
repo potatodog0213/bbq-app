@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action ?? "");
 
-    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-menu-history-gift-time-20261120" });
+    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-menu-history-gift-time-speed-spice-20261120" });
 
     // 以客人下單時提供的手機號碼查詢訂單歷史。
     if (action === "lookup-orders") {
@@ -172,16 +172,19 @@ Deno.serve(async (req) => {
     if (!Array.isArray(input) || input.length < 1 || input.length > 40) return reply({ ok: false, error: "餐點內容不正確" }, 400);
 
     const quantities = new Map<string, number>();
+    const variantByKey = new Map<string, { productId: string; spice: string | null }>();
     const giftQuantities = new Map<string, number>();
-    const spiceById = new Map<string, string | null>();
     for (const item of input) {
       const id = String(item?.product_id ?? "").trim();
       const qty = Number(item?.quantity);
+      const spice = item?.spice_level == null ? null : String(item.spice_level);
       if (!id || !Number.isInteger(qty) || qty < 1 || qty > 30) return reply({ ok: false, error: "餐點數量不正確" }, 400);
-      quantities.set(id, (quantities.get(id) ?? 0) + qty);
-      spiceById.set(id, item?.spice_level == null ? null : String(item.spice_level));
+      if (spice !== null && !["不辣", "小辣", "中辣", "大辣"].includes(spice)) return reply({ ok: false, error: "辣度選項不正確" }, 400);
+      const key = `${id}::${spice ?? "__none__"}`;
+      quantities.set(key, (quantities.get(key) ?? 0) + qty);
+      variantByKey.set(key, { productId: id, spice });
     }
-    if ([...quantities.values()].some(q => q > 30)) return reply({ ok: false, error: "單項餐點數量超過限制" }, 400);
+    if ([...quantities.values()].some(q => q > 30)) return reply({ ok: false, error: "同一餐點、同一辣度的數量超過限制" }, 400);
 
     const freeDrinkInput = Array.isArray(body.free_drinks) ? body.free_drinks : [];
     if (freeDrinkInput.length > 20) return reply({ ok: false, error: "贈品飲料選擇過多" }, 400);
@@ -193,7 +196,7 @@ Deno.serve(async (req) => {
     }
     if ([...giftQuantities.values()].some(q => q > 20)) return reply({ ok: false, error: "單項贈品飲料數量超過限制" }, 400);
 
-    const ids = [...new Set([...quantities.keys(), ...giftQuantities.keys()])];
+    const ids = [...new Set([...variantByKey.values()].map(v => v.productId).concat([...giftQuantities.keys()]))];
     const [{ data: products, error: readError }, { data: settingsRow, error: settingsError }] = await Promise.all([
       admin.from("products").select("id,name,price").in("id", ids),
       admin.from("menu_generator_settings").select("settings_json").eq("id", "default").maybeSingle(),
@@ -214,14 +217,21 @@ Deno.serve(async (req) => {
       if (soldOutIds.has(id)) return reply({ ok: false, error: `「${String((productMap.get(id) as any)?.name ?? "餐點")}」今日已售完，請移除後重新送出` }, 409);
     }
 
-    const snapshot: any[] = [...quantities.keys()].map(id => {
+    const snapshot: any[] = [...quantities.keys()].map(key => {
+      const variant = variantByKey.get(key)!;
+      const id = variant.productId;
       const p: any = productMap.get(id);
-      const price = Number(p?.price), quantity = quantities.get(id)!;
+      const price = Number(p?.price), quantity = quantities.get(key)!;
       if (!p || !Number.isFinite(price) || price < 0) throw new Error("商品價格資料異常");
-      const spice = spiceById.get(id);
-      const config = spicySettings[id];
-      if (spice !== null && spice !== undefined && (!config?.enabled || !Array.isArray(config.levels) || !config.levels.includes(spice))) {
-        throw new Error(`「${String(p.name)}」辣度選項已變更，請重新載入菜單`);
+      const spice = variant.spice;
+      const config = spicySettings[id] ?? {};
+      const spicyEnabled = config.enabled !== false;
+      const allowedLevels = Array.isArray(config.levels) && config.levels.length ? config.levels : ["不辣", "小辣", "中辣", "大辣"];
+      if (spicyEnabled && (!spice || !allowedLevels.includes(spice))) {
+        throw new Error(`「${String(p.name)}」請選擇有效辣度，或重新載入菜單`);
+      }
+      if (!spicyEnabled && spice) {
+        throw new Error(`「${String(p.name)}」目前未開放辣度選擇，請重新載入菜單`);
       }
       return {
         product_id: id, name: String(p.name ?? "商品").slice(0, 100), unit_price: price,
@@ -261,25 +271,29 @@ Deno.serve(async (req) => {
     }).select("id,created_at").single();
     if (insertError) throw insertError;
 
-    const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
-    const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
-    const vapidSubject = Deno.env.get("VAPID_SUBJECT") ?? "mailto:store@example.com";
-    if (vapidPublic && vapidPrivate) {
+    const notificationTask = (async () => {
+      const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
+      const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
+      const vapidSubject = Deno.env.get("VAPID_SUBJECT") ?? "mailto:store@example.com";
+      if (!vapidPublic || !vapidPrivate) return;
       try {
         webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
         const { data: subs, error: subsError } = await admin.from("customer_push_subscriptions").select("id,endpoint,p256dh,auth");
         if (subsError) throw subsError;
         const payload = JSON.stringify({ title: "馬鈴吉碳烤｜新訂單", body: `收到新訂單（${name}），金額 $${total.toLocaleString("zh-TW")}，請開啟訂單管理查看。`, url: "/bbq-app/?customer-order-admin=1" });
-        for (const sub of subs ?? []) {
+        await Promise.allSettled((subs ?? []).map(async (sub: any) => {
           try {
             await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
           } catch (e: any) {
             if (e?.statusCode === 404 || e?.statusCode === 410) await admin.from("customer_push_subscriptions").delete().eq("id", sub.id);
             console.warn("[customer-orders][push] send failed", e?.statusCode ?? "unknown");
           }
-        }
+        }));
       } catch (e) { console.warn("[customer-orders][push] delivery skipped; order remains saved", e); }
-    }
+    })();
+    const edgeRuntime = (globalThis as any).EdgeRuntime;
+    if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(notificationTask);
+    else await notificationTask;
     return reply({ ok: true, id: order.id, order_number: String(order.id).slice(0, 8), total_amount: total });
   } catch (error) {
     console.error("customer-orders error", error);
