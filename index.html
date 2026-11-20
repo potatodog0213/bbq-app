@@ -4,19 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
-      (function(){
-        const p = new URLSearchParams(location.search);
-        if (p.get('customer-order') === '1' || p.get('customer-history') === '1') {
-          document.documentElement.classList.add('customer-public-route');
-        }
-
-        // 移除由 ChatGPT 分享連結附加的追蹤參數，保留點餐等其他網址參數。
-        const currentUrl = new URL(location.href);
-        if (currentUrl.searchParams.get('utm_source') === 'chatgpt.com') {
-          currentUrl.searchParams.delete('utm_source');
-          history.replaceState(history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash);
-        }
-      })();
+      (function(){const p=new URLSearchParams(location.search);if(p.get('customer-order')==='1'||p.get('customer-history')==='1'){document.documentElement.classList.add('customer-public-route');}})();
     </script>
     <title>馬鈴吉碳烤 - 智慧營運管理系統</title>
     <!-- 引入 Supabase -->
@@ -2938,13 +2926,16 @@
             document.getElementById('top-action-container').innerHTML = '';
             const content = document.getElementById('page-content');
             content.innerHTML = '<p style="text-align:center;padding:35px;color:#92765f;">正在載入菜單…</p>';
-            const [{data:products,error},{data:menuData}] = await Promise.all([
+            // 線上點餐只讀取實際需要的 JSON 欄位，避免下載整包含圖片／菜單產生器資料的設定。
+            const [{data:products,error},{data:menuData,error:menuSettingsError}] = await Promise.all([
                 _supabase.from('products').select('id,name,price').order('id',{ascending:true}),
-                _supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle()
+                _supabase.from('menu_generator_settings')
+                    .select('menuItemSettings:settings_json->menuItemSettings,customerOrderSpicySettings:settings_json->customerOrderSpicySettings,customerOrderSoldOutProductIds:settings_json->customerOrderSoldOutProductIds,customerOrderSoldOutDate:settings_json->customerOrderSoldOutDate,customerOrderGiftDrinkProductIds:settings_json->customerOrderGiftDrinkProductIds')
+                    .eq('id','default').maybeSingle()
             ]);
-            if(error){content.innerHTML='<p style="padding:24px;color:#b91c1c;">目前無法載入菜單，請稍後再試。</p>';return;}
+            if(error || menuSettingsError){content.innerHTML='<p style="padding:24px;color:#b91c1c;">目前無法載入菜單，請稍後再試。</p>';return;}
             customerPublicProducts = products || [];
-            const allSettings = menuData?.settings_json || {};
+            const allSettings = menuData || {};
             const settings = allSettings.menuItemSettings || {};
             customerPublicSpicySettings = allSettings.customerOrderSpicySettings || {};
             customerPublicSoldOutIds = allSettings.customerOrderSoldOutDate === customerLocalDateValue(new Date()) ? new Set((allSettings.customerOrderSoldOutProductIds || []).map(String)) : new Set();
@@ -3102,10 +3093,12 @@
             {
                 const requests=[];
                 if(forceRefresh||!customerAdminProductsLoaded)requests.push(_supabase.from('products').select('id,name,price').order('id',{ascending:true}).then(r=>({kind:'products',...r})));
-                // 餐點供應／辣度設定每次進入管理頁都重新讀取，避免其他管理功能更新後顯示舊狀態。
-                requests.push(_supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle().then(r=>({kind:'settings',...r})));
+                // 管理頁初次載入也只讀取點餐管理需要的 JSON 欄位，避免下載整包大型設定。
+                requests.push(_supabase.from('menu_generator_settings')
+                    .select('menuItemSettings:settings_json->menuItemSettings,customerOrderSpicySettings:settings_json->customerOrderSpicySettings,customerOrderSoldOutProductIds:settings_json->customerOrderSoldOutProductIds,customerOrderSoldOutDate:settings_json->customerOrderSoldOutDate,customerOrderGiftDrinkProductIds:settings_json->customerOrderGiftDrinkProductIds')
+                    .eq('id','default').maybeSingle().then(r=>({kind:'settings',...r})));
                 const results=await Promise.all(requests);const failed=results.find(r=>r.error);if(failed){box.innerHTML='<p style="color:#b91c1c">無法讀取餐點設定，請重新整理後再試。</p>';return;}
-                for(const r of results){if(r.kind==='products'){customerAdminProducts=r.data||[];customerAdminProductsLoaded=true;}else{customerAdminSettingsJson=r.data?.settings_json||{};customerAdminSettingsLoaded=true;}}
+                for(const r of results){if(r.kind==='products'){customerAdminProducts=r.data||[];customerAdminProductsLoaded=true;}else{customerAdminSettingsJson=r.data||{};customerAdminSettingsLoaded=true;}}
             }
             const products=customerAdminProducts;const row={settings_json:customerAdminSettingsJson};const cfg=customerAdminSettingsJson.customerOrderSpicySettings||{},soldOut=customerAdminSettingsJson.customerOrderSoldOutDate===customerLocalDateValue(new Date())?new Set((customerAdminSettingsJson.customerOrderSoldOutProductIds||[]).map(String)):new Set(),menuSettings=customerAdminSettingsJson.menuItemSettings||{},drinkIds=customerAdminSettingsJson.customerOrderGiftDrinkProductIds;
             const drinkProducts=customerAdminProducts.filter(p=>customerCategory(p,menuSettings)==='飲品類'),giftIds=new Set(Array.isArray(drinkIds)?drinkIds.map(String):drinkProducts.map(p=>String(p.id)));
@@ -3116,9 +3109,17 @@
             const products=customerAdminProducts||[];const spicy={...(customerAdminSettingsJson.customerOrderSpicySettings||{})},soldOut=[];
             for(const p of products){const id=String(p.id),enabled=document.getElementById('spicy-enabled-'+id)?.checked!==false,levels=[...document.querySelectorAll('.spicy-level-'+CSS.escape(id)+':checked')].map(x=>x.value);if(enabled&&!levels.length){alert(`「${p.name}」已開放辣度，至少請勾選一種辣度。`);return;}spicy[id]={enabled,levels};if(document.getElementById('soldout-'+id)?.checked)soldOut.push(id);}
             const giftDrinkIds=[...document.querySelectorAll('.gift-drink-option:checked')].map(x=>String(x.value));
-            customerAdminSettingsJson.customerOrderSpicySettings=spicy;customerAdminSettingsJson.customerOrderSoldOutProductIds=soldOut;customerAdminSettingsJson.customerOrderSoldOutDate=customerLocalDateValue(new Date());customerAdminSettingsJson.customerOrderGiftDrinkProductIds=giftDrinkIds;
-            const {error}=await _supabase.from('menu_generator_settings').upsert({id:'default',settings_json:customerAdminSettingsJson,updated_at:new Date().toISOString()},{onConflict:'id'});
-            if(error){alert('儲存餐點管理失敗：'+error.message);return;}customerAdminSettingsLoaded=true;const saveButton=document.querySelector('.customer-manage-save');if(saveButton){saveButton.textContent='✓ 已儲存';saveButton.disabled=true;setTimeout(()=>{if(saveButton.isConnected){saveButton.textContent='儲存餐點管理設定';saveButton.disabled=false;}},1600);}alert('餐點管理設定已儲存，客人點餐頁將同步更新。');
+            // 儲存時才讀取完整原始 JSON，再只更新點餐管理的欄位，確保菜單產生器圖片及其他設定完整保留。
+            const {data:latestRow,error:readError}=await _supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle();
+            if(readError){alert('儲存餐點管理失敗：無法讀取原有設定：'+readError.message);return;}
+            const mergedSettings={...(latestRow?.settings_json||{})};
+            mergedSettings.customerOrderSpicySettings=spicy;
+            mergedSettings.customerOrderSoldOutProductIds=soldOut;
+            mergedSettings.customerOrderSoldOutDate=customerLocalDateValue(new Date());
+            mergedSettings.customerOrderGiftDrinkProductIds=giftDrinkIds;
+            const {error}=await _supabase.from('menu_generator_settings').upsert({id:'default',settings_json:mergedSettings,updated_at:new Date().toISOString()},{onConflict:'id'});
+            if(error){alert('儲存餐點管理失敗：'+error.message);return;}
+            customerAdminSettingsJson={...customerAdminSettingsJson,...mergedSettings};customerAdminSettingsLoaded=true;const saveButton=document.querySelector('.customer-manage-save');if(saveButton){saveButton.textContent='✓ 已儲存';saveButton.disabled=true;setTimeout(()=>{if(saveButton.isConnected){saveButton.textContent='儲存餐點管理設定';saveButton.disabled=false;}},1600);}alert('餐點管理設定已儲存，客人點餐頁將同步更新。');
         }
         // 舊函式名稱保留相容，避免既有入口呼叫失效。
         async function renderCustomerSpicySettings(){return renderCustomerMenuManagement();}
@@ -3132,11 +3133,11 @@
             contentEl.innerHTML = '<p style="text-align:center;padding:30px;color:#9a8068;">讀取菜單餐點中...</p>';
             const [{ data, error }, { data: menuData, error: menuError }] = await Promise.all([
                 _supabase.from('products').select('id,name,price').order('id', { ascending: true }),
-                _supabase.from('menu_generator_settings').select('settings_json').eq('id','default').maybeSingle()
+                _supabase.from('menu_generator_settings').select('menuItemSettings:settings_json->menuItemSettings').eq('id','default').maybeSingle()
             ]);
-            if (error) { contentEl.innerHTML = `<p style="color:#dc2626;text-align:center;padding:25px;">讀取販售品項失敗：${error.message}</p>`; return; }
+            if (error || menuError) { contentEl.innerHTML = `<p style="color:#dc2626;text-align:center;padding:25px;">讀取販售品項失敗，請稍後再試。</p>`; return; }
             globalProductsData = data || [];
-            orderCategorySettings = menuError ? {} : (menuData?.settings_json?.menuItemSettings || {});
+            orderCategorySettings = menuData?.menuItemSettings || {};
             const validIds = new Set(globalProductsData.map(p => String(p.id)));
             Object.keys(orderCart).forEach(id => { if (!validIds.has(String(id))) delete orderCart[id]; });
             orderSelectionOrder = orderSelectionOrder.filter(id => validIds.has(String(id)) && Number(orderCart[id]) > 0);
@@ -5258,7 +5259,13 @@
         });
       }
       window.addEventListener('DOMContentLoaded', function () {
+        // 僅移除 ChatGPT 加上的來源追蹤參數，不影響點餐／歷史訂單等功能參數。
         const params = new URLSearchParams(location.search);
+        if (params.get('utm_source') === 'chatgpt.com') {
+          params.delete('utm_source');
+          const cleanQuery = params.toString();
+          history.replaceState(history.state, '', location.pathname + (cleanQuery ? '?' + cleanQuery : '') + location.hash);
+        }
         if (params.get('customer-order') === '1') {
           renderCustomerPublicPage();
         } else if (params.get('customer-history') === '1') {
