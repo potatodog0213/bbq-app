@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action ?? "");
 
-    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-addon-change-20261120" });
+    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-direct-edit-20261121" });
 
     if (action === "lookup-orders") {
       const phone = normalizePhone(body.customer_phone);
@@ -268,6 +268,31 @@ Deno.serve(async (req) => {
       return reply({ ok: true, addon_id: result?.addon_id, created_at: result?.created_at, total_amount: result?.order_total, duplicate: !!result?.was_duplicate });
     }
 
+    // 客人直接修改原訂單餐點，不再建立申請或要求填寫原因。
+    if (action === "direct-edit-order") {
+      const orderId = String(body.order_id ?? "").trim();
+      const phone = normalizePhone(body.customer_phone);
+      if (!orderId || !/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "訂單修改資料不正確" }, 400);
+      const { snapshot, total } = await buildRegularItemSnapshot(admin, body.items);
+      const { data: currentOrder, error: currentError } = await admin.from("customer_orders")
+        .select("id,status,pickup_time").eq("id", orderId).eq("customer_phone", phone).maybeSingle();
+      if (currentError) throw currentError;
+      if (!currentOrder) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+      if (new Date(currentOrder.pickup_time).getTime() <= Date.now() + 10 * 60_000) {
+        return reply({ ok: false, error: "距離預定取餐時間不足 10 分鐘，已無法修改餐點" }, 409);
+      }
+      const { data, error } = await admin.rpc("edit_customer_order_direct_atomic", {
+        p_order_id: orderId, p_customer_phone: phone, p_new_items: snapshot, p_new_base_total: total,
+      });
+      if (error) {
+        if (error.code === "P0002") return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+        if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
+        throw error;
+      }
+      const result = Array.isArray(data) ? data[0] : data;
+      return reply({ ok: true, total_amount: result?.new_total });
+    }
+
     if (action === "request-order-change") {
       const orderId = String(body.order_id ?? "").trim();
       const phone = normalizePhone(body.customer_phone);
@@ -307,6 +332,41 @@ Deno.serve(async (req) => {
         throw error;
       }
       return reply({ ok: true, status: body.approved ? "approved" : "rejected" });
+    }
+
+    // 店家更新訂單狀態。所有狀態轉換均在後端驗證，並以舊狀態作為更新條件避免競態覆寫。
+    if (action === "owner-update-status") {
+      const user = await ownerUser(req, url, anonKey);
+      if (!user) return reply({ ok: false, error: "未授權的店家帳號" }, 403);
+
+      const orderId = String(body.order_id ?? "").trim();
+      const nextStatus = String(body.status ?? "").trim();
+      const allowedTransitions: Record<string, string[]> = {
+        new: ["confirmed", "cancelled"],
+        confirmed: ["preparing", "cancelled"],
+        preparing: ["completed"],
+        completed: [],
+        cancelled: [],
+      };
+      if (!orderId || !["confirmed", "preparing", "completed", "cancelled"].includes(nextStatus)) {
+        return reply({ ok: false, error: "訂單狀態更新資料不正確" }, 400);
+      }
+
+      const { data: order, error: readError } = await admin.from("customer_orders")
+        .select("id,status").eq("id", orderId).maybeSingle();
+      if (readError) throw readError;
+      if (!order) return reply({ ok: false, error: "找不到訂單" }, 404);
+      const currentStatus = String(order.status ?? "");
+      if (!(allowedTransitions[currentStatus] ?? []).includes(nextStatus)) {
+        return reply({ ok: false, error: `目前訂單狀態（${currentStatus}）不能變更為 ${nextStatus}` }, 409);
+      }
+
+      const { data: updated, error: updateError } = await admin.from("customer_orders")
+        .update({ status: nextStatus }).eq("id", orderId).eq("status", currentStatus)
+        .select("id,status").maybeSingle();
+      if (updateError) throw updateError;
+      if (!updated) return reply({ ok: false, error: "訂單狀態已被其他操作更新，請重新整理後再試" }, 409);
+      return reply({ ok: true, order_id: updated.id, status: updated.status });
     }
 
     if (action === "issue-order-change-token") {
@@ -399,8 +459,8 @@ Deno.serve(async (req) => {
     if (!name || name.length > 40) return reply({ ok: false, error: "姓名格式不正確" }, 400);
     if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "請填寫正確的 10 碼手機號碼（09 開頭）" }, 400);
     if (note.length > 500) return reply({ ok: false, error: "備註過長" }, 400);
-    if (!Number.isFinite(pickup.getTime()) || pickup.getTime() < Date.now() + 30 * 60_000 || pickup.getTime() > Date.now() + 14 * 24 * 60 * 60_000 || !isAllowedPickupTime(pickup)) {
-      return reply({ ok: false, error: "希望取餐時間需在 30 分鐘後、未來 14 天內，且限 17:30 至隔日凌晨 02:00（每 5 分鐘一個時段）" }, 400);
+    if (!Number.isFinite(pickup.getTime()) || pickup.getTime() <= Date.now() + 10 * 60_000 || pickup.getTime() > Date.now() + 14 * 24 * 60 * 60_000 || !isAllowedPickupTime(pickup)) {
+      return reply({ ok: false, error: "希望取餐時間需在 10 分鐘後、未來 14 天內，且限 17:30 至隔日凌晨 02:00（每 5 分鐘一個時段）" }, 400);
     }
     if (!Array.isArray(input) || input.length < 1 || input.length > 40) return reply({ ok: false, error: "餐點內容不正確" }, 400);
 
