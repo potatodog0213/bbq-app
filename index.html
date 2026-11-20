@@ -2788,6 +2788,7 @@
         let customerPublicProducts = [];
         let customerPublicCart = {};
         let customerOrderRealtime = null;
+        let customerOrderRefreshTimer = null;
         let customerAdminOrders = [];
         let customerAdminStatusFilter = 'all';
 
@@ -2862,19 +2863,35 @@
             if(!session){renderCustomerAdminLogin();return;}
             const {data:{user},error}=await _supabase.auth.getUser();if(error||!customerOwnerRole(user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}
             content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><h3>🔔 訂單通知</h3><p class="customer-order-muted">登入後可即時接收新訂單。若要在瀏覽器關閉後收到通知，請在此裝置啟用推播，並允許瀏覽器通知。</p><div class="customer-admin-toolbar"><button onclick="enableCustomerOrderPush()">啟用此手機推播</button><button onclick="refreshCustomerAdminOrders()">重新整理</button><button onclick="customerAdminSignOut()">登出</button></div><div id="customer-push-status" class="customer-order-muted"></div></div><div class="customer-admin-toolbar"><button onclick="setCustomerAdminFilter('all')">全部</button><button onclick="setCustomerAdminFilter('new')">待確認</button><button onclick="setCustomerAdminFilter('confirmed')">已確認</button><button onclick="setCustomerAdminFilter('preparing')">製作中</button><button onclick="setCustomerAdminFilter('completed')">已完成</button><button onclick="setCustomerAdminFilter('cancelled')">已取消</button></div><div id="customer-admin-order-list">載入訂單中…</div></div>`;
-            await refreshCustomerAdminOrders();subscribeCustomerAdminRealtime();
+            await refreshCustomerAdminOrders();
+            subscribeCustomerAdminRealtime();
+            // Realtime 若短暫斷線，仍以定時同步確保新訂單不必手動重新整理。
+            if(customerOrderRefreshTimer)clearInterval(customerOrderRefreshTimer);
+            customerOrderRefreshTimer=setInterval(()=>{
+                if(document.getElementById('customer-admin-order-list')) refreshCustomerAdminOrders();
+            },10000);
             const pushStatus=document.getElementById('customer-push-status');if(pushStatus)pushStatus.textContent='此裝置通知權限：'+(('Notification' in window)?Notification.permission:'不支援');
         }
         function renderCustomerAdminLogin(message=''){
             const content=document.getElementById('page-content');content.innerHTML=`<div class="customer-admin-login"><h3 style="margin:0 0 12px;color:#704a32;">店家登入</h3>${message?`<p style="color:#b91c1c;font-size:13px;">${customerEscape(message)}</p>`:''}<label>店家 Email</label><input id="customer-admin-email" type="email" autocomplete="username" placeholder="店家登入 Email"><label>密碼</label><input id="customer-admin-password" type="password" autocomplete="current-password" placeholder="密碼"><button class="customer-order-submit" onclick="customerAdminSignIn()">登入訂單管理</button><p class="customer-order-muted">此登入只用於客人線上訂單管理；請勿將店家密碼提供給客人。</p></div>`;
         }
         async function customerAdminSignIn(){const email=document.getElementById('customer-admin-email').value.trim(),password=document.getElementById('customer-admin-password').value;const {data,error}=await _supabase.auth.signInWithPassword({email,password});if(error){renderCustomerAdminLogin('登入失敗，請檢查帳號密碼。');return;}if(!customerOwnerRole(data.user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}renderCustomerOrderAdmin();}
-        async function customerAdminSignOut(){if(customerOrderRealtime){await _supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=null;}await _supabase.auth.signOut();renderCustomerAdminLogin('已登出。');}
+        async function customerAdminSignOut(){if(customerOrderRefreshTimer){clearInterval(customerOrderRefreshTimer);customerOrderRefreshTimer=null;}if(customerOrderRealtime){await _supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=null;}await _supabase.auth.signOut();renderCustomerAdminLogin('已登出。');}
         function setCustomerAdminFilter(value){customerAdminStatusFilter=value;renderCustomerAdminOrderCards();}
         async function refreshCustomerAdminOrders(){const box=document.getElementById('customer-admin-order-list');if(!box)return;box.textContent='讀取訂單中…';const {data,error}=await _supabase.from('customer_orders').select('id,customer_name,customer_phone,pickup_time,items,total_amount,note,status,created_at').order('created_at',{ascending:false}).limit(100);if(error){box.innerHTML='<p style="color:#b91c1c;">無法讀取訂單。請確認已執行資料庫 SQL，且登入帳號具有店家權限。</p>';console.error(error);return;}customerAdminOrders=data||[];renderCustomerAdminOrderCards();}
         function renderCustomerAdminOrderCards(){const box=document.getElementById('customer-admin-order-list');if(!box)return;const rows=customerAdminOrders.filter(o=>customerAdminStatusFilter==='all'||(customerAdminStatusFilter==='new'?o.status==='new':o.status===customerAdminStatusFilter));if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:22px;">目前沒有符合條件的訂單。</p>';return;}box.innerHTML=rows.map(o=>{const items=Array.isArray(o.items)?o.items:[];const itemText=items.map(i=>`${customerEscape(i.name)} × ${Number(i.quantity)||0}　${customerMoney(i.subtotal)}`).join('\n');const pickup=new Date(o.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});const created=new Date(o.created_at).toLocaleString('zh-TW');return `<article class="customer-admin-card"><h3>訂單 ${customerEscape(String(o.id).slice(0,8))}　<span style="font-size:13px;">${customerEscape(({new:'待確認',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'})[o.status]||o.status)}</span></h3><div class="customer-admin-meta">客人：${customerEscape(o.customer_name)}　電話：<a href="tel:${customerEscape(o.customer_phone)}">${customerEscape(o.customer_phone)}</a><br>取餐時間：${customerEscape(pickup)}<br>下單時間：${customerEscape(created)}</div><div class="customer-admin-items">${itemText||'（無餐點明細）'}</div><div class="customer-admin-meta">備註：${customerEscape(o.note||'無')}<br><b>總金額：${customerMoney(o.total_amount)}</b></div><div class="customer-admin-actions"><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','confirmed')">確認</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','preparing')">製作中</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','completed')">完成</button><button onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','cancelled')">取消</button></div></article>`;}).join('');}
         async function updateCustomerOrderStatus(id,status){const {error}=await _supabase.from('customer_orders').update({status}).eq('id',id);if(error){alert('更新訂單狀態失敗，請確認店家權限。');return;}await refreshCustomerAdminOrders();}
-        function subscribeCustomerAdminRealtime(){if(customerOrderRealtime)_supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=_supabase.channel('customer-orders-owner').on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},payload=>{refreshCustomerAdminOrders();if(payload.eventType==='INSERT'&&'Notification'in window&&Notification.permission==='granted'){try{new Notification('馬鈴吉碳烤｜新訂單',{body:'收到一筆新的客人訂單，請開啟訂單管理查看。',icon:'./icons/apple-touch-icon.png'});}catch(e){}}}).subscribe();}
+        function subscribeCustomerAdminRealtime(){
+            if(customerOrderRealtime)_supabase.removeChannel(customerOrderRealtime);
+            customerOrderRealtime=_supabase.channel('customer-orders-owner')
+                .on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},payload=>{
+                    refreshCustomerAdminOrders();
+                })
+                .subscribe((status,error)=>{
+                    console.info('[訂單即時更新] Supabase Realtime:',status,error||'');
+                    if(status==='SUBSCRIBED')refreshCustomerAdminOrders();
+                });
+        }
         function customerBase64ToUint8Array(base64){const padding='='.repeat((4-base64.length%4)%4);const raw=atob((base64+padding).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
         async function enableCustomerOrderPush(){const status=document.getElementById('customer-push-status');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw new Error('此瀏覽器不支援 Web Push。');if(CUSTOMER_PUSH_PUBLIC_KEY.startsWith('REPLACE_'))throw new Error('尚未設定 VAPID 公開金鑰，請先完成部署設定。');const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error('你尚未允許此網站發送通知。');const registration=await navigator.serviceWorker.ready;const subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:customerBase64ToUint8Array(CUSTOMER_PUSH_PUBLIC_KEY)});const json=subscription.toJSON();const {data:{user}}=await _supabase.auth.getUser();const {error}=await _supabase.from('customer_push_subscriptions').upsert({owner_id:user.id,endpoint:json.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,updated_at:new Date().toISOString()},{onConflict:'endpoint'});if(error)throw error;if(status)status.textContent='此裝置已成功啟用背景推播通知。';}catch(e){if(status)status.textContent=e.message||'推播設定失敗。';}}
 
@@ -5006,7 +5023,8 @@
     <script>
       if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
         window.addEventListener('load', function () {
-          navigator.serviceWorker.register('./service-worker.js')
+          navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' })
+            .then(function (registration) { registration.update().catch(function () {}); })
             .catch(function (error) { console.warn('App 離線外殼註冊失敗：', error); });
         });
       }
