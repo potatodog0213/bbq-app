@@ -1,30 +1,29 @@
--- 先在 Supabase Dashboard > Vault 建立兩筆 Secrets：
--- 1. name = customer_orders_reminder_secret，value = 你自行產生的 64 位隨機字串
--- 2. name = supabase_service_role_key，value = 你的 Supabase service_role key（不要放進前端）
--- 並在 Edge Function Secrets 設定 ORDER_REMINDER_CRON_SECRET 為同一組 reminder secret。
+-- 馬鈴吉碳烤｜每分鐘執行一次取餐前 10 分鐘提醒
+-- 執行前先到 Supabase → Vault → Secrets 建立以下三筆（只存值於 Vault，不要放入 Git）：
+-- name = malinji_reminder_project_url；value = https://gyonwgjafukzlmnosykt.supabase.co
+-- name = malinji_reminder_anon_key；value = Supabase 舊版 anon/public JWT key（不是 service_role）
+-- name = malinji_customer_order_reminder_secret；value = 自行產生的至少 32 bytes 隨機字串
+-- 同一組提醒字串也要設為 Edge Function Secret：CUSTOMER_ORDER_REMINDER_SECRET
+-- 此排程只使用 anon key + 自訂 Cron Secret，不使用 service_role key。
+-- 先部署 customer-order-reminders，再執行本 SQL。此腳本不會修改訂單。
 
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
-SELECT cron.unschedule(jobid)
-FROM cron.job
-WHERE jobname = 'customer-order-pickup-reminders';
-
+SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'malinji-customer-order-prep-reminder';
 SELECT cron.schedule(
-  'customer-order-pickup-reminders',
+  'malinji-customer-order-prep-reminder',
   '* * * * *',
   $$
   SELECT net.http_post(
-    url := 'https://gyonwgjafukzlmnosykt.supabase.co/functions/v1/customer-orders',
+    url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'malinji_reminder_project_url' LIMIT 1) || '/functions/v1/customer-order-reminders',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_service_role_key' LIMIT 1),
-      'apikey', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_service_role_key' LIMIT 1)
+      'apikey', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'malinji_reminder_anon_key' LIMIT 1),
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'malinji_reminder_anon_key' LIMIT 1),
+      'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'malinji_customer_order_reminder_secret' LIMIT 1)
     ),
-    body := jsonb_build_object(
-      'action', 'send-pickup-reminders',
-      'secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'customer_orders_reminder_secret' LIMIT 1)
-    )
+    body := '{}'::jsonb
   );
   $$
 );

@@ -1,4 +1,4 @@
-BEGIN;
+﻿BEGIN;
 
 ALTER TABLE public.customer_orders
   ADD COLUMN IF NOT EXISTS confirmed_at timestamptz,
@@ -73,7 +73,7 @@ BEGIN
     RETURN QUERY SELECT v_id,v_created_at;
 END; $$;
 
--- 加點同樣受取餐前 10 分鐘限制，並保留原本的獨立加點紀錄。
+-- 加點同樣受取餐前 15 分鐘限制，並保留原本的獨立加點紀錄。
 CREATE OR REPLACE FUNCTION public.add_customer_order_addon_atomic(
     p_order_id uuid, p_customer_phone text, p_idempotency_key text, p_items jsonb, p_total_amount numeric
 )
@@ -91,8 +91,8 @@ BEGIN
     IF v_order.status NOT IN ('new','confirmed','preparing') THEN
         RAISE EXCEPTION '此訂單已結束，無法加點' USING ERRCODE = '55000';
     END IF;
-    IF v_order.pickup_time <= now() + interval '10 minutes' THEN
-        RAISE EXCEPTION '距離預定取餐時間不足 10 分鐘，已無法加點' USING ERRCODE = '55000';
+    IF v_order.pickup_time <= now() + interval '15 minutes' THEN
+        RAISE EXCEPTION '距離預定取餐時間不足 15 分鐘，已無法加點' USING ERRCODE = '55000';
     END IF;
     INSERT INTO public.customer_order_addons(order_id,customer_phone,idempotency_key,items,total_amount)
     VALUES(p_order_id,p_customer_phone,p_idempotency_key,p_items,p_total_amount) RETURNING * INTO v_addon;
@@ -120,8 +120,8 @@ BEGIN
     IF v_order.status NOT IN ('new','confirmed','preparing') THEN
         RAISE EXCEPTION '此訂單目前狀態無法修改餐點' USING ERRCODE = '55000';
     END IF;
-    IF v_order.pickup_time <= now() + interval '10 minutes' THEN
-        RAISE EXCEPTION '距離預定取餐時間不足 10 分鐘，已無法修改餐點' USING ERRCODE = '55000';
+    IF v_order.pickup_time <= now() + interval '15 minutes' THEN
+        RAISE EXCEPTION '距離預定取餐時間不足 15 分鐘，已無法修改餐點' USING ERRCODE = '55000';
     END IF;
     IF jsonb_typeof(p_new_items) <> 'array' OR jsonb_array_length(p_new_items)=0 THEN
         RAISE EXCEPTION '訂單至少要保留一項餐點' USING ERRCODE = '22023';

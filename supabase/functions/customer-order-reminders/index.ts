@@ -10,24 +10,6 @@ const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body)
   status,
   headers: { ...cors, "Content-Type": "application/json" },
 });
-const META_PREFIX = "\n\n[[MALINJI_ORDER_META:";
-const META_SUFFIX = "]]";
-function readNote(raw: string) {
-  const at = raw.lastIndexOf(META_PREFIX);
-  if (at < 0) return { customerNote: raw, meta: {} as Record<string, unknown> };
-  const end = raw.indexOf(META_SUFFIX, at);
-  if (end < 0) return { customerNote: raw, meta: {} as Record<string, unknown> };
-  try {
-    const meta = JSON.parse(raw.slice(at + META_PREFIX.length, end));
-    return { customerNote: raw.slice(0, at), meta: meta && typeof meta === "object" ? meta : {} };
-  } catch {
-    return { customerNote: raw.slice(0, at), meta: {} as Record<string, unknown> };
-  }
-}
-function writeNote(customerNote: string, meta: Record<string, unknown>) {
-  return `${customerNote}${META_PREFIX}${JSON.stringify(meta)}${META_SUFFIX}`;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return reply({ ok: false, error: "Method not allowed" }, 405);
@@ -54,8 +36,9 @@ Deno.serve(async (req) => {
     const from = new Date(now + 9 * 60_000).toISOString();
     const to = new Date(now + 11 * 60_000).toISOString();
     const { data: orders, error } = await admin.from("customer_orders")
-      .select("id,customer_name,pickup_time,total_amount,note")
-      .eq("status", "confirmed")
+      .select("id,customer_name,pickup_time,status,pickup_reminder_sent_at")
+      .in("status", ["new", "confirmed", "preparing"])
+      .is("pickup_reminder_sent_at", null)
       .gte("pickup_time", from)
       .lte("pickup_time", to)
       .limit(100);
@@ -70,8 +53,13 @@ Deno.serve(async (req) => {
 
     let sent = 0;
     for (const order of orders) {
-      const { customerNote, meta } = readNote(String(order.note ?? ""));
-      if (meta.prep_reminder_sent_at) continue;
+      // 先以條件更新原有提醒欄位取得唯一發送權，避免兩次排程同時讀取造成重複推播。
+      const claimedAt = new Date().toISOString();
+      const { data: claimed, error: claimError } = await admin.from("customer_orders")
+        .update({ pickup_reminder_sent_at: claimedAt })
+        .eq("id", order.id).is("pickup_reminder_sent_at", null).select("id").maybeSingle();
+      if (claimError) throw claimError;
+      if (!claimed) continue;
       const pickupText = new Date(order.pickup_time).toLocaleString("zh-TW", {
         timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false,
       });
@@ -96,11 +84,12 @@ Deno.serve(async (req) => {
         }
       }
       if (delivered > 0) {
-        const { error: updateError } = await admin.from("customer_orders").update({
-          note: writeNote(customerNote, { ...meta, prep_reminder_sent_at: new Date().toISOString() }),
-        }).eq("id", order.id);
-        if (updateError) throw updateError;
         sent++;
+      } else {
+        // 所有推播端點皆失敗時釋放發送權，讓下一輪排程可以重試。
+        const { error: releaseError } = await admin.from("customer_orders")
+          .update({ pickup_reminder_sent_at: null }).eq("id", order.id).eq("pickup_reminder_sent_at", claimedAt);
+        if (releaseError) throw releaseError;
       }
     }
     return reply({ ok: true, checked: orders.length, sent });

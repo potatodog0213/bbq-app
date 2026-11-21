@@ -69,6 +69,47 @@ async function sha256Hex(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+async function hashRateLimitIdentifier(value: string) {
+  // 使用只有 Edge Function 可讀取的服務端 key 作為 pepper，避免限流表中的電話雜湊可被離線枚舉。
+  const pepper = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  return sha256Hex(`${pepper}:${value}`);
+}
+async function consumeOrderRateLimit(admin: ReturnType<typeof createClient>, key: string, limit: number, windowSeconds: number) {
+  const { data, error } = await admin.rpc("consume_customer_order_rate_limit", {
+    p_key: key, p_limit: limit, p_window_seconds: windowSeconds,
+  });
+  if (error) {
+    console.error("[customer-orders][rate-limit] storage unavailable", error.message);
+    throw new Error("訂單安全防護暫時無法使用，請稍後再試");
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return row?.allowed === true;
+}
+async function enforcePublicOrderRateLimits(admin: ReturnType<typeof createClient>, req: Request, action: string, body: any) {
+  // 優先使用由 Supabase/Cloudflare gateway 提供的來源 IP header，不採用可由客戶端自行偽造的 X-Forwarded-For。
+  const sourceIp = req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || "unknown";
+  const ipHash = await hashRateLimitIdentifier(sourceIp.slice(0, 128));
+  const phone = normalizePhone(body?.customer_phone);
+  const checks: Array<{ key: string; limit: number; seconds: number }> = [
+    { key: `ip:${ipHash}:public`, limit: 240, seconds: 600 },
+  ];
+  if (action === "create-order") {
+    checks.push({ key: `ip:${ipHash}:create`, limit: 8, seconds: 600 });
+    if (/^09\d{8}$/.test(phone)) checks.push({ key: `phone:${await hashRateLimitIdentifier(phone)}:create`, limit: 3, seconds: 600 });
+  } else if (action === "lookup-orders") {
+    checks.push({ key: `ip:${ipHash}:lookup`, limit: 160, seconds: 600 });
+    if (/^09\d{8}$/.test(phone)) checks.push({ key: `phone:${await hashRateLimitIdentifier(phone)}:lookup`, limit: 150, seconds: 600 });
+  } else if (["direct-edit-order", "request-cancel-order", "request-order-change", "get-order", "respond-time", "issue-order-change-token", "submit-order-change"].includes(action)) {
+    checks.push({ key: `ip:${ipHash}:order-action`, limit: 20, seconds: 600 });
+    if (/^09\d{8}$/.test(phone)) checks.push({ key: `phone:${await hashRateLimitIdentifier(phone)}:order-action`, limit: 8, seconds: 600 });
+  }
+  for (const check of checks) {
+    if (!await consumeOrderRateLimit(admin, check.key, check.limit, check.seconds)) return false;
+  }
+  return true;
+}
+
 function randomCapabilityToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -185,7 +226,8 @@ async function buildRegularItemSnapshot(admin: ReturnType<typeof createClient>, 
     const price = Number(product?.price);
     if (!product || !Number.isFinite(price) || price < 0) throw new Error("商品價格資料異常");
     const config = spicySettings[variant.productId] ?? {};
-    const spicyEnabled = config.enabled !== false;
+    const isDrink = settings.menuItemSettings?.[variant.productId]?.category === "飲品類";
+    const spicyEnabled = !isDrink && config.enabled !== false;
     const allowedLevels = Array.isArray(config.levels) && config.levels.length ? config.levels : ["不辣", "小辣", "中辣", "大辣"];
     if (spicyEnabled && (!variant.spice || !allowedLevels.includes(variant.spice))) throw new Error(`「${String(product.name)}」請選擇有效辣度，或重新載入菜單`);
     if (!spicyEnabled && variant.spice) throw new Error(`「${String(product.name)}」目前未開放辣度選擇，請重新載入菜單`);
@@ -203,6 +245,59 @@ async function buildRegularItemSnapshot(admin: ReturnType<typeof createClient>, 
   return { snapshot, total };
 }
 
+async function verifyTurnstileToken(token: unknown, req: Request) {
+  const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
+  if (!secret) return false;
+  const responseToken = String(token ?? "").trim();
+  if (!responseToken) return false;
+  const form = new FormData();
+  form.set("secret", secret);
+  form.set("response", responseToken);
+  const remoteIp = req.headers.get("cf-connecting-ip");
+  if (remoteIp) form.set("remoteip", remoteIp);
+  try {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
+    if (!response.ok) return false;
+    const result = await response.json();
+    return result?.success === true
+  && result?.hostname === "potatodog0213.github.io";
+  } catch (error) {
+    console.error("[customer-orders][turnstile] verification unavailable", error);
+    return false;
+  }
+}
+
+function base64UrlEncode(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function base64UrlDecode(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(normalized + "=".repeat((4 - normalized.length % 4) % 4));
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+async function lookupTokenKey() {
+  const secret = Deno.env.get("CUSTOMER_LOOKUP_TOKEN_SECRET") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!secret) throw new Error("Lookup token signing key is not configured");
+  return crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+}
+async function issueCustomerLookupToken(phone: string) {
+  const expiresAt = Date.now() + 12 * 60 * 60_000;
+  const payload = new TextEncoder().encode(`customer-order-lookup:${phone}:${expiresAt}`);
+  const signature = await crypto.subtle.sign("HMAC", await lookupTokenKey(), payload);
+  return `${expiresAt}.${base64UrlEncode(new Uint8Array(signature))}`;
+}
+async function verifyCustomerLookupToken(token: unknown, phone: string) {
+  const [expiryText, signatureText, extra] = String(token ?? "").split(".");
+  const expiresAt = Number(expiryText);
+  if (extra || !Number.isSafeInteger(expiresAt) || expiresAt <= Date.now() || expiresAt > Date.now() + 12 * 60 * 60_000) return false;
+  try {
+    const payload = new TextEncoder().encode(`customer-order-lookup:${phone}:${expiresAt}`);
+    return await crypto.subtle.verify("HMAC", await lookupTokenKey(), base64UrlDecode(signatureText || ""), payload);
+  } catch { return false; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return reply({ ok: false, error: "Method not allowed" }, 405);
@@ -217,9 +312,15 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action ?? "");
 
+    const publicRateLimitedActions = ["create-order", "lookup-orders", "get-order", "respond-time", "direct-edit-order", "request-cancel-order", "request-order-change", "issue-order-change-token", "submit-order-change"];
+    if (publicRateLimitedActions.includes(action)) {
+      const allowed = await enforcePublicOrderRateLimits(admin, req, action, body);
+      if (!allowed) return reply({ ok: false, error: "操作太頻繁，請稍後再試。為保護訂單與電話資料，系統已暫時限制此請求。" }, 429);
+    }
+
     if (action === "send-pickup-reminders") {
-      const expected = Deno.env.get("ORDER_REMINDER_CRON_SECRET");
-      const supplied = req.headers.get("x-reminder-secret") ?? String(body.secret ?? "");
+      const expected = Deno.env.get("CUSTOMER_ORDER_REMINDER_SECRET");
+      const supplied = req.headers.get("x-cron-secret") ?? "";
       if (!expected || supplied !== expected) return reply({ ok: false, error: "Unauthorized reminder job" }, 403);
       if (!Deno.env.get("VAPID_PUBLIC_KEY") || !Deno.env.get("VAPID_PRIVATE_KEY")) return reply({ ok: false, error: "尚未設定 Web Push VAPID 金鑰" }, 503);
       const { count: subscriptionCount, error: subscriptionError } = await admin.from("customer_push_subscriptions").select("id", { count: "exact", head: true });
@@ -248,11 +349,15 @@ Deno.serve(async (req) => {
       return reply({ ok: true, checked: due?.length ?? 0, sent });
     }
 
-    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-direct-edit-20261121" });
+    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-protection-20261122" });
 
     if (action === "lookup-orders") {
       const phone = normalizePhone(body.customer_phone);
       if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "手機號碼格式不正確" }, 400);
+      const hasLookupSession = await verifyCustomerLookupToken(body.lookup_token, phone);
+      if (!hasLookupSession && !await verifyTurnstileToken(body.turnstile_token, req)) {
+        return reply({ ok: false, error: "請先完成真人驗證，再查詢此手機號碼的訂單。" }, 403);
+      }
       const { data: orders, error } = await admin.from("customer_orders")
         .select("id,customer_name,items,total_amount,status,pickup_time,created_at,daily_sequence,note,confirmed_at,preparing_at,completed_at,cancelled_at")
         .eq("customer_phone", phone).order("created_at", { ascending: false }).limit(50);
@@ -280,7 +385,7 @@ Deno.serve(async (req) => {
           change_requests: (requestResult.data ?? []).filter((r: any) => r.order_id === order.id),
         };
       });
-      return reply({ ok: true, orders: safeOrders });
+      return reply({ ok: true, orders: safeOrders, lookup_token: await issueCustomerLookupToken(phone) });
     }
 
     if (action === "get-order") {
@@ -343,8 +448,8 @@ Deno.serve(async (req) => {
         .select("id,customer_name,status,pickup_time,created_at,daily_sequence").eq("id", orderId).eq("customer_phone", phone).maybeSingle();
       if (currentError) throw currentError;
       if (!currentOrder) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
-      if (new Date(currentOrder.pickup_time).getTime() <= Date.now() + 10 * 60_000) {
-        return reply({ ok: false, error: "距離預定取餐時間不足 10 分鐘，已無法修改餐點" }, 409);
+      if (new Date(currentOrder.pickup_time).getTime() <= Date.now() + 15 * 60_000) {
+        return reply({ ok: false, error: "距離預定取餐時間不足 15 分鐘，已無法修改餐點" }, 409);
       }
       const { data, error } = await admin.rpc("edit_customer_order_direct_atomic", {
         p_order_id: orderId, p_customer_phone: phone, p_new_items: [...snapshot, ...giftSnapshot], p_new_base_total: total,
@@ -563,6 +668,9 @@ Deno.serve(async (req) => {
 
     if (action !== "create-order") return reply({ ok: false, error: "Unsupported action" }, 400);
     if (typeof body.website === "string" && body.website.trim()) return reply({ ok: true });
+    if (!await verifyTurnstileToken(body.turnstile_token, req)) {
+      return reply({ ok: false, error: "真人驗證未通過，請重新完成驗證後再送出訂單。" }, 403);
+    }
 
     const name = String(body.customer_name ?? "").trim();
     const phone = String(body.customer_phone ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
@@ -631,7 +739,8 @@ Deno.serve(async (req) => {
       if (!p || !Number.isFinite(price) || price < 0) throw new Error("商品價格資料異常");
       const spice = variant.spice;
       const config = spicySettings[id] ?? {};
-      const spicyEnabled = config.enabled !== false;
+      const isDrink = menuItemSettings[id]?.category === "飲品類";
+      const spicyEnabled = !isDrink && config.enabled !== false;
       const allowedLevels = Array.isArray(config.levels) && config.levels.length ? config.levels : ["不辣", "小辣", "中辣", "大辣"];
       if (spicyEnabled && (!spice || !allowedLevels.includes(spice))) {
         throw new Error(`「${String(p.name)}」請選擇有效辣度，或重新載入菜單`);

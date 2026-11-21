@@ -1,4 +1,4 @@
--- 馬鈴吉碳烤｜客人直接修改原訂單 RPC 修復
+﻿-- 馬鈴吉碳烤｜客人直接修改原訂單 RPC 修復
 -- 執行位置：Supabase Dashboard → SQL Editor
 -- 僅建立／更新此 RPC，不新增訂單、不重編流水號、不變更取餐時間。
 
@@ -55,8 +55,8 @@ BEGIN
     END IF;
 
     IF v_order.pickup_time IS NULL
-       OR v_order.pickup_time <= now() + interval '10 minutes' THEN
-        RAISE EXCEPTION '距離預定取餐時間不足 10 分鐘，已無法修改餐點' USING ERRCODE = '55000';
+       OR v_order.pickup_time <= now() + interval '15 minutes' THEN
+        RAISE EXCEPTION '距離預定取餐時間不足 15 分鐘，已無法修改餐點' USING ERRCODE = '55000';
     END IF;
 
     -- 加點紀錄獨立保存；重算時將所有既有加點金額加回去。
