@@ -1258,6 +1258,93 @@
 .customer-admin-actions .customer-time-action{background:#80583b;color:#fff;border-color:#80583b}
 @media(max-width:430px){.customer-manage-grid{grid-template-columns:1fr}.customer-history-progress{gap:3px}}
 
+
+
+        /* 首頁登出操作：高對比、獨立區塊，避免與標題裝飾文字重疊 */
+        #home-view .header::before { content: none !important; display: none !important; }
+        #home-view .header-copy { flex: 1 1 auto; min-width: 0; }
+        #home-view .home-logout-btn {
+            position: relative !important;
+            z-index: 5 !important;
+            display: inline-flex !important;
+            flex: 0 0 auto !important;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-width: 158px;
+            min-height: 54px;
+            margin: 0 0 0 auto !important;
+            padding: 10px 17px !important;
+            border: 2px solid #9f472b !important;
+            border-radius: 13px !important;
+            color: #fffaf2 !important;
+            background: linear-gradient(145deg, #b95d38 0%, #913e28 100%) !important;
+            box-shadow: 0 5px 0 #71321f, 0 8px 17px rgba(86,43,27,.22) !important;
+            font-size: 15px !important;
+            font-weight: 900 !important;
+            line-height: 1.15;
+            letter-spacing: .4px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+        }
+        #home-view .home-logout-btn:hover {
+            filter: brightness(1.08);
+            background: linear-gradient(145deg, #c76a43 0%, #a34a30 100%) !important;
+            box-shadow: 0 5px 0 #71321f, 0 10px 21px rgba(86,43,27,.28) !important;
+        }
+        #home-view .home-logout-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #71321f, 0 4px 10px rgba(86,43,27,.18) !important;
+        }
+        #home-view .home-logout-icon {
+            display: grid;
+            place-items: center;
+            width: 31px;
+            height: 31px;
+            flex: 0 0 31px;
+            border-radius: 9px;
+            color: #8e3c27;
+            background: #fff0d9;
+            font-size: 22px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        #home-view .home-logout-label { display: block; }
+        #home-view .home-logout-caption { display: none; }
+        @media (max-width: 760px) {
+            #home-view .header {
+                flex-wrap: wrap;
+                row-gap: 13px;
+                padding-bottom: 16px;
+            }
+            #home-view .header-copy { flex: 1 1 calc(100% - 70px); }
+            #home-view .home-logout-btn {
+                flex: 1 0 100% !important;
+                width: 100%;
+                min-width: 0;
+                min-height: 58px;
+                justify-content: flex-start;
+                margin: 2px 0 0 !important;
+                padding: 10px 15px !important;
+                border-radius: 12px !important;
+            }
+            #home-view .home-logout-icon { width: 34px; height: 34px; flex-basis: 34px; }
+            #home-view .home-logout-label { font-size: 15px; }
+            #home-view .home-logout-caption {
+                display: inline;
+                margin-left: auto;
+                color: rgba(255,250,242,.82);
+                font-size: 11px;
+                font-weight: 700;
+            }
+        }
+        @media (max-width: 360px) {
+            #home-view .header { gap: 10px; }
+            #home-view .header h1 { font-size: 21px; }
+            #home-view .home-logout-caption { font-size: 10px; }
+        }
 </style>
 
 </head>
@@ -1272,7 +1359,11 @@
                     <h1>馬鈴吉碳烤</h1>
                     <p>SMART STORE OPERATIONS</p>
                 </div>
-                <button type="button" class="home-logout-btn" onclick="customerAdminSignOut()">↪ 登出</button>
+                <button type="button" class="home-logout-btn" onclick="confirmCustomerAdminSignOut()" aria-label="登出店家管理帳號">
+                    <span class="home-logout-icon" aria-hidden="true">⏻</span>
+                    <span class="home-logout-label">登出帳號</span>
+                    <span class="home-logout-caption">離開店務管理</span>
+                </button>
             </div>
 
             <div class="home-section-title">店務功能選單</div>
@@ -3297,6 +3388,10 @@
         }
         function renderCustomerAdminLogin(message=''){const content=document.getElementById('page-content');content.innerHTML=`<div class="customer-admin-login"><h3 style="margin:0 0 12px;color:#704a32;">店家登入</h3>${message?`<p style="color:#b91c1c;font-size:13px;">${customerEscape(message)}</p>`:''}<label>店家 Email</label><input id="customer-admin-email" type="email" autocomplete="username" placeholder="店家登入 Email"><label>密碼</label><input id="customer-admin-password" type="password" autocomplete="current-password" placeholder="密碼"><button class="customer-order-submit" onclick="customerAdminSignIn()">登入訂單管理</button></div>`;}
         async function customerAdminSignIn(){const email=document.getElementById('customer-admin-email')?.value.trim()||'',password=document.getElementById('customer-admin-password')?.value||'';if(!email||!password){renderCustomerAdminLogin('請輸入店家 Email 與密碼。');return;}const {data,error}=await _supabase.auth.signInWithPassword({email,password});if(error){renderCustomerAdminLogin('登入失敗，請檢查帳號密碼。');return;}if(!customerOwnerRole(data.user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}const destination=customerLoginDestination;customerLoginDestination='admin';if(destination==='home'){document.getElementById('sub-view').style.display='none';document.getElementById('home-view').style.display='block';initCustomerHomeOrderRealtime();}else{renderCustomerOrderAdmin();}}
+        async function confirmCustomerAdminSignOut(){
+            if(!window.confirm('確定要登出馬鈴吉碳烤店務管理系統嗎？'))return;
+            await customerAdminSignOut();
+        }
         async function customerAdminSignOut(){if(customerOrderRealtime){await _supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=null;}if(customerHomeRealtime){await _supabase.removeChannel(customerHomeRealtime);customerHomeRealtime=null;}await _supabase.auth.signOut();customerLoginDestination='home';openPage('customer-orders-admin');renderCustomerAdminLogin('已登出，請重新登入。');}
         function setCustomerAdminFilter(value){customerAdminStatusFilter=value;renderCustomerAdminOrderCards();}
         function customerAdminLocalDateBounds(dateValue){const start=new Date(`${dateValue}T00:00:00`),end=new Date(start);end.setDate(end.getDate()+1);return {start:start.toISOString(),end:end.toISOString()};}
