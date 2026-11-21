@@ -144,6 +144,15 @@
         }
         @keyframes pos-mark-pulse { 0%,100% { box-shadow: 0 5px 14px rgba(0,0,0,.2), 0 0 0 0 rgba(230,162,76,0); } 50% { box-shadow: 0 5px 14px rgba(0,0,0,.2), 0 0 0 7px rgba(230,162,76,.10); } }
         #home-view .header-copy { position: relative; z-index: 1; text-align: left; }
+        #home-view .home-logout-btn {
+            position: relative; z-index: 2; margin-left: auto; flex: 0 0 auto;
+            border: 1px solid rgba(255,255,255,.34); border-radius: 10px;
+            padding: 10px 15px; color: #fff; background: rgba(255,255,255,.12);
+            font-size: 13px; font-weight: 800; cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+        }
+        #home-view .home-logout-btn:hover { background: rgba(255,255,255,.2); }
+        #home-view .home-logout-btn:active { transform: scale(.97); }
         #home-view .header h1 {
             margin: 0 0 5px;
             color: #fff;
@@ -1263,6 +1272,7 @@
                     <h1>馬鈴吉碳烤</h1>
                     <p>SMART STORE OPERATIONS</p>
                 </div>
+                <button type="button" class="home-logout-btn" onclick="customerAdminSignOut()">↪ 登出</button>
             </div>
 
             <div class="home-section-title">店務功能選單</div>
@@ -3274,7 +3284,7 @@
             const [{data:{session}},{data:{user},error}]=await Promise.all([_supabase.auth.getSession(),_supabase.auth.getUser()]);if(!session){renderCustomerAdminLogin();return;}
             if(error||!customerOwnerRole(user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}
             customerAdminQuery={type:'today'};
-            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="margin:0">訂單工作台</h3><div class="customer-admin-toolbar" style="margin:0"><button onclick="enableCustomerOrderPush()">啟用訂單通知</button><button onclick="customerAdminSignOut()">登出</button></div></div><div id="customer-push-status" class="customer-order-muted" style="margin-top:8px"></div></div>
+            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="margin:0">訂單工作台</h3><div class="customer-admin-toolbar" style="margin:0"><button onclick="enableCustomerOrderPush()">啟用訂單通知</button></div></div><div id="customer-push-status" class="customer-order-muted" style="margin-top:8px"></div></div>
             <section class="customer-admin-search"><h4>查詢歷史訂單</h4><div class="customer-admin-search-grid"><label class="customer-admin-search-field">手機號碼<input id="customer-admin-search-phone" type="tel" inputmode="numeric" maxlength="10" placeholder="輸入手機號碼"></label><div class="customer-admin-search-field customer-date-field"><span>開始日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-start-button" onclick="openCustomerAdminDateRangePicker('start')"><span id="customer-admin-search-start-display">📅 選擇開始日期</span><span>⌄</span></button><input id="customer-admin-search-start" type="hidden" value=""></div><div class="customer-admin-search-field customer-date-field"><span>結束日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-end-button" onclick="openCustomerAdminDateRangePicker('end')"><span id="customer-admin-search-end-display">📅 選擇結束日期</span><span>⌄</span></button><input id="customer-admin-search-end" type="hidden" value=""></div></div><div id="customer-admin-search-message" class="customer-admin-search-message" role="alert" aria-live="polite" hidden></div><div class="customer-admin-toolbar"><button class="primary" onclick="searchCustomerAdminOrders()">查詢訂單</button><button onclick="showCustomerAdminToday()">回到今日訂單</button></div></section>
             <div class="customer-admin-toolbar"><button onclick="setCustomerAdminFilter('all')">全部</button><button onclick="setCustomerAdminFilter('new')">待確認</button><button onclick="setCustomerAdminFilter('confirmed')">已確認</button><button onclick="setCustomerAdminFilter('preparing')">製作中</button><button onclick="setCustomerAdminFilter('completed')">已完成</button><button onclick="setCustomerAdminFilter('cancelled')">已取消</button><button onclick="renderCustomerMenuManagement()">餐點管理</button></div><div id="customer-admin-order-list">載入今日訂單中…</div></div>`;
             const today=customerLocalDateValue(new Date());
@@ -3287,7 +3297,7 @@
         }
         function renderCustomerAdminLogin(message=''){const content=document.getElementById('page-content');content.innerHTML=`<div class="customer-admin-login"><h3 style="margin:0 0 12px;color:#704a32;">店家登入</h3>${message?`<p style="color:#b91c1c;font-size:13px;">${customerEscape(message)}</p>`:''}<label>店家 Email</label><input id="customer-admin-email" type="email" autocomplete="username" placeholder="店家登入 Email"><label>密碼</label><input id="customer-admin-password" type="password" autocomplete="current-password" placeholder="密碼"><button class="customer-order-submit" onclick="customerAdminSignIn()">登入訂單管理</button></div>`;}
         async function customerAdminSignIn(){const email=document.getElementById('customer-admin-email')?.value.trim()||'',password=document.getElementById('customer-admin-password')?.value||'';if(!email||!password){renderCustomerAdminLogin('請輸入店家 Email 與密碼。');return;}const {data,error}=await _supabase.auth.signInWithPassword({email,password});if(error){renderCustomerAdminLogin('登入失敗，請檢查帳號密碼。');return;}if(!customerOwnerRole(data.user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}const destination=customerLoginDestination;customerLoginDestination='admin';if(destination==='home'){document.getElementById('sub-view').style.display='none';document.getElementById('home-view').style.display='block';initCustomerHomeOrderRealtime();}else{renderCustomerOrderAdmin();}}
-        async function customerAdminSignOut(){if(customerOrderRealtime){await _supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=null;}await _supabase.auth.signOut();renderCustomerAdminLogin();}
+        async function customerAdminSignOut(){if(customerOrderRealtime){await _supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=null;}if(customerHomeRealtime){await _supabase.removeChannel(customerHomeRealtime);customerHomeRealtime=null;}await _supabase.auth.signOut();customerLoginDestination='home';openPage('customer-orders-admin');renderCustomerAdminLogin('已登出，請重新登入。');}
         function setCustomerAdminFilter(value){customerAdminStatusFilter=value;renderCustomerAdminOrderCards();}
         function customerAdminLocalDateBounds(dateValue){const start=new Date(`${dateValue}T00:00:00`),end=new Date(start);end.setDate(end.getDate()+1);return {start:start.toISOString(),end:end.toISOString()};}
         function customerAdminSearchNotice(message){const box=document.getElementById('customer-admin-search-message');if(!box)return;box.innerHTML=`<span class="customer-admin-search-message-icon">!</span><span>${customerEscape(message)}</span>`;box.hidden=false;box.scrollIntoView({behavior:'smooth',block:'nearest'});}
