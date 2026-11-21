@@ -3007,7 +3007,7 @@
             }
             const groups = [...groupedProducts.keys()];
             content.innerHTML = `<div class="customer-order-wrap">
-              <div class="customer-order-brand"><h1>🔥 馬鈴吉碳烤</h1><p>線上預訂・現場取餐</p></div>
+              <div class="customer-order-brand"><h1>🔥 馬鈴吉碳烤</h1><p>線上預訂・現場取餐</p><a href="history.html" style="display:inline-block;margin-top:8px;color:#80583b;font-weight:800">查詢歷史訂單 →</a></div>
               <div id="customer-public-menu"></div>
               <section class="customer-order-group"><h3>🧾 訂單資料</h3>
                 <div id="customer-public-cart"></div>
@@ -3015,7 +3015,7 @@
                 <div class="customer-order-form">
                   <div class="customer-order-field"><label for="customer-public-name">姓名 *</label><input id="customer-public-name" maxlength="40" autocomplete="name" placeholder="請輸入姓名"></div>
                   <div class="customer-order-field"><label for="customer-public-phone">手機號碼 *</label><input id="customer-public-phone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="09xxxxxxxx"></div>
-                  <div class="customer-order-field full"><label>希望取餐時間 *</label><button type="button" class="customer-pickup-open" id="customer-pickup-open" onclick="openCustomerPickupPicker()"><span id="customer-pickup-display">📅 選擇取餐日期與時間</span><span>⌄</span></button><input id="customer-public-pickup" type="hidden"><div id="customer-pickup-confirmed" class="customer-order-muted">尚未選擇取餐時間</div></div>
+                  <div class="customer-order-field full"><label>取餐時間 *</label><button type="button" class="customer-pickup-open" id="customer-pickup-open" onclick="openCustomerPickupPicker()"><span id="customer-pickup-display">📅 選擇取餐日期與時間</span><span>⌄</span></button><input id="customer-public-pickup" type="hidden"><div id="customer-pickup-confirmed" class="customer-order-muted">尚未選擇取餐時間</div></div>
                   <div class="customer-order-field full"><label for="customer-public-note">餐點備註</label><textarea id="customer-public-note" maxlength="500" placeholder="其他餐點需求…"></textarea></div>
                 </div>
                 <div style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true"><label>不要填寫<input id="customer-public-website" tabindex="-1" autocomplete="off"></label></div>
@@ -3031,6 +3031,7 @@
                 return `<article data-product-id="${customerEscape(id)}" class="customer-menu-card ${qty>0?'is-selected ':''}${soldOut?'is-soldout':''}" ${soldOut?'aria-disabled="true"':'role="button" tabindex="0"'} aria-label="${customerEscape(p.name)}，${customerMoney(p.price)}${soldOut?'，今日已售完':'，依上方所選辣度點擊加入一份'}" ${soldOut?'':'onclick="changeCustomerPublicQty(decodeURIComponent(\''+encodeURIComponent(id)+'\'),1)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();changeCustomerPublicQty(decodeURIComponent(\''+encodeURIComponent(id)+'\'),1)}"'}><div class="customer-menu-card-name">${customerEscape(p.name)}</div><div class="customer-menu-card-bottom"><span class="customer-menu-card-price">${customerMoney(p.price)}</span>${soldOut?'<span class="customer-menu-card-soldout">今日已售完</span>':qty>0?`<span class="customer-menu-card-qty">已點 ${qty}</span>`:'<span class="customer-menu-card-hint">點擊加入＋1</span>'}</div></article>`;
             }).join('')}</div></section>`).join('') || '<p class="customer-order-muted">目前尚無可點選的餐點。</p>';
             renderCustomerPublicCart();
+            if(window.customerPublicEditOrderState)customerApplyPublicEditOrder();
         }
         let customerDesiredPickupConfirmed=false;
         function customerLocalDateValue(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;}
@@ -3094,12 +3095,13 @@
             const giftLimit=Math.floor(total/400);let excess=customerGiftDrinkCount()-giftLimit;
             if(excess>0){for(const id of Object.keys(customerPublicGiftDrinkQty).reverse()){const take=Math.min(excess,Number(customerPublicGiftDrinkQty[id])||0);customerPublicGiftDrinkQty[id]-=take;excess-=take;if(customerPublicGiftDrinkQty[id]<=0)delete customerPublicGiftDrinkQty[id];if(excess<=0)break;}}
             const selected=customerGiftDrinkCount();
-            if(giftLimit<1){giftBox.innerHTML='';return;}
+            if(giftLimit<1){const remain=400-(total%400);giftBox.innerHTML=`<div class="customer-gift-panel"><h4>🎁 滿額贈飲料</h4><p>目前餐點金額 <b>${customerMoney(total)}</b></p><p class="customer-order-muted">再消費 ${customerMoney(remain)} 即可獲得 1 瓶贈品飲料。</p></div>`;return;}
             if(!customerPublicGiftDrinkIds.length){giftBox.innerHTML='<div class="customer-gift-panel"><h4>🎁 贈品飲料</h4><p class="customer-order-muted">目前店家尚未設定可贈送的飲料，請聯絡店家。</p></div>';return;}
             const drinks=customerPublicProducts.filter(p=>customerPublicGiftDrinkIds.includes(String(p.id))&&!customerPublicSoldOutIds.has(String(p.id)));
-            giftBox.innerHTML=`<div class="customer-gift-panel"><h4>🎁 贈品飲料</h4>${drinks.map(p=>{const id=String(p.id),qty=Number(customerPublicGiftDrinkQty[id])||0;return `<div class="customer-gift-row"><strong>${customerEscape(p.name)}</strong><div class="customer-gift-controls"><button type="button" onclick="changeCustomerGiftDrinkQty('${customerEscape(id)}',-1)">−</button><span class="customer-gift-count">${qty}</span><button type="button" onclick="changeCustomerGiftDrinkQty('${customerEscape(id)}',1)" ${selected>=giftLimit?'disabled':''}>＋</button></div></div>`;}).join('')||'<p class="customer-order-muted">目前可贈送的飲料皆已售完。</p>'}</div>`;
+            giftBox.innerHTML=`<div class="customer-gift-panel"><h4>🎁 滿額贈飲料</h4><p>目前餐點金額 <b>${customerMoney(total)}</b>，可選擇 <b>${giftLimit} 瓶</b>，已選 ${selected} 瓶。</p>${drinks.map(p=>{const id=String(p.id),qty=Number(customerPublicGiftDrinkQty[id])||0;return `<div class="customer-gift-row"><strong>${customerEscape(p.name)}</strong><div class="customer-gift-controls"><button type="button" onclick="changeCustomerGiftDrinkQty('${customerEscape(id)}',-1)">−</button><span class="customer-gift-count">${qty}</span><button type="button" onclick="changeCustomerGiftDrinkQty('${customerEscape(id)}',1)" ${selected>=giftLimit?'disabled':''}>＋</button></div></div>`;}).join('')||'<p class="customer-order-muted">目前可贈送的飲料皆已售完。</p>'}</div>`;
         }
         async function submitCustomerPublicOrder(){
+            let editState=window.customerPublicEditOrderState||null;try{if(!editState){editState=JSON.parse(sessionStorage.getItem('customerPublicEditOrderState')||'null');if(editState)window.customerPublicEditOrderState=editState;}}catch(e){}
             const btn=document.getElementById('customer-public-submit');if(!btn||customerPublicSubmitInFlight||btn.disabled)return;
             const name=document.getElementById('customer-public-name').value.trim(),phone=document.getElementById('customer-public-phone').value.replace(/\D/g,''),pickup=document.getElementById('customer-public-pickup').value,note=document.getElementById('customer-public-note').value.trim();
             const items=Object.entries(customerPublicCart).filter(([key,qty])=>Number(qty)>0&&!customerPublicSoldOutIds.has(key.split('::')[0])).map(([key,qty])=>{const [id,levelKey]=key.split('::');return {product_id:id,quantity:Number(qty),spice_level:levelKey==='__none__'?null:levelKey};});
@@ -3110,10 +3112,10 @@
             customerPublicSubmitInFlight=true;btn.disabled=true;btn.textContent='訂單送出中…';
             const submitStartedAt=performance.now();
             try{
-                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'create-order',customer_name:name,customer_phone:phone,pickup_time:selectedPickup.toISOString(),note,items,free_drinks,website:document.getElementById('customer-public-website')?.value||'',submitted_at:Date.now()}});
+                const requestBody=editState?{action:'direct-edit-order',order_id:editState.orderId,customer_phone:editState.phone,items,free_drinks}:{action:'create-order',customer_name:name,customer_phone:phone,pickup_time:selectedPickup.toISOString(),note,items,free_drinks,website:document.getElementById('customer-public-website')?.value||'',submitted_at:Date.now()};const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:requestBody});
                 console.info('[馬鈴吉] 訂單建立 API 耗時：',Math.round(performance.now()-submitStartedAt),'ms');
                 if(error)throw error;if(!data?.ok)throw new Error(data?.error||'訂單送出失敗');
-                document.querySelector('.customer-order-wrap').innerHTML=`<div class="customer-order-success"><div style="font-size:42px;">✓</div><h2>訂單已送出</h2><p>訂單編號：<b>${customerEscape(data.order_number||data.id||'已建立')}</b></p><p>訂單已成立。若要查看目前進度，請使用店家提供的「訂單查詢網址」。</p><a href="?customer-order=1" style="display:block;margin-top:14px;color:#80583b;font-weight:800">返回點餐</a></div>`;
+                document.querySelector('.customer-order-wrap').innerHTML=`<div class="customer-order-success"><div style="font-size:42px;">✓</div><h2>${editState?'訂單修改已提交':'訂單已送出'}</h2><p>${editState?'店家已收到修改通知，請留意後續確認。':'訂單已成立。'}</p><a href="history.html" style="display:block;margin-top:14px;color:#80583b;font-weight:800">查看訂單</a></div>`;window.customerPublicEditOrderState=null;try{sessionStorage.removeItem('customerPublicEditOrderState');}catch(e){}
             }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('customer order submit failed',e,detail);customerOrderAlert('訂單送出失敗：'+detail);customerPublicSubmitInFlight=false;btn.disabled=false;btn.textContent='重新送出訂單';}
         }
         function customerOrderDialog(message,{title='訂單通知',icon='✦',confirm=false,confirmText='確定',cancelText='再想一下',tone='default',eyebrow='MALINJI ORDER',detailHtml='',note='',danger=false}={}){
@@ -3127,10 +3129,16 @@
         }
         function customerOrderAlert(message,options={}){customerOrderDialog(message,{title:options.title||'訂單通知',icon:options.icon||'✦',confirm:false,confirmText:'知道了',tone:options.tone||'default',eyebrow:options.eyebrow||'ORDER NOTICE',note:options.note||''});}
         function customerOrderConfirm(message,options={}){return customerOrderDialog(message,{title:options.title||'請確認操作',icon:options.icon||'？',confirm:true,confirmText:options.confirmText||'確認',cancelText:options.cancelText||'取消',tone:options.tone||'default',eyebrow:options.eyebrow||'ACTION REQUIRED',detailHtml:options.detailHtml||'',note:options.note||''});}
+        function customerDisplayOrderLabel(order){
+            const date=order?.created_at?new Date(order.created_at):new Date();
+            const dateText=`${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}`;
+            const name=String(order?.customer_name||'未留姓名').trim().replace(/[<>\n\r]/g,'').slice(0,20);
+            return `訂單｜${dateText}｜${name}`;
+        }
         async function renderCustomerHistoryPage(){
             if(customerHistoryRefreshTimer){clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=null;}customerHistoryLastPhone='';
             document.title='馬鈴吉碳烤｜訂單查詢';document.getElementById('home-view').style.display='none';document.getElementById('sub-view').style.display='block';document.querySelector('.top-bar').style.display='none';document.getElementById('page-title').textContent='訂單查詢';document.getElementById('top-action-container').innerHTML='';
-            document.getElementById('page-content').innerHTML=`<div class="customer-order-wrap"><div class="customer-order-brand"><h1>📋 訂單查詢</h1><p>輸入下單時的手機號碼，即可查看歷史訂單與目前進度</p></div><section class="customer-order-group"><div class="customer-order-field"><label for="customer-history-phone">訂單電話號碼</label><input id="customer-history-phone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="請輸入 09 開頭的手機號碼"></div><button type="button" class="customer-order-submit" onclick="lookupCustomerOrders()">查詢訂單</button><div id="customer-history-results" style="margin-top:14px"></div></section><p style="text-align:center"><a href="?customer-order=1" style="color:#80583b;font-weight:800">← 返回線上點餐</a></p></div>`;
+            document.getElementById('page-content').innerHTML=`<div class="customer-order-wrap"><div class="customer-order-brand"><h1>📋 訂單查詢</h1><p>輸入下單時的手機號碼，即可查看歷史訂單與目前進度</p></div><section class="customer-order-group"><div class="customer-order-field"><label for="customer-history-phone">訂單電話號碼</label><input id="customer-history-phone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="請輸入 09 開頭的手機號碼"></div><button type="button" class="customer-order-submit" onclick="lookupCustomerOrders()">查詢訂單</button><div id="customer-history-results" style="margin-top:14px"></div></section><p style="text-align:center"><a href="order.html" style="color:#80583b;font-weight:800">← 返回線上點餐</a></p></div>`;
         }
         async function lookupCustomerOrders(silent=false){
             if(customerHistoryLookupInFlight)return;customerHistoryLookupInFlight=true;
@@ -3149,11 +3157,11 @@
                     const active=['new','confirmed','preparing'].includes(o.status),steps=['new','confirmed','preparing','completed'],stepIndex=o.status==='cancelled'?-1:steps.indexOf(o.status),proposal=o.proposed_pickup_time?new Date(o.proposed_pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'';
                     const timeline=[{key:'new',label:'訂單成立',at:o.created_at},{key:'confirmed',label:'店家確認',at:o.confirmed_at},{key:'preparing',label:'開始製作',at:o.preparing_at},{key:'completed',label:'訂單完成',at:o.completed_at}];
                     const timelineHtml=`<div class="customer-order-timeline">${timeline.map((t,i)=>`<div class="customer-order-timeline-item ${t.at?'done':''}"><span class="customer-order-timeline-dot"></span><span class="customer-order-timeline-copy"><strong>${t.label}</strong><time>${t.at?customerEscape(timeLabel(t.at)):'尚未記錄'}</time></span></div>`).join('')}${o.status==='cancelled'?`<div class="customer-order-timeline-item done"><span class="customer-order-timeline-dot"></span><span class="customer-order-timeline-copy"><strong>訂單取消</strong><time>${customerEscape(timeLabel(o.cancelled_at))}</time></span></div>`:''}</div>`;
-                    const addonHtml=(o.addons||[]).map((a,i)=>`<div style="margin-top:10px;padding:12px;border-radius:12px;background:#fff8ed;border:1px solid #ead8c5"><b>➕ 加點第 ${i+1} 次</b><div class="customer-order-muted">加點時間：${customerEscape(new Date(a.created_at).toLocaleString('zh-TW'))}</div><div class="customer-admin-items">${customerFormatSpiceGroupedItems(a.items)}</div><b>加點金額：${customerMoney(a.total_amount)}</b></div>`).join('');
+                    const addonHtml=(o.addons||[]).map((a,i)=>`<div style="margin-top:10px;padding:12px;border-radius:12px;background:#fff8ed;border:1px solid #ead8c5"><b>過往餐點異動紀錄 ${i+1}</b><div class="customer-order-muted">異動時間：${customerEscape(new Date(a.created_at).toLocaleString('zh-TW'))}</div><div class="customer-admin-items">${customerFormatSpiceGroupedItems(a.items)}</div><b>異動金額：${customerMoney(a.total_amount)}</b></div>`).join('');
                     const canEditItems=active&&new Date(o.pickup_time).getTime()>Date.now()+10*60000;
-                    const actionHtml=active?`<div class="customer-admin-actions" style="margin-top:12px">${canEditItems?`<button class="primary" onclick="customerOpenOrderEditor('addon','${customerEscape(o.id)}','${customerEscape(customerHistoryLastPhone)}')">＋ 我要加點</button><button onclick="customerOpenOrderEditor('edit','${customerEscape(o.id)}','${customerEscape(customerHistoryLastPhone)}')">✏️ 修改餐點</button>`:'<span class="customer-order-muted">距離預定取餐時間不足 10 分鐘，已停止修改餐點及加點。</span>'}</div>`:'';
+                    const cancelRequested=!!o.cancel_requested_at;const actionHtml=active?`<div class="customer-admin-actions" style="margin-top:12px">${canEditItems?`<button class="primary" onclick="customerOpenOrderEditor('edit','${customerEscape(o.id)}','${customerEscape(customerHistoryLastPhone)}')">✏️ 修改訂單（增加／減少餐點）</button>`:'<span class="customer-order-muted">距離取餐時間不足 10 分鐘，已停止修改訂單。</span>'}${cancelRequested?'<span class="customer-order-muted">已送出取消申請，等待店家處理</span>':`<button class="customer-time-action" onclick="customerRequestCancelOrder('${customerEscape(o.id)}','${customerEscape(customerHistoryLastPhone)}')">申請取消訂單</button>`}</div>`:'';
                     const progressClass=o.status==='completed'?'is-finished':o.status==='cancelled'?'is-cancelled':'';
-                    return `<article class="customer-admin-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>訂單 ${customerEscape(String(o.id).slice(0,8))}</b><span class="customer-history-status ${active?'active':''}">${customerEscape(statusLabel[o.status]||o.status)}</span></div>${active||o.status==='completed'?`<div class="customer-history-progress ${progressClass}">${steps.map((step,i)=>`<span class="${stepIndex>=i?'done':''}"></span>`).join('')}</div>`:''}${timelineHtml}<div class="customer-admin-meta">下單時間：${customerEscape(created)}<br>目前取餐時間：${customerEscape(pickup)}</div>${proposal?`<div style="margin:10px 0;padding:12px;border-radius:12px;background:#fff4df;border:1px solid #e8c99c"><b>店家提出其他取餐時間</b><p style="margin:6px 0">${customerEscape(proposal)}</p><div class="customer-admin-actions"><button class="primary" onclick="respondCustomerPickup('${customerEscape(o.id)}',true,'${customerEscape(customerHistoryLastPhone)}')">可以，接受新時間</button><button onclick="respondCustomerPickup('${customerEscape(o.id)}',false,'${customerEscape(customerHistoryLastPhone)}')">不方便，請店家再安排</button></div></div>`:''}<div class="customer-admin-items">${itemText||'（無餐點明細）'}</div>${addonHtml}${actionHtml}<b>總金額：${customerMoney(o.total_amount)}</b></article>`;
+                    return `<article class="customer-admin-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>${customerEscape(customerDisplayOrderLabel(o))}</b><span class="customer-history-status ${active?'active':''}">${customerEscape(statusLabel[o.status]||o.status)}</span></div>${active||o.status==='completed'?`<div class="customer-history-progress ${progressClass}">${steps.map((step,i)=>`<span class="${stepIndex>=i?'done':''}"></span>`).join('')}</div>`:''}${timelineHtml}<div class="customer-admin-meta">下單時間：${customerEscape(created)}<br>取餐時間：${customerEscape(pickup)}</div>${proposal?`<div style="margin:10px 0;padding:12px;border-radius:12px;background:#fff4df;border:1px solid #e8c99c"><b>店家提出其他取餐時間</b><p style="margin:6px 0">${customerEscape(proposal)}</p><div class="customer-admin-actions"><button class="primary" onclick="respondCustomerPickup('${customerEscape(o.id)}',true,'${customerEscape(customerHistoryLastPhone)}')">可以，接受新時間</button><button onclick="respondCustomerPickup('${customerEscape(o.id)}',false,'${customerEscape(customerHistoryLastPhone)}')">不方便，請店家再安排</button></div></div>`:''}<div class="customer-admin-items">${itemText||'（無餐點明細）'}</div>${addonHtml}${actionHtml}<b>總金額：${customerMoney(o.total_amount)}</b></article>`;
                 }).join('');
             }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('lookup customer orders failed',e,detail);if(!silent)box.textContent='查詢失敗：'+detail;}finally{customerHistoryLookupInFlight=false;}
         }
@@ -3181,21 +3189,33 @@
         async function customerOpenOrderEditor(mode,orderId,phone){
             try{
                 const order=customerHistoryOrders.find(o=>String(o.id)===String(orderId));
-                if(!order||new Date(order.pickup_time).getTime()<=Date.now()+10*60000){customerOrderAlert('距離預定取餐時間不足 10 分鐘，已無法修改餐點或加點。');return;}
-                await customerLoadEditorCatalog();
-                customerOrderEditorState={mode,orderId,phone,idempotencyKey:mode==='addon'?crypto.randomUUID():null};
-                const initial=mode==='edit'?(order?.items||[]).filter(i=>!i.is_gift):[];
-                const overlay=document.createElement('div');overlay.className='customer-pickup-overlay';overlay.id='customer-order-editor-overlay';
-                overlay.innerHTML=`<section class="customer-pickup-modal" role="dialog" aria-modal="true" style="max-width:620px;width:calc(100vw - 28px);max-height:85vh;overflow:auto"><h3>${mode==='addon'?'➕ 訂單加點':'✏️ 修改訂單餐點'}</h3><p class="customer-order-muted">${mode==='addon'?'新增的餐點會另外記錄，原本訂單餐點不變。':'直接調整原訂單餐點數量，可增加、減少或更換品項；原本加點紀錄會保留。'}</p><div id="customer-editor-rows"></div><button type="button" onclick="customerEditorAddRow()" style="width:100%;padding:10px;border:1px dashed #b99b80;border-radius:9px;background:#fff8ef;color:#704a32;font-weight:700">＋ 新增餐點列</button><div class="customer-pickup-actions"><button type="button" class="customer-pickup-cancel" onclick="document.getElementById('customer-order-editor-overlay')?.remove();customerOrderEditorState=null">取消</button><button type="button" class="customer-pickup-confirm" onclick="customerSubmitOrderEditor()">${mode==='addon'?'確認加點':'確認修改訂單'}</button></div></section>`;
-                overlay.addEventListener('click',e=>{if(e.target===overlay){overlay.remove();customerOrderEditorState=null;}});document.body.appendChild(overlay);
-                if(initial.length)initial.forEach(i=>customerEditorAddRow(i));else customerEditorAddRow();
-            }catch(e){customerOrderAlert(e?.message||'無法開啟餐點編輯');}
+                if(!order||new Date(order.pickup_time).getTime()<=Date.now()+10*60000){customerOrderAlert('距離取餐時間不足 10 分鐘，已停止修改訂單。');return;}
+                window.customerPublicEditOrderState={orderId:String(orderId),phone:String(phone),customer_name:order.customer_name||'',pickup_time:order.pickup_time,note:String(order.note||'').replace(/\n\n\[\[MALINJI_ORDER_META:[\s\S]*?\]\]$/,''),items:Array.isArray(order.items)?order.items:[]};
+                try{sessionStorage.setItem('customerPublicEditOrderState',JSON.stringify(window.customerPublicEditOrderState));}catch(e){}
+                const targetPath=location.pathname.replace(/history\.html$/,'order.html');location.href=targetPath+'?customer-order=1&edit-order='+encodeURIComponent(orderId);
+            }catch(e){customerOrderAlert(e?.message||'無法載入原訂單餐點');}
+        }
+        function customerApplyPublicEditOrder(){
+            let state=window.customerPublicEditOrderState;try{if(!state)state=JSON.parse(sessionStorage.getItem('customerPublicEditOrderState')||'null');}catch(e){}if(!state)return;
+            customerPublicCart={};customerPublicGiftDrinkQty={};
+            for(const item of state.items){
+                const id=String(item.product_id??'');const qty=Number(item.quantity)||0;if(!id||qty<=0)continue;
+                if(item.is_gift){customerPublicGiftDrinkQty[id]=(customerPublicGiftDrinkQty[id]||0)+qty;continue;}
+                const level=item.spice_level||null;const key=customerCartKey(id,level);customerPublicCart[key]=(customerPublicCart[key]||0)+qty;
+            }
+            const name=document.getElementById('customer-public-name'),phone=document.getElementById('customer-public-phone'),note=document.getElementById('customer-public-note'),pickup=document.getElementById('customer-public-pickup'),display=document.getElementById('customer-pickup-display'),confirmed=document.getElementById('customer-pickup-confirmed'),pickupOpen=document.getElementById('customer-pickup-open'),submit=document.getElementById('customer-public-submit');
+            if(name){name.value=state.customer_name;name.readOnly=true;}if(phone){phone.value=state.phone;phone.readOnly=true;}if(note)note.value=state.note||'';
+            if(pickup){pickup.value=state.pickup_time;customerDesiredPickupConfirmed=true;}if(display)display.textContent=new Date(state.pickup_time).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false});if(confirmed)confirmed.textContent='原訂單取餐時間（修改餐點不會變更取餐時間）';if(pickupOpen)pickupOpen.disabled=true;
+            if(submit)submit.textContent='重新提交修改訂單';
+            customerPublicProducts.forEach(product=>{const card=document.querySelector('.customer-menu-card[data-product-id="'+CSS.escape(String(product.id))+'"]');if(!card)return;const qty=customerCartEntriesForProduct(product.id).reduce((sum,[,n])=>sum+(Number(n)||0),0);card.classList.toggle('is-selected',qty>0);const bottom=card.querySelector('.customer-menu-card-bottom');if(bottom)bottom.innerHTML=`<span class="customer-menu-card-price">${customerMoney(product.price)}</span>${qty>0?`<span class="customer-menu-card-qty">已點 ${qty}</span>`:'<span class="customer-menu-card-hint">點擊加入＋1</span>'}`;});
+            const heading=document.querySelector('.customer-order-brand p');if(heading)heading.innerHTML='修改原訂單・原有餐點已載入，可直接在菜單中增加或減少數量<br><a href="history.html" style="display:inline-block;margin-top:8px;color:#80583b;font-weight:800">← 返回訂單查詢</a>';
+            renderCustomerPublicCart();
         }
         async function customerSubmitOrderEditor(){
             const state=customerOrderEditorState;if(!state)return;const items=customerEditorReadItems();if(!items.length){customerOrderAlert('訂單至少要保留一項餐點；若要全部取消，請聯絡店家。',{title:'餐點尚未完成',icon:'!'});return;}
-            const action=state.mode==='addon'?'add-on-order':'direct-edit-order';const body=state.mode==='addon'?{action,order_id:state.orderId,customer_phone:state.phone,idempotency_key:state.idempotencyKey,items}:{action,order_id:state.orderId,customer_phone:state.phone,items};
+            const action='direct-edit-order';const body={action,order_id:state.orderId,customer_phone:state.phone,items};
             const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body});if(error||!data?.ok){customerOrderAlert(data?.error||'送出失敗，請稍後再試',{title:'送出失敗',icon:'!'});return;}
-            document.getElementById('customer-order-editor-overlay')?.remove();customerOrderEditorState=null;await lookupCustomerOrders(true);customerOrderAlert(state.mode==='addon'?'加點已送出，店家已收到通知。':'訂單餐點已直接修改完成。',{title:'訂單已更新',icon:'✓'});
+            document.getElementById('customer-order-editor-overlay')?.remove();customerOrderEditorState=null;await lookupCustomerOrders(true);customerOrderAlert('訂單修改已重新提交，店家手機將收到通知。',{title:'訂單已更新',icon:'✓'});
         }
         async function updateCustomerOrderStatus(orderId,nextStatus,options={}){
             const labels={confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'};
@@ -3208,7 +3228,7 @@
             const pickup=order?.pickup_time?new Date(order.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'未設定';
             const itemCount=(Array.isArray(order?.items)?order.items:[]).reduce((sum,item)=>sum+(Number(item.quantity)||0),0);
             const amount=order?.total_amount!=null?customerMoney(order.total_amount):'未載入';
-            const detailHtml=`<div class="customer-order-dialog-detail-row"><span>訂單編號</span><strong>#${customerEscape(shortId)}</strong></div><div class="customer-order-dialog-detail-row"><span>顧客姓名</span><strong>${customerEscape(customer)}</strong></div><div class="customer-order-dialog-detail-row"><span>預定取餐</span><strong>${customerEscape(pickup)}</strong></div><div class="customer-order-dialog-detail-row"><span>餐點數量</span><strong>${itemCount} 件</strong></div><div class="customer-order-dialog-detail-row"><span>訂單金額</span><strong>${customerEscape(amount)}</strong></div>`;
+            const detailHtml=`<div class="customer-order-dialog-detail-row"><span>訂單</span><strong>${customerEscape(customerDisplayOrderLabel(order||{}))}</strong></div><div class="customer-order-dialog-detail-row"><span>顧客姓名</span><strong>${customerEscape(customer)}</strong></div><div class="customer-order-dialog-detail-row"><span>取餐時間</span><strong>${customerEscape(pickup)}</strong></div><div class="customer-order-dialog-detail-row"><span>餐點數量</span><strong>${itemCount} 件</strong></div><div class="customer-order-dialog-detail-row"><span>訂單金額</span><strong>${customerEscape(amount)}</strong></div>`;
             const actionCopy={
                 confirmed:{title:'確認接下這筆訂單？',message:'請再次核對客人的取餐時間。確認後，客人端會立即顯示「店家已確認」。',icon:'✓',tone:'confirmed',eyebrow:'CONFIRM ORDER',button:'確認接單',note:'接單後即可在預定時間前安排製作。'},
                 preparing:{title:'現在開始製作？',message:'開始後，訂單進度會更新為「製作中」，客人也會同步看到進度變化。',icon:'🔥',tone:'preparing',eyebrow:'START PREPARATION',button:'開始製作',note:'請先確認餐點與備料已準備好，再開始計時。'},
@@ -3224,6 +3244,12 @@
             return true;
         }
         async function acceptCustomerDesiredTime(orderId){return updateCustomerOrderStatus(orderId,'confirmed',{silent:true,successMessage:'已接受客人希望的取餐時間，訂單已確認。'});}
+        async function customerReviewCancelRequest(orderId,accepted){
+            const ok=await customerOrderConfirm(accepted?'同意後訂單將立即取消，客人查詢頁會更新為已取消。':'不同意後會保留原訂單，並通知客人申請未獲同意。',{title:accepted?'確認同意取消？':'確認不同意取消？',icon:accepted?'!':'✓',tone:accepted?'cancelled':'confirmed',confirmText:accepted?'同意取消訂單':'確認不同意',cancelText:'返回'});
+            if(!ok)return;const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'owner-review-cancel-request',order_id:orderId,accepted}});
+            if(error||!data?.ok){customerOrderAlert(data?.error||'處理取消申請失敗。',{title:'處理失敗',icon:'!'});return;}
+            await refreshCustomerAdminOrders(false);customerOrderAlert(accepted?'已同意取消訂單。':'已拒絕取消申請。',{title:'已完成處理',icon:'✓'});
+        }
         function markCustomerOrderRead(orderId){
             try{const ids=customerReadOrderIds();ids.add(String(orderId));customerSaveReadOrderIds(ids);renderCustomerAdminOrderCards();customerUpdateUnreadBadge();if(typeof refreshCustomerHomeUnread==='function')refreshCustomerHomeUnread();}
             catch(e){console.error('標記訂單已讀失敗',e);customerOrderAlert('無法儲存已讀狀態，請確認瀏覽器允許網站使用本機儲存空間。');}
@@ -3280,7 +3306,7 @@
         async function showCustomerAdminToday(){clearCustomerAdminSearchNotice();customerAdminQuery={type:'today'};const today=customerLocalDateValue(new Date());const phone=document.getElementById('customer-admin-search-phone'),start=document.getElementById('customer-admin-search-start'),end=document.getElementById('customer-admin-search-end');if(phone)phone.value='';if(start)start.value=today;if(end)end.value=today;const startDisplay=document.getElementById('customer-admin-search-start-display'),endDisplay=document.getElementById('customer-admin-search-end-display');if(startDisplay)startDisplay.textContent='📅 '+customerAdminFormatDateLabel(today);if(endDisplay)endDisplay.textContent='📅 '+customerAdminFormatDateLabel(today);customerAdminStatusFilter='all';await refreshCustomerAdminOrders(true);}
         async function refreshCustomerAdminOrders(initial=false){
             const box=document.getElementById('customer-admin-order-list');if(!box)return;if(initial)box.textContent='載入訂單中…';
-            let query=_supabase.from('customer_orders').select('id,customer_name,customer_phone,pickup_time,items,total_amount,note,status,created_at').order('created_at',{ascending:false}).limit(500);
+            let query=_supabase.from('customer_orders').select('id,customer_name,customer_phone,pickup_time,items,total_amount,note,status,created_at,confirmed_at,preparing_at,completed_at,cancelled_at').order('created_at',{ascending:false}).limit(500);
             if(customerAdminQuery.type==='today'){const today=customerLocalDateValue(new Date()),bounds=customerAdminLocalDateBounds(today);query=query.gte('created_at',bounds.start).lt('created_at',bounds.end);}
             else{if(customerAdminQuery.phone)query=query.eq('customer_phone',customerAdminQuery.phone);if(customerAdminQuery.start){const bounds=customerAdminLocalDateBounds(customerAdminQuery.start);query=query.gte('created_at',bounds.start);}if(customerAdminQuery.end){const bounds=customerAdminLocalDateBounds(customerAdminQuery.end);query=query.lt('created_at',bounds.end);}}
             const {data,error}=await query;if(error){if(initial)box.innerHTML='<p style="color:#b91c1c;">目前無法載入訂單。</p>';console.error(error);return;}
@@ -3292,7 +3318,7 @@
                     _supabase.from('customer_order_change_requests').select('id,order_id,proposal_text,reason,status,requested_at,reviewed_at,expires_at,completed_at').in('order_id',ids).order('requested_at',{ascending:false}),
                     _supabase.from('customer_order_change_audit').select('id,order_id,request_id,old_items,new_items,old_total_amount,new_total_amount,old_note,new_note,created_at').in('order_id',ids).order('created_at',{ascending:false})
                 ]);
-                if(a.error||r.error||h.error){console.error('讀取加點、修改申請或修改稽核失敗',a.error||r.error||h.error);}
+                if(a.error||r.error||h.error){console.error('讀取訂單異動、修改申請或修改稽核失敗',a.error||r.error||h.error);}
                 addons=a.data||[];requests=r.data||[];var audits=h.data||[];
             }else{var audits=[];}
             customerAdminOrders=orders.map(o=>({...o,addons:addons.filter(a=>a.order_id===o.id),change_requests:requests.filter(r=>r.order_id===o.id),change_audits:audits.filter(h=>h.order_id===o.id)}));
@@ -3309,13 +3335,13 @@
                 const pickup=new Date(o.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
                 const created=new Date(o.created_at).toLocaleString('zh-TW');const unread=o.status==='new'&&!read.has(String(o.id));
                 const visibleNote=String(o.note||'無').replace(/\n\n\[\[MALINJI_ORDER_META:[\s\S]*?\]\]$/,'')||'無';
-                const proposalMatch=String(o.note||'').match(/\[\[MALINJI_ORDER_META:([\s\S]*?)\]\]$/);let proposedTime='';try{const meta=proposalMatch?JSON.parse(proposalMatch[1]):{};if(meta.proposed_pickup_time)proposedTime=meta.proposed_pickup_time;}catch(e){}
+                const proposalMatch=String(o.note||'').match(/\[\[MALINJI_ORDER_META:([\s\S]*?)\]\]$/);let proposedTime='',cancelRequestedAt='';try{const meta=proposalMatch?JSON.parse(proposalMatch[1]):{};if(meta.proposed_pickup_time)proposedTime=meta.proposed_pickup_time;if(meta.cancel_requested_at)cancelRequestedAt=meta.cancel_requested_at;}catch(e){}
                 const actions=o.status==='new'?(proposedTime?'<span class="customer-order-muted">已提出新時間，等待客人回覆</span>':`<button class="primary" onclick="acceptCustomerDesiredTime('${customerEscape(o.id)}')">✓ 接受希望時間</button><button class="customer-time-action" onclick="openCustomerAdminProposeTimePicker('${customerEscape(o.id)}','${customerEscape(o.pickup_time)}')">提出其他時間</button>`):o.status==='confirmed'?`<button class="primary" onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','preparing')">開始製作</button>`:o.status==='preparing'?`<button class="primary" onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','completed')">完成訂單</button>`:'';
-                const cancelAction=['new','confirmed'].includes(o.status)?`<button class="customer-time-action" onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','cancelled')">取消訂單</button>`:'';
+                const cancelAction=cancelRequestedAt?`<div class="customer-admin-actions"><b style="color:#a33">客人申請取消・${customerEscape(new Date(cancelRequestedAt).toLocaleString('zh-TW'))}</b><button class="primary" onclick="customerReviewCancelRequest('${customerEscape(o.id)}',true)">同意取消</button><button onclick="customerReviewCancelRequest('${customerEscape(o.id)}',false)">不同意</button></div>`:(['new','confirmed'].includes(o.status)?`<button class="customer-time-action" onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','cancelled')">取消訂單</button>`:'');
                 const readAction=o.status==='new'&&!read.has(String(o.id))?`<button onclick="markCustomerOrderRead('${customerEscape(o.id)}')">標記已讀</button>`:'';
-                const addonHtml=(o.addons||[]).map((a,i)=>`<div style="margin-top:8px;padding:10px;border:1px solid #ead8c5;border-radius:10px;background:#fffaf4"><b>➕ 加點第 ${i+1} 次・${customerEscape(new Date(a.created_at).toLocaleString('zh-TW'))}</b><div>${customerFormatSpiceGroupedItems(a.items)}</div><b>加點金額：${customerMoney(a.total_amount)}</b></div>`).join('');
+                const addonHtml=(o.addons||[]).map((a,i)=>`<div style="margin-top:8px;padding:10px;border:1px solid #ead8c5;border-radius:10px;background:#fffaf4"><b>過往餐點異動紀錄 ${i+1}・${customerEscape(new Date(a.created_at).toLocaleString('zh-TW'))}</b><div>${customerFormatSpiceGroupedItems(a.items)}</div><b>異動金額：${customerMoney(a.total_amount)}</b></div>`).join('');
                 const auditHtml=(o.change_audits||[]).map(h=>`<div style="margin-top:8px;padding:10px;border:1px solid #d8e4dc;border-radius:10px;background:#f7fbf8"><b>修改完成紀錄・${customerEscape(new Date(h.created_at).toLocaleString('zh-TW'))}</b><div style="margin-top:6px">修改前：${customerFormatSpiceGroupedItems(h.old_items)}<br>金額 ${customerMoney(h.old_total_amount)}</div><div style="margin-top:6px">修改後：${customerFormatSpiceGroupedItems(h.new_items)}<br>金額 ${customerMoney(h.new_total_amount)}</div></div>`).join('');
-                return `<article class="customer-admin-card ${unread?'is-unread':''}"><h3>訂單 ${customerEscape(String(o.id).slice(0,8))}　<span style="font-size:13px;">${customerEscape(({new:'待確認',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'})[o.status]||o.status)}</span>${unread?'<span class="customer-unread-badge">未讀</span>':''}</h3><div class="customer-admin-meta">客人：${customerEscape(o.customer_name)}<br>手機：<a href="tel:${customerEscape(o.customer_phone||'')}">${customerEscape(o.customer_phone||'未提供')}</a><br>希望取餐時間：${customerEscape(pickup)}${proposedTime?'<br><b>已提出待客人回覆：'+customerEscape(new Date(proposedTime).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))+'</b>':''}<br>下單時間：${customerEscape(created)}</div><div class="customer-admin-items">${itemText||'（無餐點明細）'}</div>${addonHtml?`<div class="customer-admin-meta"><b>加點紀錄</b>${addonHtml}</div>`:''}${auditHtml?`<div class="customer-admin-meta"><b>修改稽核紀錄</b>${auditHtml}</div>`:''}<div class="customer-admin-meta">備註：${customerEscape(visibleNote)}<br><b>總金額：${customerMoney(o.total_amount)}</b></div><div class="customer-admin-actions">${readAction}${actions}${cancelAction}</div></article>`;
+                return `<article class="customer-admin-card ${unread?'is-unread':''}"><h3>${customerEscape(customerDisplayOrderLabel(o))}　<span style="font-size:13px;">${customerEscape(({new:'待確認',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'})[o.status]||o.status)}</span>${unread?'<span class="customer-unread-badge">未讀</span>':''}</h3><div class="customer-admin-meta">客人：${customerEscape(o.customer_name)}<br>手機：<a href="tel:${customerEscape(o.customer_phone||'')}">${customerEscape(o.customer_phone||'未提供')}</a><br>取餐時間：${customerEscape(pickup)}${proposedTime?'<br><b>已提出待客人回覆：'+customerEscape(new Date(proposedTime).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))+'</b>':''}<br>下單時間：${customerEscape(created)}</div><div class="customer-admin-items">${itemText||'（無餐點明細）'}</div>${addonHtml?`<div class="customer-admin-meta"><b>歷史異動紀錄</b>${addonHtml}</div>`:''}${auditHtml?`<div class="customer-admin-meta"><b>修改稽核紀錄</b>${auditHtml}</div>`:''}<div class="customer-admin-meta">備註：${customerEscape(visibleNote)}<br><b>總金額：${customerMoney(o.total_amount)}</b></div><div class="customer-admin-actions">${readAction}${actions}${cancelAction}</div></article>`;
             }).join('');customerUpdateUnreadBadge();
         }
 
@@ -5500,7 +5526,7 @@
             .catch(function (error) { console.warn('App 離線外殼註冊失敗：', error); });
         });
       }
-      window.addEventListener('DOMContentLoaded', function () {
+      window.addEventListener('DOMContentLoaded', async function () {
         // 僅移除 ChatGPT 加上的來源追蹤參數，不影響點餐／歷史訂單等功能參數。
         const params = new URLSearchParams(location.search);
         if (params.get('utm_source') === 'chatgpt.com') {
@@ -5515,7 +5541,10 @@
         } else if (params.get('customer-order-admin') === '1') {
           openPage('customer-orders-admin');
         } else {
-          initCustomerHomeOrderRealtime();
+          const {data:{session}}=await _supabase.auth.getSession();
+          const {data:{user}}=session?await _supabase.auth.getUser():{data:{user:null}};
+          if(!session||!customerOwnerRole(user)){openPage('customer-orders-admin');}
+          else{initCustomerHomeOrderRealtime();}
         }
       });
     </script>

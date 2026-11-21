@@ -1,5 +1,38 @@
 BEGIN;
 
+ALTER TABLE public.customer_orders
+  ADD COLUMN IF NOT EXISTS confirmed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS preparing_at timestamptz,
+  ADD COLUMN IF NOT EXISTS completed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS cancelled_at timestamptz,
+  ADD COLUMN IF NOT EXISTS pickup_reminder_sent_at timestamptz;
+
+CREATE TABLE IF NOT EXISTS public.customer_push_subscriptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint text NOT NULL UNIQUE,
+  p256dh text NOT NULL,
+  auth text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.customer_push_subscriptions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS customer_push_subscriptions_owner_select ON public.customer_push_subscriptions;
+DROP POLICY IF EXISTS customer_push_subscriptions_owner_insert ON public.customer_push_subscriptions;
+DROP POLICY IF EXISTS customer_push_subscriptions_owner_update ON public.customer_push_subscriptions;
+DROP POLICY IF EXISTS customer_push_subscriptions_owner_delete ON public.customer_push_subscriptions;
+CREATE POLICY customer_push_subscriptions_owner_select ON public.customer_push_subscriptions FOR SELECT TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY customer_push_subscriptions_owner_insert ON public.customer_push_subscriptions FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
+CREATE POLICY customer_push_subscriptions_owner_update ON public.customer_push_subscriptions FOR UPDATE TO authenticated USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
+CREATE POLICY customer_push_subscriptions_owner_delete ON public.customer_push_subscriptions FOR DELETE TO authenticated USING (owner_id = auth.uid());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.customer_push_subscriptions TO authenticated;
+
+COMMIT;
+
+-- 以下沿用原本直接修改訂單的 RPC，避免改動既有訂單資料結構。
+BEGIN;
+
 -- 新訂單的取餐時間必須嚴格大於現在 10 分鐘。
 CREATE OR REPLACE FUNCTION public.create_customer_order_atomic(
     p_customer_name text, p_customer_phone text, p_pickup_time timestamptz,
@@ -15,7 +48,7 @@ BEGIN
     END IF;
     PERFORM pg_advisory_xact_lock(hashtextextended(p_customer_phone, 0));
     IF EXISTS (SELECT 1 FROM public.customer_orders WHERE customer_phone = p_customer_phone AND status IN ('new','confirmed','preparing')) THEN
-        RAISE EXCEPTION '此手機號碼已有尚未完成的訂單，請使用加點功能或先完成原訂單' USING ERRCODE = '23505';
+        RAISE EXCEPTION '此手機號碼已有尚未完成的訂單，請至歷史訂單修改或先完成原訂單' USING ERRCODE = '23505';
     END IF;
     INSERT INTO public.customer_orders (customer_name,customer_phone,pickup_time,items,total_amount,note,status)
     VALUES (p_customer_name,p_customer_phone,p_pickup_time,p_items,p_total_amount,p_note,'new')
@@ -61,7 +94,6 @@ DECLARE
     v_order public.customer_orders%ROWTYPE;
     v_addon_total numeric;
     v_final_total numeric;
-    v_gifts jsonb;
     v_final_items jsonb;
 BEGIN
     SELECT * INTO v_order FROM public.customer_orders WHERE id=p_order_id FOR UPDATE;
@@ -77,10 +109,7 @@ BEGIN
     IF jsonb_typeof(p_new_items) <> 'array' OR jsonb_array_length(p_new_items)=0 THEN
         RAISE EXCEPTION '訂單至少要保留一項餐點' USING ERRCODE = '22023';
     END IF;
-    SELECT COALESCE(jsonb_agg(item), '[]'::jsonb) INTO v_gifts
-    FROM jsonb_array_elements(COALESCE(v_order.items,'[]'::jsonb)) AS gift(item)
-    WHERE gift.item->>'is_gift'='true';
-    v_final_items := p_new_items || COALESCE(v_gifts,'[]'::jsonb);
+    v_final_items := p_new_items;
     SELECT COALESCE(SUM(total_amount),0) INTO v_addon_total
     FROM public.customer_order_addons WHERE order_id=p_order_id;
     v_final_total := round((p_new_base_total + v_addon_total)::numeric,2);
