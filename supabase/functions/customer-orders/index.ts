@@ -52,6 +52,14 @@ function taiwanDateValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function orderDisplayLabel(order: { created_at?: string; customer_name?: string; daily_sequence?: number | null }) {
+  const date = order.created_at ? new Date(order.created_at) : new Date();
+  const dateText = taiwanDateValue(date).replaceAll("-", "");
+  const name = String(order.customer_name ?? "顧客").trim().slice(0, 20);
+  const sequence = Number(order.daily_sequence);
+  return `訂單｜${dateText}｜${name}${Number.isInteger(sequence) && sequence > 0 ? `｜#${String(sequence).padStart(3, "0")}` : ""}`;
+}
+
 
 function normalizePhone(value: unknown) {
   return String(value ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
@@ -130,7 +138,7 @@ async function buildGiftDrinkSnapshot(admin: ReturnType<typeof createClient>, in
   const giftLimit = Math.floor(regularTotal / 400);
   const selectedCount = [...quantities.values()].reduce((sum, quantity) => sum + quantity, 0);
   if (selectedCount > giftLimit) throw new Error(`此訂單最多可選 ${giftLimit} 杯滿額贈飲料`);
-  if (giftLimit > 0 && availableIds.length && selectedCount !== giftLimit) throw new Error(`此訂單可選 ${giftLimit} 杯滿額贈飲料，請選滿贈品數量`);
+  if (giftLimit > 0 && availableIds.length && selectedCount > 0 && selectedCount !== giftLimit) throw new Error(`此訂單可選 ${giftLimit} 杯滿額贈飲料，請選滿贈品數量或不領取`);
   if (!quantities.size) return [];
   const ids = [...quantities.keys()];
   if (ids.some((id) => !availableIds.includes(id))) throw new Error("所選贈品飲料不在目前可贈送清單或已售完");
@@ -221,7 +229,7 @@ Deno.serve(async (req) => {
       const from = new Date(now + 9 * 60_000).toISOString();
       const to = new Date(now + 10 * 60_000).toISOString();
       const { data: due, error: dueError } = await admin.from("customer_orders")
-        .select("id,customer_name,customer_phone,pickup_time,created_at,items,status,pickup_reminder_sent_at")
+        .select("id,customer_name,customer_phone,pickup_time,created_at,items,status,pickup_reminder_sent_at,daily_sequence")
         .in("status", ["new", "confirmed", "preparing"]).gte("pickup_time", from).lte("pickup_time", to)
         .is("pickup_reminder_sent_at", null).limit(100);
       if (dueError) throw dueError;
@@ -232,7 +240,7 @@ Deno.serve(async (req) => {
         if (claimError) throw claimError;
         if (!claimed) continue;
         const pickupLabel = new Date(order.pickup_time).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
-        const orderLabel = `訂單｜${new Date(order.created_at).toLocaleDateString("sv-SE", { timeZone: "Asia/Taipei" }).replaceAll("-", "")}｜${String(order.customer_name ?? "顧客")}`;
+        const orderLabel = orderDisplayLabel(order);
         const count = (Array.isArray(order.items) ? order.items : []).reduce((n: number, item: any) => n + (Number(item.quantity) || 0), 0);
         await notifyOwner(admin, "馬鈴吉碳烤｜取餐前 10 分鐘提醒", `${orderLabel}，取餐時間 ${pickupLabel}，共 ${count} 件餐點。請準備製作／出餐。`);
         sent++;
@@ -246,7 +254,7 @@ Deno.serve(async (req) => {
       const phone = normalizePhone(body.customer_phone);
       if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "手機號碼格式不正確" }, 400);
       const { data: orders, error } = await admin.from("customer_orders")
-        .select("id,customer_name,items,total_amount,status,pickup_time,created_at,note,confirmed_at,preparing_at,completed_at,cancelled_at")
+        .select("id,customer_name,items,total_amount,status,pickup_time,created_at,daily_sequence,note,confirmed_at,preparing_at,completed_at,cancelled_at")
         .eq("customer_phone", phone).order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
       const ids = (orders ?? []).map((o: any) => o.id);
@@ -263,7 +271,7 @@ Deno.serve(async (req) => {
       const safeOrders = (orders ?? []).map((order: any) => {
         const { customerNote, meta } = readNote(String(order.note ?? ""));
         return {
-          id: order.id, note: customerNote, customer_name: order.customer_name, items: order.items, total_amount: order.total_amount,
+          id: order.id, note: customerNote, customer_name: order.customer_name, items: order.items, total_amount: order.total_amount, daily_sequence: order.daily_sequence,
           confirmed_at: order.confirmed_at, preparing_at: order.preparing_at, completed_at: order.completed_at, cancelled_at: order.cancelled_at,
           status: order.status, pickup_time: order.pickup_time, created_at: order.created_at,
           proposed_pickup_time: typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : null,
@@ -280,7 +288,7 @@ Deno.serve(async (req) => {
       const phone = normalizePhone(body.customer_phone);
       if (!id || !/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "訂單資料不正確" }, 400);
       const { data: order, error } = await admin.from("customer_orders")
-        .select("id,status,pickup_time,note,confirmed_at,preparing_at,completed_at,cancelled_at").eq("id", id).eq("customer_phone", phone).maybeSingle();
+        .select("id,status,pickup_time,note,created_at,customer_name,daily_sequence,confirmed_at,preparing_at,completed_at,cancelled_at").eq("id", id).eq("customer_phone", phone).maybeSingle();
       if (error) throw error;
       if (!order) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
       const { meta } = readNote(String(order.note ?? ""));
@@ -295,7 +303,7 @@ Deno.serve(async (req) => {
       const phone = normalizePhone(body.customer_phone);
       if (!id || !/^09\d{8}$/.test(phone) || typeof body.accepted !== "boolean") return reply({ ok: false, error: "回覆資料不正確" }, 400);
       const { data: order, error: readError } = await admin.from("customer_orders")
-        .select("id,status,pickup_time,note,confirmed_at,preparing_at,completed_at,cancelled_at").eq("id", id).eq("customer_phone", phone).maybeSingle();
+        .select("id,status,pickup_time,note,created_at,customer_name,daily_sequence,confirmed_at,preparing_at,completed_at,cancelled_at").eq("id", id).eq("customer_phone", phone).maybeSingle();
       if (readError) throw readError;
       if (!order) return reply({ ok: false, error: "找不到訂單" }, 404);
       const { customerNote, meta } = readNote(String(order.note ?? ""));
@@ -307,13 +315,21 @@ Deno.serve(async (req) => {
           note: writeNote(customerNote, { ...meta, proposed_pickup_time: null, customer_response: "accepted" }),
         }).eq("id", id);
         if (error) throw error;
+        const label = orderDisplayLabel(order);
+        const task = notifyOwner(admin, "馬鈴吉碳烤｜客人接受新取餐時間", `${label}（${phone}）已接受店家提出的時間：${new Date(proposed).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false })}。訂單已確認。`);
+        const runtime = (globalThis as any).EdgeRuntime;
+        if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
         return reply({ ok: true, status: "confirmed", pickup_time: proposed });
       }
       const { error } = await admin.from("customer_orders").update({
-        note: writeNote(customerNote, { ...meta, proposed_pickup_time: null, customer_response: "declined" }),
+        note: writeNote(customerNote, { ...meta, proposed_pickup_time: null, customer_response: "declined", needs_reschedule: true }),
       }).eq("id", id);
       if (error) throw error;
-      return reply({ ok: true, status: order.status, customer_response: "declined" });
+      const label = orderDisplayLabel(order);
+      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人無法配合取餐時間", `${label}（${phone}）表示店家提出的時間不方便，請重新安排取餐時間並再次通知客人。`);
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
+      return reply({ ok: true, status: order.status, customer_response: "declined", needs_reschedule: true });
     }
 
     // 客人直接修改原訂單餐點，不再建立申請或要求填寫原因。
@@ -324,7 +340,7 @@ Deno.serve(async (req) => {
       const { snapshot, total } = await buildRegularItemSnapshot(admin, body.items);
       const giftSnapshot = await buildGiftDrinkSnapshot(admin, body.free_drinks, total);
       const { data: currentOrder, error: currentError } = await admin.from("customer_orders")
-        .select("id,customer_name,status,pickup_time,created_at").eq("id", orderId).eq("customer_phone", phone).maybeSingle();
+        .select("id,customer_name,status,pickup_time,created_at,daily_sequence").eq("id", orderId).eq("customer_phone", phone).maybeSingle();
       if (currentError) throw currentError;
       if (!currentOrder) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
       if (new Date(currentOrder.pickup_time).getTime() <= Date.now() + 10 * 60_000) {
@@ -340,7 +356,7 @@ Deno.serve(async (req) => {
       }
       const result = Array.isArray(data) ? data[0] : data;
       const editedAt = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false });
-      const orderLabel = `訂單｜${new Date(currentOrder.created_at).toLocaleDateString("sv-SE", { timeZone: "Asia/Taipei" }).replaceAll("-", "")}｜${String(currentOrder.customer_name ?? "顧客")}`;
+      const orderLabel = orderDisplayLabel(currentOrder);
       const task = notifyOwner(admin, "馬鈴吉碳烤｜客人修改訂單", `${orderLabel}（${phone}）於 ${editedAt} 修改餐點，請至訂單管理查看最新內容。`);
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
@@ -351,7 +367,7 @@ Deno.serve(async (req) => {
       const id = String(body.order_id ?? "").trim();
       const phone = normalizePhone(body.customer_phone);
       if (!id || !/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "取消申請資料不正確" }, 400);
-      const { data: order, error: readError } = await admin.from("customer_orders").select("id,customer_name,status,pickup_time,created_at,note").eq("id", id).eq("customer_phone", phone).maybeSingle();
+      const { data: order, error: readError } = await admin.from("customer_orders").select("id,customer_name,status,pickup_time,created_at,note,daily_sequence").eq("id", id).eq("customer_phone", phone).maybeSingle();
       if (readError) throw readError;
       if (!order) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
       if (!["new", "confirmed", "preparing"].includes(String(order.status))) return reply({ ok: false, error: "此訂單目前無法申請取消" }, 409);
@@ -360,7 +376,7 @@ Deno.serve(async (req) => {
       const requestedAt = new Date().toISOString();
       const { error } = await admin.from("customer_orders").update({ note: writeNote(customerNote, { ...meta, cancel_requested_at: requestedAt }) }).eq("id", id).eq("customer_phone", phone);
       if (error) throw error;
-      const label = `訂單｜${new Date(order.created_at).toLocaleDateString("sv-SE", { timeZone: "Asia/Taipei" }).replaceAll("-", "")}｜${String(order.customer_name ?? "顧客")}`;
+      const label = orderDisplayLabel(order);
       const task = notifyOwner(admin, "馬鈴吉碳烤｜客人申請取消訂單", `${label}（${phone}）提出取消申請，請至訂單管理處理。`);
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
@@ -404,7 +420,10 @@ Deno.serve(async (req) => {
         throw error;
       }
       const requestedAt = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false });
-      const task = notifyOwner(admin, "馬鈴吉碳烤｜訂單修改申請", `訂單 ${orderId.slice(0, 8)}（${phone}）於 ${requestedAt} 提出修改申請：${proposal}；原因：${reason}。請至訂單管理審核。`);
+      const { data: requestedOrder, error: requestedOrderError } = await admin.from("customer_orders").select("id,customer_name,created_at,daily_sequence").eq("id", orderId).maybeSingle();
+      if (requestedOrderError) throw requestedOrderError;
+      const label = requestedOrder ? orderDisplayLabel(requestedOrder) : `訂單 ${orderId.slice(0, 8)}`;
+      const task = notifyOwner(admin, "馬鈴吉碳烤｜訂單修改申請", `${label}（${phone}）於 ${requestedAt} 提出修改申請：${proposal}；原因：${reason}。請至訂單管理審核。`);
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
       return reply({ ok: true, request_id: requestId });
@@ -536,7 +555,7 @@ Deno.serve(async (req) => {
       if (order.status !== "new") return reply({ ok: false, error: "只有待確認訂單可以調整取餐時間" }, 409);
       const { customerNote, meta } = readNote(String(order.note ?? ""));
       const { error } = await admin.from("customer_orders").update({
-        note: writeNote(customerNote, { ...meta, proposed_pickup_time: proposed.toISOString(), customer_response: null }),
+        note: writeNote(customerNote, { ...meta, proposed_pickup_time: proposed.toISOString(), customer_response: null, needs_reschedule: false }),
       }).eq("id", id);
       if (error) throw error;
       return reply({ ok: true });
@@ -641,7 +660,7 @@ Deno.serve(async (req) => {
     }
     const hasAvailableGift = availableGiftIds.some((id) => !soldOutIds.has(String(id)));
     if (selectedGiftCount > giftLimit) return reply({ ok: false, error: `此訂單最多可選 ${giftLimit} 杯滿額贈飲料` }, 400);
-    if (giftLimit > 0 && hasAvailableGift && selectedGiftCount !== giftLimit) {
+    if (giftLimit > 0 && hasAvailableGift && selectedGiftCount > 0 && selectedGiftCount !== giftLimit) {
       return reply({ ok: false, error: `此訂單可選 ${giftLimit} 杯滿額贈飲料，請選滿贈品數量` }, 400);
     }
     for (const [id, quantity] of giftQuantities) {
@@ -661,12 +680,15 @@ Deno.serve(async (req) => {
       throw insertError;
     }
     const order = Array.isArray(orderRows) ? orderRows[0] : orderRows;
-    const orderLabel = `訂單｜${new Date(order.created_at ?? Date.now()).toLocaleDateString("sv-SE", { timeZone: "Asia/Taipei" }).replaceAll("-", "")}｜${name}`;
+    const { data: numberedOrder, error: numberReadError } = await admin.from("customer_orders").select("daily_sequence").eq("id", order.id).maybeSingle();
+    if (numberReadError) throw numberReadError;
+    const dailySequence = Number(numberedOrder?.daily_sequence) || null;
+    const orderLabel = orderDisplayLabel({ ...order, customer_name: name, daily_sequence: dailySequence });
     const notificationTask = notifyOwner(admin, "馬鈴吉碳烤｜新訂單", `${orderLabel}（${phone}），金額 $${total.toLocaleString("zh-TW")}，請開啟訂單管理查看。`);
     const edgeRuntime = (globalThis as any).EdgeRuntime;
     if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(notificationTask);
     else await notificationTask;
-    return reply({ ok: true, id: order.id, order_number: String(order.id).slice(0, 8), total_amount: total });
+    return reply({ ok: true, id: order.id, order_number: dailySequence ? `#${String(dailySequence).padStart(3, "0")}` : String(order.id).slice(0, 8), daily_sequence: dailySequence, total_amount: total });
   } catch (error) {
     console.error("customer-orders error", error);
     const message = error instanceof Error ? error.message : "訂單處理失敗，請稍後再試";

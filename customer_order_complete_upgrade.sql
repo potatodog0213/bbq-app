@@ -7,6 +7,17 @@ ALTER TABLE public.customer_orders
   ADD COLUMN IF NOT EXISTS cancelled_at timestamptz,
   ADD COLUMN IF NOT EXISTS pickup_reminder_sent_at timestamptz;
 
+ALTER TABLE public.customer_orders
+  ADD COLUMN IF NOT EXISTS daily_sequence integer;
+
+CREATE TABLE IF NOT EXISTS public.customer_order_daily_sequences (
+  order_date date PRIMARY KEY,
+  last_sequence integer NOT NULL CHECK (last_sequence > 0),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+REVOKE ALL ON public.customer_order_daily_sequences FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.customer_order_daily_sequences TO service_role;
+
 CREATE TABLE IF NOT EXISTS public.customer_push_subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -41,7 +52,7 @@ CREATE OR REPLACE FUNCTION public.create_customer_order_atomic(
 RETURNS TABLE(id uuid, created_at timestamptz)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
 AS $$
-DECLARE v_id uuid; v_created_at timestamptz;
+DECLARE v_id uuid; v_created_at timestamptz; v_order_date date; v_daily_sequence integer;
 BEGIN
     IF p_pickup_time <= now() + interval '10 minutes' THEN
         RAISE EXCEPTION '取餐時間必須在現在 10 分鐘之後' USING ERRCODE = '55000';
@@ -50,8 +61,14 @@ BEGIN
     IF EXISTS (SELECT 1 FROM public.customer_orders WHERE customer_phone = p_customer_phone AND status IN ('new','confirmed','preparing')) THEN
         RAISE EXCEPTION '此手機號碼已有尚未完成的訂單，請至歷史訂單修改或先完成原訂單' USING ERRCODE = '23505';
     END IF;
-    INSERT INTO public.customer_orders (customer_name,customer_phone,pickup_time,items,total_amount,note,status)
-    VALUES (p_customer_name,p_customer_phone,p_pickup_time,p_items,p_total_amount,p_note,'new')
+    v_order_date := (now() AT TIME ZONE 'Asia/Taipei')::date;
+    INSERT INTO public.customer_order_daily_sequences(order_date,last_sequence,updated_at)
+    VALUES(v_order_date,1,now())
+    ON CONFLICT(order_date) DO UPDATE
+      SET last_sequence=public.customer_order_daily_sequences.last_sequence+1,updated_at=now()
+    RETURNING last_sequence INTO v_daily_sequence;
+    INSERT INTO public.customer_orders (customer_name,customer_phone,pickup_time,items,total_amount,note,status,daily_sequence)
+    VALUES (p_customer_name,p_customer_phone,p_pickup_time,p_items,p_total_amount,p_note,'new',v_daily_sequence)
     RETURNING customer_orders.id,customer_orders.created_at INTO v_id,v_created_at;
     RETURN QUERY SELECT v_id,v_created_at;
 END; $$;
