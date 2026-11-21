@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
-      (function(){const p=new URLSearchParams(location.search);if(p.get('customer-order')==='1'||p.get('customer-history')==='1'){document.documentElement.classList.add('customer-public-route');}})();
+      (function(){const p=new URLSearchParams(location.search);if(p.get('customer-order')==='1'||p.get('customer-history')==='1'){document.documentElement.classList.add('customer-public-route');}else{document.documentElement.classList.add('store-auth-required');}})();
     </script>
     <title>馬鈴吉碳烤 - 智慧營運管理系統</title>
     <!-- 引入 Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        html.store-auth-required body{visibility:hidden}
         :root {
             --primary: #ea580c;
             --primary-hover: #c2410c;
@@ -3266,6 +3267,7 @@
 
                 async function customerWatchOrder(orderId,phone=customerHistoryLastPhone){if(customerOrderWatchTimer)clearInterval(customerOrderWatchTimer);const check=async()=>{try{const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'get-order',order_id:orderId,customer_phone:phone}});if(error||!data?.ok)return;const el=document.getElementById('customer-order-live-status');if(!el)return;if(data.status==='confirmed'){el.innerHTML=`<h3>✓ 店家已確認取餐時間</h3><p>${customerEscape(new Date(data.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))}</p>`;clearInterval(customerOrderWatchTimer);customerOrderWatchTimer=null;return;}if(data.proposed_pickup_time){el.innerHTML=`<h3>店家提出新的取餐時間</h3><p>${customerEscape(new Date(data.proposed_pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))}</p><button class="customer-order-submit" onclick="respondCustomerPickup('${customerEscape(orderId)}',true,'${customerEscape(phone)}')">可以，確認這個時間</button><button class="customer-order-submit" style="background:#9b8978" onclick="respondCustomerPickup('${customerEscape(orderId)}',false,'${customerEscape(phone)}')">不方便，請店家再安排</button>`;}else if(data.customer_response==='declined'){el.innerHTML='<h3>已告知店家新時間不方便</h3><p>店家正在重新安排取餐時間，請稍後查看通知。</p>';}}catch(e){console.warn('customer order status polling failed',e);}};await check();customerOrderWatchTimer=setInterval(check,12000);}
         async function respondCustomerPickup(orderId,accepted,phone=customerHistoryLastPhone){const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'respond-time',order_id:orderId,customer_phone:phone,accepted}});if(error||!data?.ok){customerOrderAlert(data?.error||'回覆未能送出，請稍後再試');return;}if(document.getElementById('customer-history-results'))await lookupCustomerOrders(true);else{await customerWatchOrder(orderId,phone);customerOrderAlert(accepted?'已接受店家提出的新取餐時間。':'已告知店家此時間不方便，等待店家重新安排。');}}
+        let customerLoginDestination='admin';
         function customerOwnerRole(user){return user?.app_metadata?.role==='store_owner';}
         async function renderCustomerOrderAdmin(){
             const content=document.getElementById('page-content');content.innerHTML='<p style="text-align:center;padding:25px;">正在載入訂單工作台…</p>';
@@ -3284,7 +3286,7 @@
             const pushStatus=document.getElementById('customer-push-status');if(pushStatus){const enabled=('Notification'in window)&&Notification.permission==='granted';pushStatus.textContent=enabled?'✓ 此裝置已啟用訂單通知':'此裝置尚未啟用訂單通知';}
         }
         function renderCustomerAdminLogin(message=''){const content=document.getElementById('page-content');content.innerHTML=`<div class="customer-admin-login"><h3 style="margin:0 0 12px;color:#704a32;">店家登入</h3>${message?`<p style="color:#b91c1c;font-size:13px;">${customerEscape(message)}</p>`:''}<label>店家 Email</label><input id="customer-admin-email" type="email" autocomplete="username" placeholder="店家登入 Email"><label>密碼</label><input id="customer-admin-password" type="password" autocomplete="current-password" placeholder="密碼"><button class="customer-order-submit" onclick="customerAdminSignIn()">登入訂單管理</button></div>`;}
-        async function customerAdminSignIn(){const email=document.getElementById('customer-admin-email').value.trim(),password=document.getElementById('customer-admin-password').value;const {data,error}=await _supabase.auth.signInWithPassword({email,password});if(error){renderCustomerAdminLogin('登入失敗，請檢查帳號密碼。');return;}if(!customerOwnerRole(data.user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}renderCustomerOrderAdmin();}
+        async function customerAdminSignIn(){const email=document.getElementById('customer-admin-email')?.value.trim()||'',password=document.getElementById('customer-admin-password')?.value||'';if(!email||!password){renderCustomerAdminLogin('請輸入店家 Email 與密碼。');return;}const {data,error}=await _supabase.auth.signInWithPassword({email,password});if(error){renderCustomerAdminLogin('登入失敗，請檢查帳號密碼。');return;}if(!customerOwnerRole(data.user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}const destination=customerLoginDestination;customerLoginDestination='admin';if(destination==='home'){document.getElementById('sub-view').style.display='none';document.getElementById('home-view').style.display='block';initCustomerHomeOrderRealtime();}else{renderCustomerOrderAdmin();}}
         async function customerAdminSignOut(){if(customerOrderRealtime){await _supabase.removeChannel(customerOrderRealtime);customerOrderRealtime=null;}await _supabase.auth.signOut();renderCustomerAdminLogin();}
         function setCustomerAdminFilter(value){customerAdminStatusFilter=value;renderCustomerAdminOrderCards();}
         function customerAdminLocalDateBounds(dateValue){const start=new Date(`${dateValue}T00:00:00`),end=new Date(start);end.setDate(end.getDate()+1);return {start:start.toISOString(),end:end.toISOString()};}
@@ -5544,16 +5546,28 @@
           history.replaceState(history.state, '', location.pathname + (cleanQuery ? '?' + cleanQuery : '') + location.hash);
         }
         if (params.get('customer-order') === '1') {
+          document.documentElement.classList.remove('store-auth-required');
           renderCustomerPublicPage();
         } else if (params.get('customer-history') === '1') {
+          document.documentElement.classList.remove('store-auth-required');
           renderCustomerHistoryPage();
         } else if (params.get('customer-order-admin') === '1') {
+          customerLoginDestination='admin';
           openPage('customer-orders-admin');
+          document.documentElement.classList.remove('store-auth-required');
         } else {
           const {data:{session}}=await _supabase.auth.getSession();
-          const {data:{user}}=session?await _supabase.auth.getUser():{data:{user:null}};
-          if(!session||!customerOwnerRole(user)){openPage('customer-orders-admin');}
-          else{initCustomerHomeOrderRealtime();}
+          const {data:{user},error:userError}=session?await _supabase.auth.getUser():{data:{user:null},error:null};
+          if(!session||userError||!customerOwnerRole(user)){
+            if(session)await _supabase.auth.signOut();
+            customerLoginDestination='home';
+            openPage('customer-orders-admin');
+          }else{
+            document.getElementById('sub-view').style.display='none';
+            document.getElementById('home-view').style.display='block';
+            initCustomerHomeOrderRealtime();
+          }
+          document.documentElement.classList.remove('store-auth-required');
         }
       });
     </script>
