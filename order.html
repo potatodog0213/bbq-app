@@ -3032,7 +3032,24 @@
                 return `<article data-product-id="${customerEscape(id)}" class="customer-menu-card ${qty>0?'is-selected ':''}${soldOut?'is-soldout':''}" ${soldOut?'aria-disabled="true"':'role="button" tabindex="0"'} aria-label="${customerEscape(p.name)}，${customerMoney(p.price)}${soldOut?'，今日已售完':'，依上方所選辣度點擊加入一份'}" ${soldOut?'':'onclick="changeCustomerPublicQty(decodeURIComponent(\''+encodeURIComponent(id)+'\'),1)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();changeCustomerPublicQty(decodeURIComponent(\''+encodeURIComponent(id)+'\'),1)}"'}><div class="customer-menu-card-name">${customerEscape(p.name)}</div><div class="customer-menu-card-bottom"><span class="customer-menu-card-price">${customerMoney(p.price)}</span>${soldOut?'<span class="customer-menu-card-soldout">今日已售完</span>':qty>0?`<span class="customer-menu-card-qty">已點 ${qty}</span>`:'<span class="customer-menu-card-hint">點擊加入＋1</span>'}</div></article>`;
             }).join('')}</div></section>`).join('') || '<p class="customer-order-muted">目前尚無可點選的餐點。</p>';
             renderCustomerPublicCart();
-            if(window.customerPublicEditOrderState)customerApplyPublicEditOrder();
+            // 編輯模式會跨頁跳轉，window 全域變數會重置，因此必須依 URL 參數從 sessionStorage 還原原訂單。
+            const editOrderId = new URLSearchParams(location.search).get('edit-order');
+            if (editOrderId) {
+                let editState = window.customerPublicEditOrderState || null;
+                try {
+                    if (!editState) editState = JSON.parse(sessionStorage.getItem('customerPublicEditOrderState') || 'null');
+                } catch (e) {}
+                // 避免原訂單資料遺失時，誤將修改操作當成新訂單送出。
+                if (!editState || String(editState.orderId) !== String(editOrderId)) {
+                    const submit = document.getElementById('customer-public-submit');
+                    if (submit) { submit.disabled = true; submit.textContent = '無法載入原訂單'; }
+                    const cart = document.getElementById('customer-public-cart');
+                    if (cart) cart.innerHTML = '<p style="color:#b45309;padding:12px 0;">原訂單資料未能載入，為避免重複建立訂單，已暫停送出。請返回歷史訂單重新點選修改。</p>';
+                    return;
+                }
+                window.customerPublicEditOrderState = editState;
+                customerApplyPublicEditOrder();
+            }
         }
         let customerDesiredPickupConfirmed=false;
         function customerLocalDateValue(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;}
