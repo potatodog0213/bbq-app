@@ -513,6 +513,10 @@ Deno.serve(async (req) => {
       if (readError) throw readError;
       if (!order) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的取消權限" }, 403);
       if (!["new", "confirmed", "preparing"].includes(String(order.status))) return reply({ ok: false, error: "此訂單目前無法申請取消" }, 409);
+      const pickupTimestamp = new Date(order.pickup_time).getTime();
+      if (!Number.isFinite(pickupTimestamp) || pickupTimestamp <= Date.now() + 60 * 60 * 1000) {
+        return reply({ ok: false, error: "距離取餐時間不足 1 小時，已無法申請取消訂單" }, 409);
+      }
       const { customerNote, meta } = readNote(String(order.note ?? ""));
       if (typeof meta.cancel_requested_at === "string") return reply({ ok: true, already_requested: true });
       const requestedAt = new Date().toISOString();
