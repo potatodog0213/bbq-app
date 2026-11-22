@@ -16,10 +16,10 @@
             --primary-hover: #c2410c;
             --primary-light: #fff7ed;
             --bg-color: #fcf8f2;
-            
+
             --card-potato-light: #fffdf9;
             --card-potato-dark: #faf2e8;
-            
+
             --text-main: #292524;
             --text-muted: #78716c;
             --border: #fed7aa;
@@ -45,17 +45,17 @@
         .customer-manage-spice .spice-enable{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:#f7eee3;font-weight:800;color:#694a34}
         .customer-manage-spice .spice-levels{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
         .customer-manage-spice .spice-levels label{display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border:1px solid #e5d4c1;border-radius:999px;background:#fff;font-size:12px;font-weight:750}
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
-            background: var(--bg-color); 
-            margin: 0; 
-            padding: 24px 16px; 
-            color: var(--text-main); 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg-color);
+            margin: 0;
+            padding: 24px 16px;
+            color: var(--text-main);
         }
 
-        .container { 
-            max-width: 760px; 
-            margin: 0 auto; 
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
         }
 
         /* ===== POS 風格店務工作台：僅首頁視覺 ===== */
@@ -347,20 +347,20 @@
         @media(max-width:650px) { .order-layout { grid-template-columns:1fr; } .order-products,.order-summary { padding:13px; } }
 
         /* 子頁面容器 */
-        .page-view { 
-            display: none; 
-            background: #ffffff; 
-            padding: 24px 20px; 
-            border-radius: 20px; 
-            box-shadow: 0 15px 30px rgba(120, 53, 15, 0.06); 
+        .page-view {
+            display: none;
+            background: #ffffff;
+            padding: 24px 20px;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(120, 53, 15, 0.06);
             border: 1px solid #fed7aa;
         }
-        
-        .top-bar { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 20px; 
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
             gap: 12px;
             border-bottom: 1px solid #fed7aa;
             padding-bottom: 16px;
@@ -372,29 +372,29 @@
             flex-wrap: wrap;
         }
 
-        .back-btn { 
-            background: #78716c; 
-            color: white; 
-            border: none; 
-            padding: 10px 16px; 
-            border-radius: 10px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            font-size: 14px; 
+        .back-btn {
+            background: #78716c;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
             transition: background 0.2s;
             white-space: nowrap;
         }
         .back-btn:hover { background: #57534e; }
 
-        .action-btn { 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            padding: 10px 18px; 
-            border-radius: 10px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            font-size: 14px; 
+        .action-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
             transition: background 0.2s;
             box-shadow: 0 4px 6px rgba(234, 88, 12, 0.2);
             white-space: nowrap;
@@ -464,9 +464,9 @@
             outline: none;
             transition: all 0.2s;
         }
-        .search-input:focus, .filter-select:focus { 
-            border-color: var(--primary); 
-            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15); 
+        .search-input:focus, .filter-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
         }
         .cost-material-select {
             width: 100%; box-sizing: border-box; margin-top: 6px; padding: 10px 14px;
@@ -510,21 +510,21 @@
 
         .form-group { margin-bottom: 18px; }
         .form-group label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; color: #44403c; }
-        .form-group input, .form-group textarea, .form-group select { 
-            width: 100%; 
-            padding: 12px 14px; 
-            box-sizing: border-box; 
-            border: 1px solid #fed7aa; 
-            border-radius: 10px; 
-            font-size: 15px; 
-            outline: none; 
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            box-sizing: border-box;
+            border: 1px solid #fed7aa;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
             background: #ffffff;
             font-family: inherit;
-            transition: all 0.2s ease; 
+            transition: all 0.2s ease;
         }
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { 
-            border-color: var(--primary); 
-            box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.12); 
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.12);
         }
 
         /* 超質感點擊式開關卡片 */
@@ -667,7 +667,7 @@
         .cost-setting-hint { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:11px 13px; border-radius:11px; font-size:12px; line-height:1.65; margin-top:13px; }
         .cost-setting-preview { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:12px 14px; margin-top:12px; color:#166534; font-size:13px; }
         @media(max-width:560px) { .cost-setting-grid { grid-template-columns:1fr; } .cost-setting-modal { padding:18px !important; } }
-        
+
         .items-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -677,11 +677,11 @@
             .items-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
-        .item-card { 
-            background: var(--card-potato-light); 
-            border: 1px solid #fde68a; 
-            padding: 18px; 
-            border-radius: 14px; 
+        .item-card {
+            background: var(--card-potato-light);
+            border: 1px solid #fde68a;
+            padding: 18px;
+            border-radius: 14px;
             box-shadow: var(--shadow);
             display: flex;
             flex-direction: column;
@@ -689,7 +689,7 @@
             transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
         }
         .item-card.zebra-alt {
-            background: var(--card-potato-dark); 
+            background: var(--card-potato-dark);
             border-color: #fcd34d;
         }
         .item-card:hover {
@@ -701,7 +701,7 @@
         .item-card h4 span { color: #c2410c; font-weight: 700; }
         .item-card p { margin: 4px 0; font-size: 13.5px; color: var(--text-muted); }
         .cost-rate, .total-amount-tag { color: #dc2626; font-weight: 700; }
-        
+
         .platform-breakeven-box {
             background: rgba(255, 255, 255, 0.75);
             border: 1px solid #fed7aa;
@@ -919,7 +919,7 @@
         .picker-confirm:hover { background: var(--primary-hover); }
         .picker-cancel { background: #e2e8f0; color: #334155; }
         .picker-cancel:hover { background: #cbd5e1; }
-    
+
 
         /* ===== POS 暖奶油米色主題：首頁視覺覆蓋，不更動功能 ===== */
         #home-view {
@@ -1112,7 +1112,7 @@
         #home-view .menu-card.capital-card .arrow { color: #a77a59; }
         #home-view .home-footnote { color: #a58a70; }
 
-    
+
 /* 點餐管理指定功能：沿用原奶茶米色設計 */
 .customer-manage-product-image{object-fit:contain;display:block;width:100%;height:150px;object-fit:contain;border-radius:10px;margin:8px 0}.customer-manage-product-image-empty{display:flex;align-items:center;justify-content:center;height:78px;margin:8px 0;border:1px dashed #dfcdb8;border-radius:10px;background:#fffaf3;color:#a1846a;font-size:12px}.customer-manage-photo-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}.customer-manage-photo-controls label{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #dfcdb8;border-radius:9px;background:#fff8ef;color:#79563c;font-size:12px;font-weight:800}.customer-manage-photo-controls input{max-width:175px;font-size:11px}.customer-manage-photo-controls button{border:1px solid #dfcdb8;border-radius:9px;background:#fff;color:#79563c;padding:7px 10px;font-weight:800}.customer-admin-toolbar#customer-admin-status-toolbar button.is-active{background:#80583b!important;border-color:#80583b!important;color:#fff!important;box-shadow:0 3px 9px rgba(91,62,38,.22)}
 
@@ -1120,6 +1120,9 @@
 /* 點餐功能增補：沿用既有奶茶米色視覺 */
 .customer-category-nav{position:sticky;top:0;z-index:120;display:flex;gap:8px;overflow-x:auto;white-space:nowrap;padding:10px 12px;margin:0 -2px 13px;border:1px solid #eadbc7;border-radius:0 0 14px 14px;background:rgba(255,248,239,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 5px 16px rgba(91,62,38,.10);scrollbar-width:thin}.customer-category-nav button{flex:0 0 auto;min-height:39px;padding:8px 13px;border:1px solid #dfcbb5;border-radius:999px;background:#fff;color:#79563c;font-size:13px;font-weight:800}.customer-category-nav button:active{background:#80583b;color:#fff;border-color:#80583b}.customer-category-section{scroll-margin-top:74px}.customer-leaderboard-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.customer-leaderboard-item{display:flex;align-items:center;gap:8px;min-width:0;padding:10px;border:1px solid #eadbc7;border-radius:12px;background:#fffaf4;font-weight:800;color:#704a32}.customer-leaderboard-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.customer-leaderboard-rank{display:grid;place-items:center;flex:0 0 25px;height:25px;border-radius:50%;background:#80583b;color:#fff;font-size:13px}.customer-menu-card-image{display:block;width:100%;height:112px;object-fit:contain;border-radius:11px;background:#f4eadf}.customer-spice-picker-overlay{position:fixed;inset:0;z-index:12000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(42,29,20,.58);backdrop-filter:blur(5px)}.customer-spice-picker{width:min(100%,390px);padding:22px;border:1px solid #eadbc7;border-radius:20px;background:linear-gradient(145deg,#fffdf9,#fff5e9);box-shadow:0 22px 65px rgba(48,31,18,.28);color:#49372b;animation:customerSpiceIn .18s ease-out}.customer-spice-picker-kicker{font-size:10px;font-weight:900;letter-spacing:2px;color:#a87954}.customer-spice-picker h3{margin:6px 0;color:#704a32;font-size:21px}.customer-spice-picker p{margin:0 0 15px;color:#92765f;font-size:13px}.customer-spice-picker-levels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.customer-spice-picker-levels button{min-height:46px;border:1px solid #dfcdb8;border-radius:12px;background:#fff;color:#79563c;font-weight:850}.customer-spice-picker-levels button.active{background:#80583b;border-color:#80583b;color:#fff;box-shadow:0 3px 10px rgba(128,88,59,.2)}.customer-spice-picker-quantity{display:flex;align-items:center;justify-content:space-between;margin:17px 0;padding:12px;border-radius:12px;background:#f7eee3;color:#704a32;font-weight:850}.customer-spice-picker-quantity>div{display:flex;align-items:center;gap:13px}.customer-spice-picker-quantity button{width:34px;height:34px;border:1px solid #d9c4aa;border-radius:10px;background:#fff;color:#79563c;font-size:20px}.customer-spice-picker-actions{display:grid;grid-template-columns:1fr 1.5fr;gap:9px}.customer-spice-picker-actions button{min-height:45px;border-radius:11px;font-weight:850}.customer-spice-picker-actions .cancel{border:1px solid #dfcdb8;background:#fff;color:#79563c}.customer-spice-picker-actions .confirm{border:1px solid #80583b;background:#80583b;color:#fff}@keyframes customerSpiceIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 
+
+.customer-menu-card{pointer-events:auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:pointer}.customer-menu-card[role="button"]{user-select:none;-webkit-user-select:none}
+.customer-line-profile{display:inline-flex;align-items:center;justify-content:center;gap:9px;margin-top:12px;padding:7px 13px 7px 7px;border:1px solid #eadbc7;border-radius:999px;background:#fffaf3;color:#704a32;font-size:13px;font-weight:800}.customer-line-profile img{display:none;width:30px;height:30px;border-radius:50%;object-fit:cover;background:#f1e4d5}.customer-line-profile img[src=""]{display:none}
 </style>
 
     <!-- PWA / iOS 安裝設定：僅新增安裝中繼資料，不更動原有系統功能 -->
@@ -1437,7 +1440,7 @@
         const supabaseUrl = 'https://gyonwgjafukzlmnosykt.supabase.co';
         const rawKey = 'sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
         const supabaseKey = rawKey.replace(/[^\x20-\x7E]/g, '').trim();
-        
+
         let _supabase;
         let globalProductsData = [];
         let globalMaterialsData = [];
@@ -1469,10 +1472,10 @@
             currentPage = pageName;
             document.getElementById('home-view').style.display = 'none';
             document.getElementById('sub-view').style.display = 'block';
-            
+
             const titleEl = document.getElementById('page-title');
             const actionContainer = document.getElementById('top-action-container');
-            actionContainer.innerHTML = ''; 
+            actionContainer.innerHTML = '';
 
             if (pageName === 'recipes') {
                 titleEl.innerText = '配方與過程表 (SOP)';
@@ -1763,7 +1766,7 @@
                 return;
             }
             globalRecipesData = data || [];
-            
+
             contentEl.innerHTML = `
                 <div class="controls-bar">
                     <div class="stats-info"><span id="recipe-count-label">共 <b>${globalRecipesData.length}</b> 筆配方與過程表</span></div>
@@ -1951,7 +1954,7 @@
             const platformRates = await getPlatformRates();
             const selectedPlatformRates = await getPlatformRatesForMonth(selectedPlatformSettingsMonth);
 
-            
+
             contentEl.innerHTML = `
                 <div class="profit-card" style="margin-bottom:18px;">
                     <h3 style="margin-top:0;color:#9a3412;font-size:16px;">⚙️ 外送平台抽成設定</h3>
@@ -2021,7 +2024,7 @@
                 filteredData.forEach((item, index) => {
                     let costRate = calculateCostRate(item).toFixed(1);
                     let zebraClass = (index % 2 === 1) ? 'zebra-alt' : '';
-                    
+
                     let currentPrice = parseFloat(item.price) || 0;
                     let productCost = parseFloat(item.package_cost) || 0;
                     let ueRate = (Number(globalPlatformRates.ubereatsCommissionRate) || 0) / 100;
@@ -3038,9 +3041,6 @@
         // 推播公開金鑰由店家部署時填入；私密 VAPID 金鑰只放在 Edge Function Secrets。
         const CUSTOMER_PUSH_PUBLIC_KEY = 'BDk2KVu03H_HZi41S0DDGx9cLljPfpEfEp6FTvEuYr_KHElfvd1Oyz41sMak_blSSMhipiPlGaY83f7RGC10p_g';
         const CUSTOMER_ORDER_FUNCTION = 'customer-orders';
-        const CUSTOMER_TURNSTILE_SITE_KEY = '';
-        let customerTurnstileToken = '';
-        let customerTurnstileWidgetId = null;
         let customerHistoryLookupToken = '';
         let customerHistoryLookupTokenPhone = '';
         let customerSpiceModalState = null;
@@ -3099,6 +3099,8 @@
             document.getElementById('page-title').textContent = '線上點餐';
             document.getElementById('top-action-container').innerHTML = '';
             const content = document.getElementById('page-content');
+            content.innerHTML = '<p style="text-align:center;padding:35px;color:#92765f;">正在確認 LINE 登入…</p>';
+            if(!await customerEnsureLineLogin())return;
             content.innerHTML = '<p style="text-align:center;padding:35px;color:#92765f;">正在載入菜單…</p>';
             // 線上點餐只讀取實際需要的 JSON 欄位，避免下載整包含圖片／菜單產生器資料的設定。
             const [{data:products,error},{data:menuData,error:menuSettingsError}] = await Promise.all([
@@ -3130,23 +3132,26 @@
             const categoryOrder=['碳烤伴餐類','雞肉類','牛肉類','豬肉類','羊肉類','海鮮類','蔬菜類','炸物類','飲品類','其他餐點'];
             const groups = [...groupedProducts.keys()].sort((a,b)=>categoryOrder.indexOf(a)-categoryOrder.indexOf(b));
             content.innerHTML = `<div class="customer-order-wrap">
-              <div class="customer-order-brand"><h1>🔥 馬鈴吉碳烤</h1><p>線上預訂・現場取餐</p><a href="history.html" style="display:inline-block;margin-top:8px;color:#80583b;font-weight:800">查詢歷史訂單 →</a></div>
+              <div class="customer-order-brand"><h1>🔥 馬鈴吉碳烤</h1><p>線上預訂・現場取餐</p><div class="customer-line-profile" id="customer-line-profile"><img id="customer-line-avatar" alt="" src="" referrerpolicy="no-referrer"><span id="customer-line-profile-name">LINE 登入中</span></div><a href="history.html" style="display:inline-block;margin-top:8px;color:#80583b;font-weight:800">查詢歷史訂單 →</a></div>
               <div id="customer-public-menu"></div>
               <section class="customer-order-group"><h3>🧾 訂單資料</h3>
                 <div id="customer-public-cart"></div>
                 <div id="customer-public-gift-drinks"></div>
                 <div class="customer-order-form">
-                  <div class="customer-order-field"><label for="customer-public-name">姓名 *</label><input id="customer-public-name" maxlength="40" autocomplete="name" placeholder="請輸入姓名"></div>
+
                   <div class="customer-order-field"><label for="customer-public-phone">聯絡電話 *</label><input id="customer-public-phone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="09xxxxxxxx"><small class="customer-order-muted">僅供店家聯絡，不作為訂單查詢或身分驗證依據。</small></div>
                   <div class="customer-order-field full"><label>取餐時間 *</label><button type="button" class="customer-pickup-open" id="customer-pickup-open" onclick="openCustomerPickupPicker()"><span id="customer-pickup-display">📅 選擇取餐日期與時間</span><span>⌄</span></button><input id="customer-public-pickup" type="hidden"><div id="customer-pickup-confirmed" class="customer-order-muted">尚未選擇取餐時間</div></div>
                   <div class="customer-order-field full"><label for="customer-public-note">餐點備註</label><textarea id="customer-public-note" maxlength="500" placeholder="其他餐點需求…"></textarea></div>
                 </div>
-                <div id="customer-line-bind-panel" class="customer-order-field full" style="padding:12px;border:1px solid #d8c3aa;border-radius:12px;background:#fffaf3"><button type="button" id="customer-line-bind-button" class="customer-order-submit" style="margin:0" onclick="customerBindLine()">使用 LINE 綁定身分</button><p id="customer-line-bind-status" class="customer-order-muted" style="margin:7px 0 0">下單前請先使用 LINE 綁定，訂單進度只會提供給此 LINE 帳號。</p></div><div style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true"><label>不要填寫<input id="customer-public-website" tabindex="-1" autocomplete="off"></label></div>
-                <div id="customer-turnstile-container" style="display:none;margin-top:12px"></div>
+                <div style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true"><label>不要填寫<input id="customer-public-website" tabindex="-1" autocomplete="off"></label></div>
+
                 <button class="customer-order-submit" id="customer-public-submit" onclick="submitCustomerPublicOrder()">送出訂單</button>
               </section>
             </div>`;
-            renderCustomerTurnstile();
+            const profileName=document.getElementById('customer-line-profile-name');
+            const profileAvatar=document.getElementById('customer-line-avatar');
+            if(profileName)profileName.textContent=customerLineDisplayName||'LINE 顧客';
+            if(profileAvatar&&customerLinePictureUrl){profileAvatar.src=customerLinePictureUrl;profileAvatar.style.display='block';}
             const menu = document.getElementById('customer-public-menu');
             const leaderboardIds=Array.isArray(allSettings.customerOrderLeaderboardProductIds)?allSettings.customerOrderLeaderboardProductIds.map(String).filter((id,index,arr)=>arr.indexOf(id)===index&&customerPublicProductById.has(id)).slice(0,3):[];
             const leaderboardHtml=leaderboardIds.length?`<section class="customer-order-group customer-leaderboard"><h3>🏆 本店人氣排行榜</h3><div class="customer-leaderboard-list">${leaderboardIds.map((id,index)=>{const p=customerPublicProductById.get(id);return `<div class="customer-leaderboard-item"><b class="customer-leaderboard-rank">${index+1}</b><span>${customerEscape(p.name)}</span></div>`;}).join('')}</div></section>`:'';
@@ -3234,32 +3239,55 @@
             const drinks=customerPublicProducts.filter(p=>customerPublicGiftDrinkIds.includes(String(p.id))&&!customerPublicSoldOutIds.has(String(p.id)));
             giftBox.innerHTML=`<div class="customer-gift-panel"><h4>🎁 滿額贈飲料</h4><p>目前餐點金額 <b>${customerMoney(total)}</b>，可選擇 <b>${giftLimit} 瓶</b>，已選 ${selected} 瓶。</p>${drinks.map(p=>{const id=String(p.id),qty=Number(customerPublicGiftDrinkQty[id])||0;return `<div class="customer-gift-row"><strong>${customerEscape(p.name)}</strong><div class="customer-gift-controls"><button type="button" onclick="changeCustomerGiftDrinkQty('${customerEscape(id)}',-1)">−</button><span class="customer-gift-count">${qty}</span><button type="button" onclick="changeCustomerGiftDrinkQty('${customerEscape(id)}',1)" ${selected>=giftLimit?'disabled':''}>＋</button></div></div>`;}).join('')||'<p class="customer-order-muted">目前可贈送的飲料皆已售完。</p>'}</div>`;
         }
-        function renderCustomerTurnstile(){if(!CUSTOMER_TURNSTILE_SITE_KEY||new URLSearchParams(location.search).has('edit-order'))return;const container=document.getElementById('customer-turnstile-container');if(!container)return;container.style.display='block';const render=()=>{if(!window.turnstile||!container.isConnected)return;try{if(customerTurnstileWidgetId!==null)window.turnstile.remove(customerTurnstileWidgetId);}catch(e){}customerTurnstileWidgetId=window.turnstile.render(container,{sitekey:CUSTOMER_TURNSTILE_SITE_KEY,theme:'light',callback:token=>{customerTurnstileToken=String(token||'');},'expired-callback':()=>{customerTurnstileToken='';},'error-callback':()=>{customerTurnstileToken='';}});};if(window.turnstile){render();return;}if(!document.getElementById('cloudflare-turnstile-api')){const script=document.createElement('script');script.id='cloudflare-turnstile-api';script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;script.defer=true;script.onload=render;document.head.appendChild(script);}else{document.getElementById('cloudflare-turnstile-api').addEventListener('load',render,{once:true});}}
         let customerLineAccessToken='';
         let customerLineDisplayName='';
+        let customerLinePictureUrl='';
         let customerLiffInitialized=false;
-        async function customerBindLine(){
-            const status=document.getElementById('customer-line-bind-status'),button=document.getElementById('customer-line-bind-button');
-            const liffId=window.MALINJI_LINE_LIFF_ID||'';
-            if(!liffId){customerOrderAlert('LINE LIFF 尚未設定，請店家完成 LINE Developers 設定後再使用。');return;}
-            if(button){button.disabled=true;button.textContent='正在連接 LINE…';}
+        async function customerEnsureLineLogin(){
+            const content=document.getElementById('page-content');
+            const liffId=String(window.MALINJI_LINE_LIFF_ID||'').trim();
+            const showMessage=(message)=>{
+                if(!content)return;
+                content.innerHTML='<div class="customer-order-wrap"><section class="customer-order-group" style="text-align:center;padding:28px 18px"><h2 style="color:#704a32">LINE 登入</h2><p id="customer-line-login-error" class="customer-order-muted" style="margin-top:12px"></p></section></div>';
+                const messageEl=document.getElementById('customer-line-login-error');
+                if(messageEl)messageEl.textContent=message;
+            };
+            if(customerLineAccessToken)return true;
+            if(!liffId){
+                showMessage('LINE 登入尚未完成設定，請店家先在 LINE Developers 建立 LIFF App，並將 LIFF ID 填入 line-config.js。');
+                return false;
+            }
             try{
-                if(!window.liff)throw new Error('LINE 登入元件尚未載入，請重新整理頁面。');
-                if(!customerLiffInitialized){await liff.init({liffId});customerLiffInitialized=true;}
-                if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return;}
-                customerLineAccessToken=liff.getAccessToken()||'';
-                const profile=await liff.getProfile();
-                customerLineDisplayName=String(profile.displayName||'LINE 顧客');
-                if(!customerLineAccessToken)throw new Error('無法取得 LINE 授權，請重新登入。');
-                if(status)status.textContent='✓ 已綁定 LINE：'+customerLineDisplayName+'；訂單進度將只提供給此帳號。';
-                if(button){button.textContent='✓ LINE 已綁定';button.disabled=false;}
-                const nameInput=document.getElementById('customer-public-name');if(nameInput&&!nameInput.value.trim())nameInput.value=customerLineDisplayName;
-            }catch(error){console.error('LINE bind failed',error);if(status)status.textContent=error.message||'LINE 綁定失敗';if(button){button.disabled=false;button.textContent='重新使用 LINE 綁定';}}
+                if(!window.liff)throw new Error('LINE 登入元件載入失敗，請重新整理頁面。');
+                if(!customerLiffInitialized){
+                    await window.liff.init({liffId});
+                    customerLiffInitialized=true;
+                }
+                if(!window.liff.isLoggedIn()){
+                    window.liff.login({redirectUri:location.href});
+                    return false;
+                }
+                const accessToken=window.liff.getAccessToken()||'';
+                if(!accessToken)throw new Error('無法取得 LINE 授權，請重新登入。');
+                const profile=await window.liff.getProfile();
+                customerLineAccessToken=accessToken;
+                customerLineDisplayName=String(profile?.displayName||'LINE 顧客').trim().slice(0,40)||'LINE 顧客';
+                customerLinePictureUrl=String(profile?.pictureUrl||'');
+                const profileName=document.getElementById('customer-line-profile-name');
+                const avatar=document.getElementById('customer-line-avatar');
+                if(profileName)profileName.textContent=customerLineDisplayName;
+                if(avatar&&customerLinePictureUrl){avatar.src=customerLinePictureUrl;avatar.style.display='block';}
+                return true;
+            }catch(error){
+                console.error('LINE login failed',error);
+                showMessage(error?.message||'LINE 登入失敗，請稍後重試。');
+                return false;
+            }
         }
         async function submitCustomerPublicOrder(){
             let editState=window.customerPublicEditOrderState||null;try{if(!editState){editState=JSON.parse(sessionStorage.getItem('customerPublicEditOrderState')||'null');if(editState)window.customerPublicEditOrderState=editState;}}catch(e){}
             const btn=document.getElementById('customer-public-submit');if(!btn||customerPublicSubmitInFlight||btn.disabled)return;
-            const name=document.getElementById('customer-public-name').value.trim(),phone=document.getElementById('customer-public-phone').value.replace(/\D/g,''),pickup=document.getElementById('customer-public-pickup').value,note=document.getElementById('customer-public-note').value.trim();
+            const name=String(customerLineDisplayName||'').trim(),phone=document.getElementById('customer-public-phone').value.replace(/\D/g,''),pickup=document.getElementById('customer-public-pickup').value,note=document.getElementById('customer-public-note').value.trim();
             const items=Object.entries(customerPublicCart).filter(([key,qty])=>Number(qty)>0&&!customerPublicSoldOutIds.has(key.split('::')[0])).map(([key,qty])=>{const [id,levelKey]=key.split('::');const product=customerPublicProductById.get(id),isDrink=product&&customerCategory(product,customerPublicMenuSettings)==='飲品類';return {product_id:id,quantity:Number(qty),spice_level:isDrink||levelKey==='__none__'?null:levelKey};});
             const free_drinks=Object.entries(customerPublicGiftDrinkQty).filter(([,quantity])=>Number(quantity)>0).map(([product_id,quantity])=>({product_id,quantity:Number(quantity)}));
             const giftLimit=Math.floor(customerPublicCartTotal()/400),giftAvailable=customerPublicProducts.some(p=>customerPublicGiftDrinkIds.includes(String(p.id))&&!customerPublicSoldOutIds.has(String(p.id)));
@@ -3268,11 +3296,11 @@
             customerPublicSubmitInFlight=true;btn.disabled=true;btn.textContent='訂單送出中…';
             const submitStartedAt=performance.now();
             try{
-                const requestBody=editState?{action:'direct-edit-order',order_id:editState.orderId,customer_phone:editState.phone,items,free_drinks}:{action:'create-order',customer_name:name,customer_phone:phone,pickup_time:selectedPickup.toISOString(),note,items,free_drinks,website:document.getElementById('customer-public-website')?.value||'',turnstile_token:customerTurnstileToken,line_access_token:customerLineAccessToken,submitted_at:Date.now()};const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:requestBody});
+                const requestBody=editState?{action:'direct-edit-order',order_id:editState.orderId,line_access_token:customerLineAccessToken,items,free_drinks}:{action:'create-order',customer_name:name,customer_phone:phone,pickup_time:selectedPickup.toISOString(),note,items,free_drinks,website:document.getElementById('customer-public-website')?.value||'',line_access_token:customerLineAccessToken,submitted_at:Date.now()};const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:requestBody});
                 console.info('[馬鈴吉] 訂單建立 API 耗時：',Math.round(performance.now()-submitStartedAt),'ms');
                 if(error)throw error;if(!data?.ok)throw new Error(data?.error||'訂單送出失敗');
                 document.querySelector('.customer-order-wrap').innerHTML=`<div class="customer-order-success"><div style="font-size:42px;">✓</div><h2>${editState?'訂單修改已提交':'訂單已送出'}</h2><p>${editState?'店家已收到修改通知，請留意後續確認。':'訂單已成立。'}</p>${!editState&&data?.order_number?`<p>訂單編號：<b>${customerEscape(data.order_number)}</b></p>`:''}${!editState&&data?.status_url?`<p><a href="${customerEscape(data.status_url)}" style="display:inline-block;margin:10px auto;color:#80583b;font-weight:800">查看這筆訂單進度 →</a></p>`:''}<a href="history.html" style="display:block;margin-top:14px;color:#80583b;font-weight:800">查看訂單</a></div>`;window.customerPublicEditOrderState=null;try{sessionStorage.removeItem('customerPublicEditOrderState');}catch(e){}
-            }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('customer order submit failed',e,detail);customerOrderAlert('訂單送出失敗：'+detail);customerPublicSubmitInFlight=false;btn.disabled=false;btn.textContent='重新送出訂單';if(window.turnstile&&customerTurnstileWidgetId!==null){window.turnstile.reset(customerTurnstileWidgetId);customerTurnstileToken='';}}
+            }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('customer order submit failed',e,detail);customerOrderAlert('訂單送出失敗：'+detail);customerPublicSubmitInFlight=false;btn.disabled=false;btn.textContent='重新送出訂單';}
         }
         function customerOrderDialog(message,{title='訂單通知',icon='✦',confirm=false,confirmText='確定',cancelText='再想一下',tone='default',eyebrow='MALINJI ORDER',detailHtml='',note='',danger=false}={}){
             return new Promise(resolve=>{
@@ -3301,11 +3329,10 @@
             if(customerHistoryLookupInFlight)return;customerHistoryLookupInFlight=true;
             const input=document.getElementById('customer-history-phone'),box=document.getElementById('customer-history-results');if(!input||!box){customerHistoryLookupInFlight=false;return;}
             const phone=input.value.replace(/\D/g,'');if(!/^09\d{8}$/.test(phone)){customerHistoryLookupInFlight=false;if(!silent)customerOrderAlert('請輸入正確的 10 碼手機號碼（09 開頭）。',{title:'手機號碼格式不正確',icon:'!'});return;}
-            if(!silent&&CUSTOMER_TURNSTILE_SITE_KEY&&customerHistoryLookupTokenPhone!==phone&&!customerTurnstileToken){customerHistoryLookupInFlight=false;customerOrderAlert('請先完成真人驗證，再查詢訂單。',{title:'需要真人驗證',icon:'!'});return;}
             if(!silent){customerHistoryLastPhone=phone;box.innerHTML='<p class="customer-order-muted">正在查詢訂單…</p>';if(customerHistoryRefreshTimer)clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=setInterval(()=>{const current=document.getElementById('customer-history-phone');if(document.visibilityState==='visible'&&current&&current.value.replace(/\D/g,'')===customerHistoryLastPhone)lookupCustomerOrders(true);},5000);}
             try{
-                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'lookup-orders',customer_phone:phone,lookup_token:customerHistoryLookupTokenPhone===phone?customerHistoryLookupToken:'',turnstile_token:silent?'':customerTurnstileToken}});if(error)throw error;if(!data?.ok)throw new Error(data?.error||'查詢失敗');
-                if(data.lookup_token){customerHistoryLookupToken=data.lookup_token;customerHistoryLookupTokenPhone=phone;}if(!silent&&window.turnstile&&customerTurnstileWidgetId!==null){window.turnstile.reset(customerTurnstileWidgetId);customerTurnstileToken='';}
+                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'lookup-orders',customer_phone:phone,lookup_token:customerHistoryLookupTokenPhone===phone?customerHistoryLookupToken:''}});if(error)throw error;if(!data?.ok)throw new Error(data?.error||'查詢失敗');
+                if(data.lookup_token){customerHistoryLookupToken=data.lookup_token;customerHistoryLookupTokenPhone=phone;}
                 const rows=Array.isArray(data.orders)?data.orders:[];customerHistoryOrders=rows;
                 if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:18px">查無此手機號碼的訂單。系統仍會持續更新，若稍後有新訂單會自動顯示。</p>';return;}
                 const statusLabel={new:'等待店家確認',confirmed:'已確認・等待製作',preparing:'製作中',completed:'已完成',cancelled:'已取消'};
@@ -3322,7 +3349,7 @@
                     const progressClass=o.status==='completed'?'is-finished':o.status==='cancelled'?'is-cancelled':'';
                     return `<article class="customer-admin-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>${customerEscape(customerDisplayOrderLabel(o))}</b><span class="customer-history-status ${active?'active':''}">${customerEscape(statusLabel[o.status]||o.status)}</span></div>${active||o.status==='completed'?`<div class="customer-history-progress ${progressClass}">${steps.map((step,i)=>`<span class="${stepIndex>=i?'done':''}"></span>`).join('')}</div>`:''}${timelineHtml}<div class="customer-admin-meta">下單時間：${customerEscape(created)}<br>取餐時間：${customerEscape(pickup)}</div>${proposal?`<div style="margin:10px 0;padding:12px;border-radius:12px;background:#fff4df;border:1px solid #e8c99c"><b>店家提出其他取餐時間</b><p style="margin:6px 0">${customerEscape(proposal)}</p><div class="customer-admin-actions"><button class="primary" onclick="respondCustomerPickup('${customerEscape(o.id)}',true,'${customerEscape(customerHistoryLastPhone)}')">可以，接受新時間</button><button onclick="respondCustomerPickup('${customerEscape(o.id)}',false,'${customerEscape(customerHistoryLastPhone)}')">不方便，請店家再安排</button></div></div>`:''}<div class="customer-admin-items">${itemText||'（無餐點明細）'}</div>${addonHtml}${actionHtml}<b>總金額：${customerMoney(o.total_amount)}</b></article>`;
                 }).join('');
-            }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('lookup customer orders failed',e,detail);if(silent&&/真人驗證|查詢此手機號碼/.test(detail)){if(customerHistoryRefreshTimer)clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=null;customerHistoryLookupToken='';customerHistoryLookupTokenPhone='';box.innerHTML='<p class="customer-order-muted">查詢授權已過期，請重新完成驗證並查詢訂單。</p>';}else if(!silent)box.textContent='查詢失敗：'+detail;}finally{customerHistoryLookupInFlight=false;}
+            }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('lookup customer orders failed',e,detail);if(silent&&/查詢此手機號碼/.test(detail)){if(customerHistoryRefreshTimer)clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=null;customerHistoryLookupToken='';customerHistoryLookupTokenPhone='';box.innerHTML='<p class="customer-order-muted">查詢授權已過期，請重新開啟 LINE 訂單連結。</p>';}else if(!silent)box.textContent='查詢失敗：'+detail;}finally{customerHistoryLookupInFlight=false;}
         }
 
 
@@ -3370,8 +3397,8 @@
                 if(item.is_gift){customerPublicGiftDrinkQty[id]=(customerPublicGiftDrinkQty[id]||0)+qty;continue;}
                 const product=customerPublicProductById.get(id),isDrink=product&&customerCategory(product,customerPublicMenuSettings)==='飲品類';const level=isDrink?null:(item.spice_level||null);const key=customerCartKey(id,level);customerPublicCart[key]=(customerPublicCart[key]||0)+qty;
             }
-            const name=document.getElementById('customer-public-name'),phone=document.getElementById('customer-public-phone'),note=document.getElementById('customer-public-note'),pickup=document.getElementById('customer-public-pickup'),display=document.getElementById('customer-pickup-display'),confirmed=document.getElementById('customer-pickup-confirmed'),pickupOpen=document.getElementById('customer-pickup-open'),submit=document.getElementById('customer-public-submit');
-            if(name){name.value=state.customer_name;name.readOnly=true;}if(phone){phone.value=state.phone;phone.readOnly=true;}if(note)note.value=state.note||'';
+            const phone=document.getElementById('customer-public-phone'),note=document.getElementById('customer-public-note'),pickup=document.getElementById('customer-public-pickup'),display=document.getElementById('customer-pickup-display'),confirmed=document.getElementById('customer-pickup-confirmed'),pickupOpen=document.getElementById('customer-pickup-open'),submit=document.getElementById('customer-public-submit');
+            if(phone){phone.value=state.phone;phone.readOnly=true;}if(note)note.value=state.note||'';
             if(pickup){pickup.value=state.pickup_time;customerDesiredPickupConfirmed=true;}if(display)display.textContent=new Date(state.pickup_time).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false});if(confirmed)confirmed.textContent='原訂單取餐時間（修改餐點不會變更取餐時間）';if(pickupOpen)pickupOpen.disabled=true;
             if(submit)submit.textContent='重新提交修改訂單';
             customerPublicProducts.forEach(product=>{const card=document.querySelector('.customer-menu-card[data-product-id="'+CSS.escape(String(product.id))+'"]');if(!card)return;const qty=customerCartEntriesForProduct(product.id).reduce((sum,[,n])=>sum+(Number(n)||0),0);card.classList.toggle('is-selected',qty>0);const bottom=card.querySelector('.customer-menu-card-bottom');if(bottom)bottom.innerHTML=`<span class="customer-menu-card-price">${customerMoney(product.price)}</span>${qty>0?`<span class="customer-menu-card-qty">已點 ${qty}</span>`:'<span class="customer-menu-card-hint">點擊加入＋1</span>'}`;});
@@ -3422,9 +3449,48 @@
             catch(e){console.error('標記訂單已讀失敗',e);customerOrderAlert('無法儲存已讀狀態，請確認瀏覽器允許網站使用本機儲存空間。');}
         }
 
-                async function customerWatchOrder(orderId,phone=customerHistoryLastPhone){if(customerOrderWatchTimer)clearInterval(customerOrderWatchTimer);const check=async()=>{try{const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'get-order',order_id:orderId,customer_phone:phone}});if(error||!data?.ok)return;const el=document.getElementById('customer-order-live-status');if(!el)return;if(data.status==='confirmed'){el.innerHTML=`<h3>✓ 店家已確認取餐時間</h3><p>${customerEscape(new Date(data.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))}</p>`;clearInterval(customerOrderWatchTimer);customerOrderWatchTimer=null;return;}if(data.proposed_pickup_time){el.innerHTML=`<h3>店家提出新的取餐時間</h3><p>${customerEscape(new Date(data.proposed_pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))}</p><button class="customer-order-submit" onclick="respondCustomerPickup('${customerEscape(orderId)}',true,'${customerEscape(phone)}')">可以，確認這個時間</button><button class="customer-order-submit" style="background:#9b8978" onclick="respondCustomerPickup('${customerEscape(orderId)}',false,'${customerEscape(phone)}')">不方便，請店家再安排</button>`;}else if(data.customer_response==='declined'){el.innerHTML='<h3>已告知店家新時間不方便</h3><p>店家正在重新安排取餐時間，請稍後查看通知。</p>';}}catch(e){console.warn('customer order status polling failed',e);}};await check();customerOrderWatchTimer=setInterval(check,12000);}
-        async function respondCustomerPickup(orderId,accepted,phone=customerHistoryLastPhone){const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'respond-time',order_id:orderId,customer_phone:phone,accepted}});if(error||!data?.ok){customerOrderAlert(data?.error||'回覆未能送出，請稍後再試');return;}if(document.getElementById('customer-history-results'))await lookupCustomerOrders(true);else{await customerWatchOrder(orderId,phone);customerOrderAlert(accepted?'已接受店家提出的新取餐時間。':'已告知店家此時間不方便，等待店家重新安排。');}}
-        let customerLoginDestination='admin';
+                async function customerWatchOrder(orderId,statusToken){
+            if(customerOrderWatchTimer)clearInterval(customerOrderWatchTimer);
+            const check=async()=>{
+                try{
+                    const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{
+                        action:'line-order-status',order_id:orderId,status_token:statusToken,line_access_token:customerLineAccessToken
+                    }});
+                    const el=document.getElementById('customer-order-live-status');
+                    if(!el)return;
+                    if(error||!data?.ok){
+                        el.innerHTML=`<h3>暫時無法查詢訂單</h3><p>${customerEscape(data?.error||'請確認 LINE 登入帳號與訂單連結正確，再重新整理。')}</p>`;
+                        return;
+                    }
+                    const dateText=value=>value?customerEscape(new Date(value).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})):'尚未設定';
+                    const labels={new:'等待店家確認',confirmed:'店家已確認',preparing:'餐點製作中',completed:'訂單已完成',cancelled:'訂單已取消'};
+                    let html=`<h3>${customerEscape(labels[data.status]||'訂單進度')}</h3><p>目前取餐時間：${dateText(data.pickup_time)}</p>`;
+                    if(data.proposed_pickup_time){
+                        html+=`<div style="margin-top:14px;padding:14px;background:#fff7ed;border-radius:12px"><h3>店家提出新的取餐時間</h3><p>${dateText(data.proposed_pickup_time)}</p><button class="customer-order-submit" onclick="respondCustomerPickup('${customerEscape(orderId)}',true)">可以，確認這個時間</button><button class="customer-order-submit" style="background:#9b8978" onclick="respondCustomerPickup('${customerEscape(orderId)}',false)">不方便，請店家再安排</button></div>`;
+                    }else if(data.needs_reschedule||data.customer_response==='declined'){
+                        html+='<p>已告知店家新時間不方便，等待店家重新安排。</p>';
+                    }
+                    el.innerHTML=html;
+                    if(['completed','cancelled'].includes(data.status)&&!data.proposed_pickup_time){
+                        clearInterval(customerOrderWatchTimer);customerOrderWatchTimer=null;
+                    }
+                }catch(e){
+                    console.warn('customer order status polling failed',e);
+                    const el=document.getElementById('customer-order-live-status');
+                    if(el)el.innerHTML='<p>訂單狀態暫時無法更新，請稍後重新整理。</p>';
+                }
+            };
+            check();
+            customerOrderWatchTimer=setInterval(check,12000);
+        }
+        async function respondCustomerPickup(orderId,accepted){
+            if(!customerLineAccessToken){customerOrderAlert('請先使用 LINE 登入，才能回覆取餐時間。');return;}
+            const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'respond-time',order_id:orderId,line_access_token:customerLineAccessToken,accepted}});
+            if(error||!data?.ok){customerOrderAlert(data?.error||'回覆未能送出，請稍後再試');return;}
+            customerOrderAlert(accepted?'已接受店家提出的新取餐時間。':'已告知店家此時間不方便，等待店家重新安排。');
+            const token=new URLSearchParams(location.search).get('token')||'';
+            if(token)customerWatchOrder(orderId,token);
+        }
         function customerOwnerRole(user){return user?.app_metadata?.role==='store_owner';}
         async function renderCustomerOrderAdmin(){
             const content=document.getElementById('page-content');content.innerHTML='<p style="text-align:center;padding:25px;">正在載入訂單工作台…</p>';
@@ -4458,7 +4524,7 @@
             const actionContainer = document.getElementById('top-action-container');
             titleEl.innerText = '修改支出紀錄';
             actionContainer.innerHTML = `<button class="back-btn" onclick="openPage('expenses')">← 回列表</button>`;
-            
+
             const isIncome = item.transaction_type === 'income';
             const isDep = !isIncome && (item.is_depreciable || false);
             selectedDepYears = item.useful_life_years || 5;
@@ -4815,7 +4881,7 @@
             const dailyFixedCostAllocation = (monthlyFixedTotalCost + totalDepreciation - totalExtraIncome) / workingDays;
 
 
-            
+
             let profitDaysCount = 0;
             let lossDaysCount = 0;
 
@@ -4929,7 +4995,7 @@
                         <span>本月原始總營業額（現場＋兩平台）</span>
                         <b style="color: #292524; font-size: 18px;">$${Math.round(totalGrossSales).toLocaleString()} 元</b>
                     </div>
-                    
+
                     <div class="profit-row">
                         <span>預估食材變動成本（依營業額估算）</span>
                         <b>$${Math.round(estimatedIngredientCost).toLocaleString()} 元</b>
@@ -4976,7 +5042,7 @@
                     let dayPlatformCommission = ueFee + fpFee;
                     let dayEstimatedIngredientCost = dayGrossTotal * ingredientCostRate;
                     let dayOperatingProfitEstimate = dayGrossTotal - dayPlatformCommission - dayEstimatedIngredientCost - dailyFixedCostAllocation;
-                    
+
                     let feedbackHtml = '';
                     if (dayOperatingProfitEstimate >= 0) {
                         feedbackHtml = `<span style="color:#059669; font-weight:700;">🔥 今日預估營運賺取 $${Math.round(dayOperatingProfitEstimate).toLocaleString()} 元</span>`;
@@ -5097,7 +5163,7 @@
                         <div><div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#ea580c;">MONTHLY COST SETTINGS</div><h3 style="margin:4px 0 0;color:#292524;font-size:20px;">${currentProfitMonth} 本月營運成本</h3></div>
                         <div style="width:42px;height:42px;border-radius:13px;background:#fff1e6;color:#ea580c;display:grid;place-items:center;font-size:21px;">⚙</div>
                     </div>
-                    
+
                     <div class="cost-setting-section-title">🔥 本月自行設定費用</div>
                     <div class="cost-setting-field" style="margin-bottom:12px;"><label>本月營業天數</label><input type="number" min="0" max="31" step="1" id="set-working-days" value="${Number(fixedSettings.workingDays) || 26}" oninput="updateFixedSettingsPreview()"></div>
                     <div class="cost-setting-grid">
@@ -5105,14 +5171,14 @@
                         <div class="cost-setting-field"><label>木炭費（元／月）</label><input type="number" min="0" id="set-charcoal" value="${fixedSettings.charcoal}"></div>
                         <div class="cost-setting-field"><label>炸油費（元／月）</label><input type="number" min="0" id="set-oil" value="${fixedSettings.oil}"></div>
                     </div>
-                    
+
                     <div class="cost-setting-section-title">📣 平台廣告費</div>
                     <div class="cost-setting-grid">
                         <div class="cost-setting-field"><label>UberEats 行銷費用（元／月）</label><input type="number" min="0" id="set-ubereats-monthly" value="${getMonthlyAdCosts(fixedSettings).ubereats}" oninput="updateFixedSettingsPreview()"></div>
                         <div class="cost-setting-field"><label>foodpanda 行銷費用（元／月）</label><input type="number" min="0" id="set-foodpanda-monthly" value="${fixedSettings.foodpandaAdMonthly}" oninput="updateFixedSettingsPreview()"></div>
                     </div>
                     <div class="cost-setting-preview"><span>UberEats 本月行銷費用</span><b id="ue-ad-preview">$${Math.round(getMonthlyAdCosts(fixedSettings).ubereats).toLocaleString()} 元</b><span>foodpanda 本月行銷費用</span><b id="fp-ad-preview">$${Math.round(Number(fixedSettings.foodpandaAdMonthly)||0).toLocaleString()} 元</b></div>
-                    
+
                     <div class="picker-btn-group" style="margin-top:20px;">
                         <button class="picker-btn picker-cancel" onclick="document.getElementById('settings-modal-overlay').remove()">取消</button>
                         <button class="picker-btn picker-confirm" onclick="saveFixedSettings()">✓ 儲存本月成本</button>
@@ -5144,7 +5210,7 @@
                 foodpandaAdMonthly: parseFloat(document.getElementById('set-foodpanda-monthly').value) || 0,
                 fixedCostsConfigured: true
             };
-            
+
             let { data: existing } = await _supabase.from('settings').select('*').eq('month', currentProfitMonth).maybeSingle();
             let res;
             if (existing) {
@@ -5518,7 +5584,7 @@
             currentWheelCallback = callback;
             let initDate = new Date();
             if (initialDateStr && !isNaN(new Date(initialDateStr))) initDate = new Date(initialDateStr);
-            
+
             let initYear = initDate.getFullYear();
             let initMonth = initDate.getMonth() + 1;
             let initDay = initDate.getDate();

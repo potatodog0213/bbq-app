@@ -285,28 +285,6 @@ async function buildRegularItemSnapshot(admin: ReturnType<typeof createClient>, 
   return { snapshot, total };
 }
 
-async function verifyTurnstileToken(token: unknown, req: Request) {
-  const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
-  if (!secret) return false;
-  const responseToken = String(token ?? "").trim();
-  if (!responseToken) return false;
-  const form = new FormData();
-  form.set("secret", secret);
-  form.set("response", responseToken);
-  const remoteIp = req.headers.get("cf-connecting-ip");
-  if (remoteIp) form.set("remoteip", remoteIp);
-  try {
-    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
-    if (!response.ok) return false;
-    const result = await response.json();
-    return result?.success === true
-  && result?.hostname === "potatodog0213.github.io";
-  } catch (error) {
-    console.error("[customer-orders][turnstile] verification unavailable", error);
-    return false;
-  }
-}
-
 function base64UrlEncode(bytes: Uint8Array) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -402,12 +380,20 @@ Deno.serve(async (req) => {
       const line = await verifyLineIdentity(body.line_access_token);
       const tokenHash = await sha256Hex(statusToken);
       const { data: order, error } = await admin.from("customer_orders")
-        .select("id,line_user_id,status,status_token_hash,pickup_time,daily_sequence")
+        .select("id,line_user_id,status,status_token_hash,pickup_time,daily_sequence,note")
         .eq("id", orderId).eq("line_user_id", line.userId).eq("status_token_hash", tokenHash).maybeSingle();
       if (error) throw error;
       if (!order) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的查詢權限" }, 403);
-      return reply({ ok: true, status: order.status, pickup_time: order.pickup_time,
-        order_number: order.daily_sequence ? `#${String(order.daily_sequence).padStart(3, "0")}` : String(order.id).slice(0, 8) });
+      const { meta } = readNote(String(order.note ?? ""));
+      return reply({
+        ok: true,
+        status: order.status,
+        pickup_time: order.pickup_time,
+        proposed_pickup_time: typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : null,
+        customer_response: typeof meta.customer_response === "string" ? meta.customer_response : null,
+        needs_reschedule: meta.needs_reschedule === true,
+        order_number: order.daily_sequence ? `#${String(order.daily_sequence).padStart(3, "0")}` : String(order.id).slice(0, 8)
+      });
     }
 
     if (action === "get-order") {
@@ -685,14 +671,10 @@ Deno.serve(async (req) => {
 
     if (action !== "create-order") return reply({ ok: false, error: "Unsupported action" }, 400);
     if (typeof body.website === "string" && body.website.trim()) return reply({ ok: true });
-    if (!await verifyTurnstileToken(body.turnstile_token, req)) {
-      return reply({ ok: false, error: "真人驗證未通過，請重新完成驗證後再送出訂單。" }, 403);
-    }
-
     const lineProfile = await verifyLineIdentity(body.line_access_token);
     const statusToken = randomCapabilityToken();
     const statusTokenHash = await sha256Hex(statusToken);
-    const name = String(body.customer_name ?? "").trim();
+    const name = String(lineProfile.displayName ?? "").trim().slice(0, 40);
     const phone = String(body.customer_phone ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
     const note = String(body.note ?? "").trim();
     const pickup = new Date(body.pickup_time);
