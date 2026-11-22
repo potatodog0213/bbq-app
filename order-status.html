@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>馬鈴吉碳烤｜單筆訂單進度</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="line-config.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:22px 16px;background:#fffaf4;color:#49372b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:520px;margin:24px auto;padding:24px;border:1px solid #eadbc7;border-radius:20px;background:#fffdf9;box-shadow:0 8px 28px #5b3e2612}.brand{text-align:center}.brand h1{margin:0;color:#704a32;font-size:24px}.muted{color:#92765f;font-size:13px;line-height:1.7}.status{margin:24px 0;padding:20px;border-radius:15px;background:#f7eee3;text-align:center}.status strong{display:block;font-size:23px;color:#80583b;margin-bottom:8px}.time{text-align:center;font-weight:800;color:#704a32}.refresh{width:100%;padding:13px;border:0;border-radius:12px;background:#80583b;color:white;font-weight:850;font-size:15px}.error{color:#b42318;text-align:center;line-height:1.7}
+</style>
+</head>
+<body><main class="wrap"><header class="brand"><h1>🔥 馬鈴吉碳烤</h1><p class="muted">單筆訂單即時進度</p></header><div id="result"><p class="muted" style="text-align:center">正在確認 LINE 身分與訂單授權…</p></div><button class="refresh" id="refresh" type="button" onclick="loadStatus()" hidden>重新整理進度</button></main>
+<script>
+const SUPABASE_URL='https://gyonwgjafukzlmnosykt.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const params=new URLSearchParams(location.search);
+let orderId=params.get('order_id')||'';
+let statusToken=params.get('token')||'';
+function readLiffStateParams(){
+ const state=params.get('liff.state')||new URLSearchParams(location.search).get('liff.state')||'';
+ if(!state)return;
+ try{
+  const decoded=decodeURIComponent(state);
+  const q=decoded.includes('?')?decoded.slice(decoded.indexOf('?')+1):decoded.replace(/^\?/,'');
+  const nested=new URLSearchParams(q);
+  orderId=orderId||nested.get('order_id')||'';
+  statusToken=statusToken||nested.get('token')||'';
+ }catch(_){}
+}
+let lineAccessToken='';
+const labels={new:'等待店家確認',confirmed:'已確認・等待製作',preparing:'製作中',completed:'已完成',cancelled:'已取消'};
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function loadStatus(){
+ const box=document.getElementById('result');
+ try{
+  if(!lineAccessToken)throw new Error('尚未取得 LINE 登入授權，請重新從官方 LINE 訊息開啟。');
+  const {data,error}=await db.functions.invoke('customer-orders',{body:{action:'line-order-status',order_id:orderId,status_token:statusToken,line_access_token:lineAccessToken}});
+  if(error)throw error;if(!data?.ok)throw new Error(data?.error||'無法查詢此筆訂單');
+  const pickup=new Date(data.pickup_time);
+  box.innerHTML=`<div class="status"><strong>${escapeHtml(labels[data.status]||'訂單狀態更新中')}</strong><span>訂單編號 ${escapeHtml(data.order_number||'')}</span></div><p class="time">預定取餐時間<br>${escapeHtml(new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(pickup))}</p><p class="muted" style="text-align:center">此頁只顯示目前這一筆訂單的進度。</p>`;
+  document.getElementById('refresh').hidden=false;
+ }catch(e){box.innerHTML=`<p class="error">${escapeHtml(e.message||'查詢失敗')}</p>`;}
+}
+(async()=>{
+ try{
+  if(!window.MALINJI_LINE_LIFF_ID)throw new Error('店家尚未設定 LINE LIFF ID。');
+  if(!orderId||!/^[a-f0-9]{64}$/i.test(statusToken))throw new Error('訂單連結格式不正確。請從官方 LINE 訊息中的查詢按鈕開啟。');
+  await liff.init({liffId:window.MALINJI_LINE_LIFF_ID});
+  readLiffStateParams();
+  if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return;}
+  lineAccessToken=liff.getAccessToken()||'';
+  await loadStatus();
+  setInterval(loadStatus,15000);
+ }catch(e){document.getElementById('result').innerHTML=`<p class="error">${escapeHtml(e.message||'LINE 登入失敗')}</p>`;}
+})();
+</script></body></html>

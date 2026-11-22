@@ -100,7 +100,7 @@ async function enforcePublicOrderRateLimits(admin: ReturnType<typeof createClien
   } else if (action === "lookup-orders") {
     checks.push({ key: `ip:${ipHash}:lookup`, limit: 160, seconds: 600 });
     if (/^09\d{8}$/.test(phone)) checks.push({ key: `phone:${await hashRateLimitIdentifier(phone)}:lookup`, limit: 150, seconds: 600 });
-  } else if (["direct-edit-order", "request-cancel-order", "request-order-change", "get-order", "respond-time", "issue-order-change-token", "submit-order-change"].includes(action)) {
+  } else if (["direct-edit-order", "request-cancel-order", "request-order-change", "get-order", "respond-time", "issue-order-change-token", "submit-order-change", "line-order-status"].includes(action)) {
     checks.push({ key: `ip:${ipHash}:order-action`, limit: 20, seconds: 600 });
     if (/^09\d{8}$/.test(phone)) checks.push({ key: `phone:${await hashRateLimitIdentifier(phone)}:order-action`, limit: 8, seconds: 600 });
   }
@@ -125,6 +125,46 @@ async function ownerUser(req: Request, url: string, anonKey: string | undefined)
   if (error || user?.app_metadata?.role !== "store_owner") return null;
   return user;
 }
+function lineAuthError(message: string) {
+  const error = new Error(message);
+  (error as any).status = 401;
+  return error;
+}
+async function verifyLineIdentity(accessToken: unknown) {
+  const token = String(accessToken ?? "").trim();
+  const channelId = Deno.env.get("LINE_LOGIN_CHANNEL_ID") ?? "";
+  if (!token || !channelId) throw lineAuthError("尚未完成 LINE 登入設定，請稍後再試");
+  let verifyResponse: Response;
+  try {
+    verifyResponse = await fetch(`https://api.line.me/oauth2/v2.1/verify?access_token=${encodeURIComponent(token)}`);
+  } catch {
+    throw new Error("LINE 驗證服務暫時無法連線，請稍後再試");
+  }
+  if (!verifyResponse.ok) throw lineAuthError("LINE 登入驗證失敗，請重新綁定 LINE");
+  const verified = await verifyResponse.json();
+  if (String(verified.client_id ?? "") !== channelId || Number(verified.expires_in ?? 0) <= 0) throw lineAuthError("LINE 登入身分無效，請重新綁定 LINE");
+  const profileResponse = await fetch("https://api.line.me/v2/profile", { headers: { Authorization: `Bearer ${token}` } });
+  if (!profileResponse.ok) throw lineAuthError("無法取得 LINE 使用者資料，請重新綁定 LINE");
+  const profile = await profileResponse.json();
+  if (typeof profile.userId !== "string" || !/^U[0-9a-fA-F]{32}$/.test(profile.userId)) throw lineAuthError("LINE 使用者資料不正確");
+  return { userId: profile.userId, displayName: String(profile.displayName ?? "LINE 顧客").slice(0, 100) };
+}
+async function sendLineOrderLink(userId: string, displayName: string, orderLabel: string, statusUrl: string) {
+  const accessToken = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN") ?? "";
+  if (!accessToken) return false;
+  const response = await fetch("https://api.line.me/v2/bot/message/push", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ to: userId, messages: [{
+      type: "template", altText: "馬鈴吉碳烤訂單已成立，點擊查詢訂單進度",
+      template: { type: "buttons", title: "訂單已成立", text: `${displayName}，${orderLabel} 已收到！可點擊下方按鈕查看這筆訂單的目前進度。`,
+        actions: [{ type: "uri", label: "查詢訂單進度", uri: statusUrl }] },
+    }] }),
+  });
+  if (!response.ok) { console.warn("[customer-orders][LINE] push failed", response.status, (await response.text()).slice(0, 300)); return false; }
+  return true;
+}
+
 async function notifyOwner(admin: ReturnType<typeof createClient>, title: string, message: string) {
   const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
   const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
@@ -312,7 +352,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action ?? "");
 
-    const publicRateLimitedActions = ["create-order", "lookup-orders", "get-order", "respond-time", "direct-edit-order", "request-cancel-order", "request-order-change", "issue-order-change-token", "submit-order-change"];
+    const publicRateLimitedActions = ["create-order", "lookup-orders", "line-order-status", "get-order", "respond-time", "direct-edit-order", "request-cancel-order", "request-order-change", "issue-order-change-token", "submit-order-change"];
     if (publicRateLimitedActions.includes(action)) {
       const allowed = await enforcePublicOrderRateLimits(admin, req, action, body);
       if (!allowed) return reply({ ok: false, error: "操作太頻繁，請稍後再試。為保護訂單與電話資料，系統已暫時限制此請求。" }, 429);
@@ -349,68 +389,40 @@ Deno.serve(async (req) => {
       return reply({ ok: true, checked: due?.length ?? 0, sent });
     }
 
-    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-protection-20261122" });
+    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-line-identity-20261122" });
 
     if (action === "lookup-orders") {
-      const phone = normalizePhone(body.customer_phone);
-      if (!/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "手機號碼格式不正確" }, 400);
-      const hasLookupSession = await verifyCustomerLookupToken(body.lookup_token, phone);
-      if (!hasLookupSession && !await verifyTurnstileToken(body.turnstile_token, req)) {
-        return reply({ ok: false, error: "請先完成真人驗證，再查詢此手機號碼的訂單。" }, 403);
-      }
-      const { data: orders, error } = await admin.from("customer_orders")
-        .select("id,customer_name,items,total_amount,status,pickup_time,created_at,daily_sequence,note,confirmed_at,preparing_at,completed_at,cancelled_at")
-        .eq("customer_phone", phone).order("created_at", { ascending: false }).limit(50);
+      return reply({ ok: false, error: "已改用 LINE 訂單專屬連結查詢，請從官方 LINE 訊息中的「查詢訂單進度」按鈕開啟。" }, 410);
+    }
+
+    if (action === "line-order-status") {
+      const orderId = String(body.order_id ?? "").trim();
+      const statusToken = String(body.status_token ?? "").trim();
+      if (!orderId || !/^[a-f0-9]{64}$/i.test(statusToken)) return reply({ ok: false, error: "訂單查詢連結無效" }, 400);
+      const line = await verifyLineIdentity(body.line_access_token);
+      const tokenHash = await sha256Hex(statusToken);
+      const { data: order, error } = await admin.from("customer_orders")
+        .select("id,line_user_id,status,status_token_hash,pickup_time,daily_sequence")
+        .eq("id", orderId).eq("line_user_id", line.userId).eq("status_token_hash", tokenHash).maybeSingle();
       if (error) throw error;
-      const ids = (orders ?? []).map((o: any) => o.id);
-      await admin.from("customer_order_change_requests")
-        .update({ status: "expired", capability_hash: null })
-        .eq("customer_phone", phone).eq("status", "approved")
-        .not("expires_at", "is", null).lte("expires_at", new Date().toISOString());
-      const [addonResult, requestResult] = ids.length ? await Promise.all([
-        admin.from("customer_order_addons").select("id,order_id,items,total_amount,created_at").in("order_id", ids).order("created_at", { ascending: true }),
-        admin.from("customer_order_change_requests").select("id,order_id,proposal_text,reason,status,requested_at,reviewed_at,expires_at,completed_at").in("order_id", ids).order("requested_at", { ascending: false }),
-      ]) : [{ data: [], error: null }, { data: [], error: null }];
-      if (addonResult.error) throw addonResult.error;
-      if (requestResult.error) throw requestResult.error;
-      const safeOrders = (orders ?? []).map((order: any) => {
-        const { customerNote, meta } = readNote(String(order.note ?? ""));
-        return {
-          id: order.id, note: customerNote, customer_name: order.customer_name, items: order.items, total_amount: order.total_amount, daily_sequence: order.daily_sequence,
-          confirmed_at: order.confirmed_at, preparing_at: order.preparing_at, completed_at: order.completed_at, cancelled_at: order.cancelled_at,
-          status: order.status, pickup_time: order.pickup_time, created_at: order.created_at,
-          proposed_pickup_time: typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : null,
-          cancel_requested_at: typeof meta.cancel_requested_at === "string" ? meta.cancel_requested_at : null,
-          addons: (addonResult.data ?? []).filter((a: any) => a.order_id === order.id),
-          change_requests: (requestResult.data ?? []).filter((r: any) => r.order_id === order.id),
-        };
-      });
-      return reply({ ok: true, orders: safeOrders, lookup_token: await issueCustomerLookupToken(phone) });
+      if (!order) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的查詢權限" }, 403);
+      return reply({ ok: true, status: order.status, pickup_time: order.pickup_time,
+        order_number: order.daily_sequence ? `#${String(order.daily_sequence).padStart(3, "0")}` : String(order.id).slice(0, 8) });
     }
 
     if (action === "get-order") {
-      const id = String(body.order_id ?? "").trim();
-      const phone = normalizePhone(body.customer_phone);
-      if (!id || !/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "訂單資料不正確" }, 400);
-      const { data: order, error } = await admin.from("customer_orders")
-        .select("id,status,pickup_time,note,created_at,customer_name,daily_sequence,confirmed_at,preparing_at,completed_at,cancelled_at").eq("id", id).eq("customer_phone", phone).maybeSingle();
-      if (error) throw error;
-      if (!order) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
-      const { meta } = readNote(String(order.note ?? ""));
-      return reply({ ok: true, status: order.status, pickup_time: order.pickup_time, confirmed_at: order.confirmed_at, preparing_at: order.preparing_at, completed_at: order.completed_at, cancelled_at: order.cancelled_at,
-        proposed_pickup_time: typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : null,
-        customer_response: typeof meta.customer_response === "string" ? meta.customer_response : null });
+      return reply({ ok: false, error: "已改用 LINE 帳號與單筆訂單專屬連結查詢，不再接受手機號碼查詢。" }, 410);
     }
 
-    // 客人回覆店家提出的時間；同意才正式寫入 pickup_time 並確認訂單。
     if (action === "respond-time") {
       const id = String(body.order_id ?? "").trim();
-      const phone = normalizePhone(body.customer_phone);
-      if (!id || !/^09\d{8}$/.test(phone) || typeof body.accepted !== "boolean") return reply({ ok: false, error: "回覆資料不正確" }, 400);
+      if (!id || typeof body.accepted !== "boolean") return reply({ ok: false, error: "回覆資料不正確" }, 400);
+      const line = await verifyLineIdentity(body.line_access_token);
       const { data: order, error: readError } = await admin.from("customer_orders")
-        .select("id,status,pickup_time,note,created_at,customer_name,daily_sequence,confirmed_at,preparing_at,completed_at,cancelled_at").eq("id", id).eq("customer_phone", phone).maybeSingle();
+        .select("id,line_user_id,status,pickup_time,note,created_at,customer_name,daily_sequence,confirmed_at,preparing_at,completed_at,cancelled_at")
+        .eq("id", id).eq("line_user_id", line.userId).maybeSingle();
       if (readError) throw readError;
-      if (!order) return reply({ ok: false, error: "找不到訂單" }, 404);
+      if (!order) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的操作權限" }, 403);
       const { customerNote, meta } = readNote(String(order.note ?? ""));
       const proposed = typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : "";
       if (!proposed) return reply({ ok: false, error: "目前沒有待確認的取餐時間" }, 409);
@@ -418,20 +430,20 @@ Deno.serve(async (req) => {
         const { error } = await admin.from("customer_orders").update({
           pickup_time: proposed, status: "confirmed", confirmed_at: new Date().toISOString(),
           note: writeNote(customerNote, { ...meta, proposed_pickup_time: null, customer_response: "accepted" }),
-        }).eq("id", id);
+        }).eq("id", id).eq("line_user_id", line.userId);
         if (error) throw error;
         const label = orderDisplayLabel(order);
-        const task = notifyOwner(admin, "馬鈴吉碳烤｜客人接受新取餐時間", `${label}（${phone}）已接受店家提出的時間：${new Date(proposed).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false })}。訂單已確認。`);
+        const task = notifyOwner(admin, "馬鈴吉碳烤｜客人接受新取餐時間", `${label}（LINE：${line.displayName}）已接受店家提出的時間：${new Date(proposed).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false })}。訂單已確認。`);
         const runtime = (globalThis as any).EdgeRuntime;
         if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
         return reply({ ok: true, status: "confirmed", pickup_time: proposed });
       }
       const { error } = await admin.from("customer_orders").update({
         note: writeNote(customerNote, { ...meta, proposed_pickup_time: null, customer_response: "declined", needs_reschedule: true }),
-      }).eq("id", id);
+      }).eq("id", id).eq("line_user_id", line.userId);
       if (error) throw error;
       const label = orderDisplayLabel(order);
-      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人無法配合取餐時間", `${label}（${phone}）表示店家提出的時間不方便，請重新安排取餐時間並再次通知客人。`);
+      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人無法配合取餐時間", `${label}（LINE：${line.displayName}）表示店家提出的時間不方便，請重新安排取餐時間並再次通知客人。`);
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
       return reply({ ok: true, status: order.status, customer_response: "declined", needs_reschedule: true });
@@ -440,29 +452,30 @@ Deno.serve(async (req) => {
     // 客人直接修改原訂單餐點，不再建立申請或要求填寫原因。
     if (action === "direct-edit-order") {
       const orderId = String(body.order_id ?? "").trim();
-      const phone = normalizePhone(body.customer_phone);
-      if (!orderId || !/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "訂單修改資料不正確" }, 400);
+      if (!orderId) return reply({ ok: false, error: "訂單修改資料不正確" }, 400);
+      const line = await verifyLineIdentity(body.line_access_token);
       const { snapshot, total } = await buildRegularItemSnapshot(admin, body.items);
       const giftSnapshot = await buildGiftDrinkSnapshot(admin, body.free_drinks, total);
       const { data: currentOrder, error: currentError } = await admin.from("customer_orders")
-        .select("id,customer_name,status,pickup_time,created_at,daily_sequence").eq("id", orderId).eq("customer_phone", phone).maybeSingle();
+        .select("id,line_user_id,customer_name,status,pickup_time,created_at,daily_sequence")
+        .eq("id", orderId).eq("line_user_id", line.userId).maybeSingle();
       if (currentError) throw currentError;
-      if (!currentOrder) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+      if (!currentOrder) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的修改權限" }, 403);
       if (new Date(currentOrder.pickup_time).getTime() <= Date.now() + 15 * 60_000) {
         return reply({ ok: false, error: "距離預定取餐時間不足 15 分鐘，已無法修改餐點" }, 409);
       }
       const { data, error } = await admin.rpc("edit_customer_order_direct_atomic", {
-        p_order_id: orderId, p_customer_phone: phone, p_new_items: [...snapshot, ...giftSnapshot], p_new_base_total: total,
+        p_order_id: orderId, p_customer_phone: line.userId, p_new_items: [...snapshot, ...giftSnapshot], p_new_base_total: total,
       });
       if (error) {
-        if (error.code === "P0002") return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+        if (error.code === "P0002") return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的修改權限" }, 403);
         if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
         throw error;
       }
       const result = Array.isArray(data) ? data[0] : data;
       const editedAt = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false });
       const orderLabel = orderDisplayLabel(currentOrder);
-      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人修改訂單", `${orderLabel}（${phone}）於 ${editedAt} 修改餐點，請至訂單管理查看最新內容。`);
+      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人修改訂單", `${orderLabel}（LINE：${line.displayName}）於 ${editedAt} 修改餐點，請至訂單管理查看最新內容。`);
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
       return reply({ ok: true, total_amount: result?.new_total });
@@ -470,19 +483,23 @@ Deno.serve(async (req) => {
 
     if (action === "request-cancel-order") {
       const id = String(body.order_id ?? "").trim();
-      const phone = normalizePhone(body.customer_phone);
-      if (!id || !/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "取消申請資料不正確" }, 400);
-      const { data: order, error: readError } = await admin.from("customer_orders").select("id,customer_name,status,pickup_time,created_at,note,daily_sequence").eq("id", id).eq("customer_phone", phone).maybeSingle();
+      if (!id) return reply({ ok: false, error: "取消申請資料不正確" }, 400);
+      const line = await verifyLineIdentity(body.line_access_token);
+      const { data: order, error: readError } = await admin.from("customer_orders")
+        .select("id,line_user_id,customer_name,status,pickup_time,created_at,note,daily_sequence")
+        .eq("id", id).eq("line_user_id", line.userId).maybeSingle();
       if (readError) throw readError;
-      if (!order) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+      if (!order) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的取消權限" }, 403);
       if (!["new", "confirmed", "preparing"].includes(String(order.status))) return reply({ ok: false, error: "此訂單目前無法申請取消" }, 409);
       const { customerNote, meta } = readNote(String(order.note ?? ""));
       if (typeof meta.cancel_requested_at === "string") return reply({ ok: true, already_requested: true });
       const requestedAt = new Date().toISOString();
-      const { error } = await admin.from("customer_orders").update({ note: writeNote(customerNote, { ...meta, cancel_requested_at: requestedAt }) }).eq("id", id).eq("customer_phone", phone);
+      const { error } = await admin.from("customer_orders").update({
+        note: writeNote(customerNote, { ...meta, cancel_requested_at: requestedAt })
+      }).eq("id", id).eq("line_user_id", line.userId);
       if (error) throw error;
       const label = orderDisplayLabel(order);
-      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人申請取消訂單", `${label}（${phone}）提出取消申請，請至訂單管理處理。`);
+      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人申請取消訂單", `${label}（LINE：${line.displayName}）提出取消申請，請至訂單管理處理。`);
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
       return reply({ ok: true });
@@ -509,26 +526,26 @@ Deno.serve(async (req) => {
 
     if (action === "request-order-change") {
       const orderId = String(body.order_id ?? "").trim();
-      const phone = normalizePhone(body.customer_phone);
       const proposal = String(body.proposal_text ?? "").trim();
       const reason = String(body.reason ?? "").trim();
-      if (!orderId || !/^09\d{8}$/.test(phone) || !proposal || proposal.length > 500 || !reason || reason.length > 300) {
+      if (!orderId || !proposal || proposal.length > 500 || !reason || reason.length > 300) {
         return reply({ ok: false, error: "請填寫修改內容與原因（修改內容最多 500 字、原因最多 300 字）" }, 400);
       }
+      const line = await verifyLineIdentity(body.line_access_token);
       const { data: requestId, error } = await admin.rpc("create_customer_order_change_request_atomic", {
-        p_order_id: orderId, p_customer_phone: phone, p_proposal_text: proposal, p_reason: reason,
+        p_order_id: orderId, p_customer_phone: line.userId, p_proposal_text: proposal, p_reason: reason,
       });
       if (error) {
-        if (error.code === "P0002") return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+        if (error.code === "P0002") return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的修改權限" }, 403);
         if (error.code === "23505") return reply({ ok: false, error: "此訂單已有待審核的修改申請" }, 409);
         if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
         throw error;
       }
       const requestedAt = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false });
-      const { data: requestedOrder, error: requestedOrderError } = await admin.from("customer_orders").select("id,customer_name,created_at,daily_sequence").eq("id", orderId).maybeSingle();
+      const { data: requestedOrder, error: requestedOrderError } = await admin.from("customer_orders").select("id,customer_name,created_at,daily_sequence").eq("id", orderId).eq("line_user_id", line.userId).maybeSingle();
       if (requestedOrderError) throw requestedOrderError;
       const label = requestedOrder ? orderDisplayLabel(requestedOrder) : `訂單 ${orderId.slice(0, 8)}`;
-      const task = notifyOwner(admin, "馬鈴吉碳烤｜訂單修改申請", `${label}（${phone}）於 ${requestedAt} 提出修改申請：${proposal}；原因：${reason}。請至訂單管理審核。`);
+      const task = notifyOwner(admin, "馬鈴吉碳烤｜訂單修改申請", `${label}（LINE：${line.displayName}）於 ${requestedAt} 提出修改申請：${proposal}；原因：${reason}。請至訂單管理審核。`);
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
       return reply({ ok: true, request_id: requestId });
@@ -589,17 +606,17 @@ Deno.serve(async (req) => {
 
     if (action === "issue-order-change-token") {
       const requestId = String(body.request_id ?? "").trim();
-      const phone = normalizePhone(body.customer_phone);
-      if (!requestId || !/^09\d{8}$/.test(phone)) return reply({ ok: false, error: "修改授權資料不正確" }, 400);
+      if (!requestId) return reply({ ok: false, error: "修改授權資料不正確" }, 400);
+      const line = await verifyLineIdentity(body.line_access_token);
       const token = randomCapabilityToken();
       const tokenHash = await sha256Hex(token);
       const expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
       const { error } = await admin.rpc("issue_customer_order_change_token_atomic", {
-        p_request_id: requestId, p_customer_phone: phone,
+        p_request_id: requestId, p_customer_phone: line.userId,
         p_capability_hash: tokenHash, p_expires_at: expiresAt,
       });
       if (error) {
-        if (error.code === "P0002") return reply({ ok: false, error: "找不到符合手機號碼的修改申請" }, 404);
+        if (error.code === "P0002") return reply({ ok: false, error: "此 LINE 帳號沒有這筆修改申請的授權權限" }, 403);
         if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
         throw error;
       }
@@ -608,16 +625,16 @@ Deno.serve(async (req) => {
 
     if (action === "submit-order-change") {
       const orderId = String(body.order_id ?? "").trim();
-      const phone = normalizePhone(body.customer_phone);
       const token = String(body.capability_token ?? "").trim();
-      if (!orderId || !/^09\d{8}$/.test(phone) || !/^[0-9a-f]{64}$/i.test(token)) {
+      if (!orderId || !/^[0-9a-f]{64}$/i.test(token)) {
         return reply({ ok: false, error: "修改資料或授權碼不正確" }, 400);
       }
+      const line = await verifyLineIdentity(body.line_access_token);
       const { snapshot, total } = await buildRegularItemSnapshot(admin, body.items);
       const { data: currentOrder, error: currentOrderError } = await admin.from("customer_orders")
-        .select("items,note").eq("id", orderId).eq("customer_phone", phone).maybeSingle();
+        .select("items,note,line_user_id").eq("id", orderId).eq("line_user_id", line.userId).maybeSingle();
       if (currentOrderError) throw currentOrderError;
-      if (!currentOrder) return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+      if (!currentOrder) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的修改權限" }, 403);
       const giftItems = (Array.isArray(currentOrder.items) ? currentOrder.items : []).filter((item: any) => item?.is_gift === true);
       const finalItems = [...snapshot, ...giftItems];
       const tokenHash = await sha256Hex(token);
@@ -625,11 +642,11 @@ Deno.serve(async (req) => {
       const submittedNote = typeof body.note === "string" ? body.note.trim().slice(0, 500) : "";
       const newNote = submittedNote ? writeNote(submittedNote, existingMeta) : null;
       const { data, error } = await admin.rpc("apply_customer_order_change_atomic", {
-        p_order_id: orderId, p_customer_phone: phone, p_capability_hash: tokenHash,
+        p_order_id: orderId, p_customer_phone: line.userId, p_capability_hash: tokenHash,
         p_new_items: finalItems, p_new_base_total: total, p_new_note: newNote,
       });
       if (error) {
-        if (error.code === "P0002") return reply({ ok: false, error: "找不到符合手機號碼的訂單" }, 404);
+        if (error.code === "P0002") return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的修改權限" }, 403);
         if (error.code === "42501") return reply({ ok: false, error: "修改授權不正確或已使用" }, 403);
         if (error.code === "55000") return reply({ ok: false, error: error.message }, 409);
         throw error;
@@ -672,6 +689,9 @@ Deno.serve(async (req) => {
       return reply({ ok: false, error: "真人驗證未通過，請重新完成驗證後再送出訂單。" }, 403);
     }
 
+    const lineProfile = await verifyLineIdentity(body.line_access_token);
+    const statusToken = randomCapabilityToken();
+    const statusTokenHash = await sha256Hex(statusToken);
     const name = String(body.customer_name ?? "").trim();
     const phone = String(body.customer_phone ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
     const note = String(body.note ?? "").trim();
@@ -789,20 +809,28 @@ Deno.serve(async (req) => {
       throw insertError;
     }
     const order = Array.isArray(orderRows) ? orderRows[0] : orderRows;
+    const { error: lineBindError } = await admin.from("customer_orders").update({
+      line_user_id: lineProfile.userId, line_display_name: lineProfile.displayName, status_token_hash: statusTokenHash,
+    }).eq("id", order.id);
+    if (lineBindError) throw lineBindError;
     const { data: numberedOrder, error: numberReadError } = await admin.from("customer_orders").select("daily_sequence").eq("id", order.id).maybeSingle();
     if (numberReadError) throw numberReadError;
     const dailySequence = Number(numberedOrder?.daily_sequence) || null;
     const orderLabel = orderDisplayLabel({ ...order, customer_name: name, daily_sequence: dailySequence });
-    const notificationTask = notifyOwner(admin, "馬鈴吉碳烤｜新訂單", `${orderLabel}（${phone}），金額 $${total.toLocaleString("zh-TW")}，請開啟訂單管理查看。`);
+    const liffId = Deno.env.get("LINE_LIFF_ID") ?? "";
+    const statusUrl = liffId ? `https://liff.line.me/${liffId}?order_id=${encodeURIComponent(order.id)}&token=${encodeURIComponent(statusToken)}` : "";
+    const linePushTask = statusUrl ? sendLineOrderLink(lineProfile.userId, lineProfile.displayName, orderLabel, statusUrl) : Promise.resolve(false);
+    const notificationTask = notifyOwner(admin, "馬鈴吉碳烤｜新訂單", `${orderLabel}（${phone}），LINE：${lineProfile.displayName}，金額 $${total.toLocaleString("zh-TW")}，請開啟訂單管理查看。`);
     const edgeRuntime = (globalThis as any).EdgeRuntime;
-    if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(notificationTask);
-    else await notificationTask;
-    return reply({ ok: true, id: order.id, order_number: dailySequence ? `#${String(dailySequence).padStart(3, "0")}` : String(order.id).slice(0, 8), daily_sequence: dailySequence, total_amount: total });
+    if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(Promise.allSettled([notificationTask, linePushTask]));
+    else await Promise.allSettled([notificationTask, linePushTask]);
+    return reply({ ok: true, status_url: statusUrl, id: order.id, order_number: dailySequence ? `#${String(dailySequence).padStart(3, "0")}` : String(order.id).slice(0, 8), daily_sequence: dailySequence, total_amount: total });
   } catch (error) {
     console.error("customer-orders error", error);
     const message = error instanceof Error ? error.message : "訂單處理失敗，請稍後再試";
     const details = error && typeof error === "object" && "code" in error ? String((error as any).code) : undefined;
     console.error("[customer-orders][diagnostic]", { message, code: details });
-    return reply({ ok: false, error: message, code: details }, 500);
+    const status = Number((error as any)?.status) === 401 ? 401 : 500;
+    return reply({ ok: false, error: message, code: details }, status);
   }
 });
