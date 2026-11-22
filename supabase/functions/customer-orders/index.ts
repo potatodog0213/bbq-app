@@ -97,6 +97,8 @@ async function enforcePublicOrderRateLimits(admin: ReturnType<typeof createClien
   if (action === "create-order") {
     checks.push({ key: `ip:${ipHash}:create`, limit: 8, seconds: 600 });
     if (/^09\d{8}$/.test(phone)) checks.push({ key: `phone:${await hashRateLimitIdentifier(phone)}:create`, limit: 3, seconds: 600 });
+  } else if (action === "list-my-orders") {
+    checks.push({ key: `ip:${ipHash}:lookup`, limit: 160, seconds: 600 });
   } else if (action === "lookup-orders") {
     checks.push({ key: `ip:${ipHash}:lookup`, limit: 160, seconds: 600 });
     if (/^09\d{8}$/.test(phone)) checks.push({ key: `phone:${await hashRateLimitIdentifier(phone)}:lookup`, limit: 150, seconds: 600 });
@@ -330,7 +332,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action ?? "");
 
-    const publicRateLimitedActions = ["create-order", "lookup-orders", "line-order-status", "get-order", "respond-time", "direct-edit-order", "request-cancel-order", "request-order-change", "issue-order-change-token", "submit-order-change"];
+    const publicRateLimitedActions = ["create-order", "lookup-orders", "list-my-orders", "line-order-status", "get-order", "respond-time", "direct-edit-order", "request-cancel-order", "request-order-change", "issue-order-change-token", "submit-order-change"];
     if (publicRateLimitedActions.includes(action)) {
       const allowed = await enforcePublicOrderRateLimits(admin, req, action, body);
       if (!allowed) return reply({ ok: false, error: "操作太頻繁，請稍後再試。為保護訂單與電話資料，系統已暫時限制此請求。" }, 429);
@@ -367,10 +369,44 @@ Deno.serve(async (req) => {
       return reply({ ok: true, checked: due?.length ?? 0, sent });
     }
 
-    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-line-identity-20261122" });
+    if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-line-list-20261122" });
+
+    if (action === "list-my-orders") {
+      const line = await verifyLineIdentity(body.line_access_token);
+      const { data: orders, error: ordersError } = await admin.from("customer_orders")
+        .select("id,customer_name,customer_phone,line_display_name,pickup_time,items,total_amount,note,status,created_at,daily_sequence,confirmed_at,preparing_at,completed_at,cancelled_at")
+        .eq("line_user_id", line.userId)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (ordersError) throw ordersError;
+
+      const orderIds = (orders ?? []).map((order: any) => order.id);
+      let addons: any[] = [];
+      if (orderIds.length) {
+        const { data, error } = await admin.from("customer_order_addons")
+          .select("id,order_id,items,total_amount,created_at")
+          .in("order_id", orderIds)
+          .order("created_at", { ascending: true });
+        if (error) throw error;
+        addons = data ?? [];
+      }
+
+      const result = (orders ?? []).map((order: any) => {
+        const { meta } = readNote(String(order.note ?? ""));
+        return {
+          ...order,
+          proposed_pickup_time: typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : null,
+          customer_response: typeof meta.customer_response === "string" ? meta.customer_response : null,
+          needs_reschedule: meta.needs_reschedule === true,
+          cancel_requested_at: typeof meta.cancel_requested_at === "string" ? meta.cancel_requested_at : null,
+          addons: addons.filter((addon) => String(addon.order_id) === String(order.id)),
+        };
+      });
+      return reply({ ok: true, orders: result, count: result.length });
+    }
 
     if (action === "lookup-orders") {
-      return reply({ ok: false, error: "已改用 LINE 訂單專屬連結查詢，請從官方 LINE 訊息中的「查詢訂單進度」按鈕開啟。" }, 410);
+      return reply({ ok: false, error: "已改用 LINE 帳號查詢自己的訂單，請使用 LINE 登入後查看「我的訂單」。" }, 410);
     }
 
     if (action === "line-order-status") {

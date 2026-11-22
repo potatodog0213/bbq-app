@@ -2963,9 +2963,6 @@
         let customerAdminProductsLoaded = false;
         let customerAdminSettingsLoaded = false;
         let customerHistoryRefreshTimer = null;
-        let customerHistoryLastPhone = '';
-        let customerHistoryLookupToken = '';
-        let customerHistoryLookupTokenPhone = '';
         let customerHistoryOrders = [];
         let customerOrderEditorState = null;
         let customerEditorProducts = [];
@@ -3217,34 +3214,85 @@
         }
         async function renderCustomerHistoryPage(){
             if(customerHistoryRefreshTimer){clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=null;}
-            document.title='馬鈴吉碳烤｜訂單查詢';document.getElementById('home-view').style.display='none';document.getElementById('sub-view').style.display='block';document.querySelector('.top-bar').style.display='none';document.getElementById('page-title').textContent='訂單查詢';document.getElementById('top-action-container').innerHTML='';
-            document.getElementById('page-content').innerHTML=`<div class="customer-order-wrap"><div class="customer-order-brand"><h1>📋 訂單查詢</h1><p>已停止使用手機號碼查詢訂單。</p></div><section class="customer-order-group"><p style="text-align:center;line-height:1.9">請回到馬鈴吉碳烤官方 LINE，點選該筆訂單訊息中的「查詢訂單進度」按鈕。每個連結只會顯示該筆訂單，並核對目前登入的 LINE 帳號。</p><a href="order.html" class="customer-order-submit" style="display:block;text-align:center;text-decoration:none">← 返回線上點餐</a></section></div>`;
+            document.title='馬鈴吉碳烤｜我的訂單';
+            document.getElementById('home-view').style.display='none';
+            document.getElementById('sub-view').style.display='block';
+            document.querySelector('.top-bar').style.display='none';
+            document.getElementById('page-title').textContent='我的訂單';
+            document.getElementById('top-action-container').innerHTML='';
+            document.getElementById('page-content').innerHTML=`
+                <div class="customer-order-wrap">
+                    <div class="customer-order-brand">
+                        <h1>📋 我的訂單</h1>
+                        <p>目前 LINE 帳號的訂單紀錄</p>
+                    </div>
+                    <section class="customer-order-group">
+                        <div style="display:flex;align-items:center;gap:12px">
+                            <img id="customer-line-avatar" alt="LINE 頭像" style="display:none;width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #ead8c5">
+                            <div style="min-width:0">
+                                <strong id="customer-line-profile-name">正在確認 LINE 登入…</strong>
+                                <div class="customer-order-muted">已驗證目前登入的 LINE 帳號</div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="customer-order-group">
+                        <div id="customer-history-results"><p class="customer-order-muted" style="text-align:center;padding:18px">正在確認 LINE 登入…</p></div>
+                    </section>
+                    <a href="order.html?customer-order=1" class="customer-order-submit" style="display:block;text-align:center;text-decoration:none">← 返回線上點餐</a>
+                </div>`;
+            if(!await customerEnsureLineLogin())return;
+            await lookupCustomerOrders(false);
+            customerHistoryRefreshTimer=setInterval(()=>{
+                if(document.visibilityState==='visible'&&customerLineAccessToken)lookupCustomerOrders(true);
+            },12000);
         }
         async function lookupCustomerOrders(silent=false){
-            if(customerHistoryLookupInFlight)return;customerHistoryLookupInFlight=true;
-            const input=document.getElementById('customer-history-phone'),box=document.getElementById('customer-history-results');if(!input||!box){customerHistoryLookupInFlight=false;return;}
-            const phone=input.value.replace(/\D/g,'');if(!/^09\d{8}$/.test(phone)){customerHistoryLookupInFlight=false;if(!silent)customerOrderAlert('請輸入正確的 10 碼手機號碼（09 開頭）。',{title:'手機號碼格式不正確',icon:'!'});return;}
-            if(!silent){customerHistoryLastPhone=phone;box.innerHTML='<p class="customer-order-muted">正在查詢訂單…</p>';if(customerHistoryRefreshTimer)clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=setInterval(()=>{const current=document.getElementById('customer-history-phone');if(document.visibilityState==='visible'&&current&&current.value.replace(/\D/g,'')===customerHistoryLastPhone)lookupCustomerOrders(true);},5000);}
+            if(customerHistoryLookupInFlight||!customerLineAccessToken)return;
+            const box=document.getElementById('customer-history-results');
+            if(!box)return;
+            customerHistoryLookupInFlight=true;
+            if(!silent)box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:18px">正在載入你的訂單…</p>';
             try{
-                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'lookup-orders',customer_phone:phone,lookup_token:customerHistoryLookupTokenPhone===phone?customerHistoryLookupToken:''}});if(error)throw error;if(!data?.ok)throw new Error(data?.error||'查詢失敗');
-                if(data.lookup_token){customerHistoryLookupToken=data.lookup_token;customerHistoryLookupTokenPhone=phone;}
-                const rows=Array.isArray(data.orders)?data.orders:[];customerHistoryOrders=rows;
-                if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:18px">查無此手機號碼的訂單。系統仍會持續更新，若稍後有新訂單會自動顯示。</p>';return;}
+                const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{
+                    action:'list-my-orders',
+                    line_access_token:customerLineAccessToken
+                }});
+                if(error)throw error;
+                if(!data?.ok)throw new Error(data?.error||'查詢失敗');
+                const rows=Array.isArray(data.orders)?data.orders:[];
+                customerHistoryOrders=rows;
+                if(!rows.length){
+                    box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:22px">目前這個 LINE 帳號還沒有可顯示的訂單。</p>';
+                    return;
+                }
                 const statusLabel={new:'等待店家確認',confirmed:'已確認・等待製作',preparing:'製作中',completed:'已完成',cancelled:'已取消'};
                 const timeLabel=value=>value?new Date(value).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'尚未完成';
                 rows.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
                 box.innerHTML=rows.map(o=>{
-                    const items=Array.isArray(o.items)?o.items:[],itemText=customerFormatSpiceGroupedItems(items),created=o.created_at?new Date(o.created_at).toLocaleString('zh-TW'):'',pickup=o.pickup_time?new Date(o.pickup_time).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'';
-                    const active=['new','confirmed','preparing'].includes(o.status),steps=['new','confirmed','preparing','completed'],stepIndex=o.status==='cancelled'?-1:steps.indexOf(o.status),proposal=o.proposed_pickup_time?new Date(o.proposed_pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'';
+                    const items=Array.isArray(o.items)?o.items:[],itemText=customerFormatSpiceGroupedItems(items);
+                    const created=o.created_at?new Date(o.created_at).toLocaleString('zh-TW'):'';
+                    const pickup=o.pickup_time?new Date(o.pickup_time).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'';
+                    const active=['new','confirmed','preparing'].includes(o.status);
+                    const steps=['new','confirmed','preparing','completed'];
+                    const stepIndex=o.status==='cancelled'?-1:steps.indexOf(o.status);
+                    const proposal=o.proposed_pickup_time?new Date(o.proposed_pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'';
                     const timeline=[{key:'new',label:'訂單成立',at:o.created_at},{key:'confirmed',label:'店家確認',at:o.confirmed_at},{key:'preparing',label:'開始製作',at:o.preparing_at},{key:'completed',label:'訂單完成',at:o.completed_at}];
-                    const timelineHtml=`<div class="customer-order-timeline">${timeline.map((t,i)=>`<div class="customer-order-timeline-item ${t.at?'done':''}"><span class="customer-order-timeline-dot"></span><span class="customer-order-timeline-copy"><strong>${t.label}</strong><time>${t.at?customerEscape(timeLabel(t.at)):'尚未記錄'}</time></span></div>`).join('')}${o.status==='cancelled'?`<div class="customer-order-timeline-item done"><span class="customer-order-timeline-dot"></span><span class="customer-order-timeline-copy"><strong>訂單取消</strong><time>${customerEscape(timeLabel(o.cancelled_at))}</time></span></div>`:''}</div>`;
+                    const timelineHtml=`<div class="customer-order-timeline">${timeline.map(t=>`<div class="customer-order-timeline-item ${t.at?'done':''}"><span class="customer-order-timeline-dot"></span><span class="customer-order-timeline-copy"><strong>${t.label}</strong><time>${t.at?customerEscape(timeLabel(t.at)):'尚未記錄'}</time></span></div>`).join('')}${o.status==='cancelled'?`<div class="customer-order-timeline-item done"><span class="customer-order-timeline-dot"></span><span class="customer-order-timeline-copy"><strong>訂單取消</strong><time>${customerEscape(timeLabel(o.cancelled_at))}</time></span></div>`:''}</div>`;
                     const addonHtml=(o.addons||[]).map((a,i)=>`<div style="margin-top:10px;padding:12px;border-radius:12px;background:#fff8ed;border:1px solid #ead8c5"><b>過往餐點異動紀錄 ${i+1}</b><div class="customer-order-muted">異動時間：${customerEscape(new Date(a.created_at).toLocaleString('zh-TW'))}</div><div class="customer-admin-items">${customerFormatSpiceGroupedItems(a.items)}</div><b>異動金額：${customerMoney(a.total_amount)}</b></div>`).join('');
                     const canEditItems=active&&new Date(o.pickup_time).getTime()>Date.now()+15*60000;
-                    const cancelRequested=!!o.cancel_requested_at;const actionHtml=active?`<div class="customer-admin-actions" style="margin-top:12px">${canEditItems?`<button class="primary" onclick="customerOpenOrderEditor('edit','${customerEscape(o.id)}','${customerEscape(customerHistoryLastPhone)}')">✏️ 修改訂單（增加／減少餐點）</button>`:'<span class="customer-order-muted">距離取餐時間不足 15 分鐘，已停止修改訂單。</span>'}${cancelRequested?'<span class="customer-order-muted">已送出取消申請，等待店家處理</span>':`<button class="customer-time-action" onclick="customerRequestCancelOrder('${customerEscape(o.id)}','${customerEscape(customerHistoryLastPhone)}')">申請取消訂單</button>`}</div>`:'';
+                    const cancelRequested=!!o.cancel_requested_at;
+                    const actionHtml=active?`<div class="customer-admin-actions" style="margin-top:12px">${canEditItems?`<button class="primary" onclick="customerOpenOrderEditor('edit','${customerEscape(o.id)}','${customerEscape(o.customer_phone||'')}')">✏️ 修改訂單（增加／減少餐點）</button>`:'<span class="customer-order-muted">距離取餐時間不足 15 分鐘，已停止修改訂單。</span>'}${cancelRequested?'<span class="customer-order-muted">已送出取消申請，等待店家處理</span>':`<button class="customer-time-action" onclick="customerRequestCancelOrder('${customerEscape(o.id)}')">申請取消訂單</button>`}</div>`:'';
                     const progressClass=o.status==='completed'?'is-finished':o.status==='cancelled'?'is-cancelled':'';
-                    return `<article class="customer-admin-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>${customerEscape(customerDisplayOrderLabel(o))}</b><span class="customer-history-status ${active?'active':''}">${customerEscape(statusLabel[o.status]||o.status)}</span></div>${active||o.status==='completed'?`<div class="customer-history-progress ${progressClass}">${steps.map((step,i)=>`<span class="${stepIndex>=i?'done':''}"></span>`).join('')}</div>`:''}${timelineHtml}<div class="customer-admin-meta">下單時間：${customerEscape(created)}<br>取餐時間：${customerEscape(pickup)}</div>${proposal?`<div style="margin:10px 0;padding:12px;border-radius:12px;background:#fff4df;border:1px solid #e8c99c"><b>店家提出其他取餐時間</b><p style="margin:6px 0">${customerEscape(proposal)}</p><div class="customer-admin-actions"><button class="primary" onclick="respondCustomerPickup('${customerEscape(o.id)}',true,'${customerEscape(customerHistoryLastPhone)}')">可以，接受新時間</button><button onclick="respondCustomerPickup('${customerEscape(o.id)}',false,'${customerEscape(customerHistoryLastPhone)}')">不方便，請店家再安排</button></div></div>`:''}<div class="customer-admin-items">${itemText||'（無餐點明細）'}</div>${addonHtml}${actionHtml}<b>總金額：${customerMoney(o.total_amount)}</b></article>`;
+                    return `<article class="customer-admin-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>${customerEscape(customerDisplayOrderLabel(o))}</b><span class="customer-history-status ${active?'active':''}">${customerEscape(statusLabel[o.status]||o.status)}</span></div>${active||o.status==='completed'?`<div class="customer-history-progress ${progressClass}">${steps.map((step,i)=>`<span class="${stepIndex>=i?'done':''}"></span>`).join('')}</div>`:''}${timelineHtml}<div class="customer-admin-meta">下單時間：${customerEscape(created)}<br>取餐時間：${customerEscape(pickup)}</div>${proposal?`<div style="margin:10px 0;padding:12px;border-radius:12px;background:#fff4df;border:1px solid #e8c99c"><b>店家提出其他取餐時間</b><p style="margin:6px 0">${customerEscape(proposal)}</p><div class="customer-admin-actions"><button class="primary" onclick="respondCustomerPickup('${customerEscape(o.id)}',true)">可以，接受新時間</button><button onclick="respondCustomerPickup('${customerEscape(o.id)}',false)">不方便，請店家再安排</button></div></div>`:''}<div class="customer-admin-items">${itemText||'（無餐點明細）'}</div>${addonHtml}${actionHtml}<b>總金額：${customerMoney(o.total_amount)}</b></article>`;
                 }).join('');
-            }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('lookup customer orders failed',e,detail);if(silent&&/查詢此手機號碼/.test(detail)){if(customerHistoryRefreshTimer)clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=null;customerHistoryLookupToken='';customerHistoryLookupTokenPhone='';box.innerHTML='<p class="customer-order-muted">查詢授權已過期，請重新開啟 LINE 訂單連結。</p>';}else if(!silent)box.textContent='查詢失敗：'+detail;}finally{customerHistoryLookupInFlight=false;}
+            }catch(e){
+                let detail=e?.message||'未知錯誤';
+                try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}
+                console.error('list my LINE orders failed',e,detail);
+                if(!silent||!customerHistoryOrders.length)box.innerHTML=`<p class="customer-order-muted" style="text-align:center;padding:18px;color:#b91c1c">訂單載入失敗：${customerEscape(detail)}</p>`;
+            }finally{
+                customerHistoryLookupInFlight=false;
+            }
         }
 
 
@@ -3274,6 +3322,7 @@
             const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'request-cancel-order',order_id:orderId,line_access_token:customerLineAccessToken}});
             if(error||!data?.ok){customerOrderAlert(data?.error||'取消申請送出失敗，請稍後再試');return;}
             customerOrderAlert(data.already_requested?'這筆訂單已經送出取消申請，請等待店家處理。':'取消申請已送出，請等待店家確認。',{title:'取消申請已送出',icon:'✓'});
+            await lookupCustomerOrders(true);
         }
         async function customerOpenOrderEditor(mode,orderId,phone){
             try{
@@ -3385,6 +3434,7 @@
             customerOrderAlert(accepted?'已接受店家提出的新取餐時間。':'已告知店家此時間不方便，等待店家重新安排。');
             const token=new URLSearchParams(location.search).get('token')||'';
             if(token)customerWatchOrder(orderId,token);
+            else if(document.getElementById('customer-history-results'))await lookupCustomerOrders(true);
         }
         function customerOwnerRole(user){return user?.app_metadata?.role==='store_owner';}
         async function renderCustomerOrderAdmin(){
