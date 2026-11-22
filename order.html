@@ -2995,6 +2995,7 @@
             const content = document.getElementById('page-content');
             content.innerHTML = '<p style="text-align:center;padding:35px;color:#92765f;">正在確認 LINE 登入…</p>';
             if(!await customerEnsureLineLogin())return;
+            if(!new URLSearchParams(location.search).get('order_id'))void customerRecordOrderVisit();
             const statusParams=new URLSearchParams(location.search);
             const statusOrderId=String(statusParams.get('order_id')||'').trim();
             const statusToken=String(statusParams.get('token')||'').trim();
@@ -3171,6 +3172,30 @@ function customerPublicProductClick(id){if(customerPublicSoldOutIds.has(String(i
         let customerLineDisplayName='';
         let customerLinePictureUrl='';
         let customerLiffInitialized=false;
+
+        // 點餐訪客分析：僅保存 LINE 使用者 ID 的 SHA-256 雜湊，不保存原始 LINE ID。
+        let customerLineUserId='';
+        async function customerAnalyticsSha256(value){
+            const bytes=new TextEncoder().encode(String(value||''));
+            const digest=await crypto.subtle.digest('SHA-256',bytes);
+            return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+        }
+        async function customerRecordOrderVisit(){
+            try{
+                if(!window.crypto?.subtle)return;
+                let visitorSeed=localStorage.getItem('malinji_order_visitor_seed_v1');
+                if(!visitorSeed){visitorSeed=(crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`);localStorage.setItem('malinji_order_visitor_seed_v1',visitorSeed);}
+                let sessionId=sessionStorage.getItem('malinji_order_visit_session_v1');
+                if(!sessionId){sessionId=crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`;sessionStorage.setItem('malinji_order_visit_session_v1',sessionId);}
+                const visitorKey=await customerAnalyticsSha256(customerLineUserId||`anonymous:${visitorSeed}`);
+                const {error}=await _supabase.from('customer_order_visits').insert({
+                    visitor_key:visitorKey,visit_session_id:sessionId,
+                    display_name:String(customerLineDisplayName||'').slice(0,80)||null,
+                    source:'customer-order-page'
+                });
+                if(error&&error.code!=='23505')console.warn('[點餐訪客分析] 紀錄未成功，請確認已建立專用資料表。',error.message);
+            }catch(error){console.warn('[點餐訪客分析] 紀錄略過',error);}
+        }
         async function customerEnsureLineLogin(){
             const content=document.getElementById('page-content');
             const liffId=String(window.MALINJI_LINE_LIFF_ID||'').trim();
@@ -3199,6 +3224,7 @@ function customerPublicProductClick(id){if(customerPublicSoldOutIds.has(String(i
                 if(!accessToken)throw new Error('無法取得 LINE 授權，請重新登入。');
                 const profile=await window.liff.getProfile();
                 customerLineAccessToken=accessToken;
+                customerLineUserId=String(profile?.userId||'');
                 customerLineDisplayName=String(profile?.displayName||'LINE 顧客').trim().slice(0,40)||'LINE 顧客';
                 customerLinePictureUrl=String(profile?.pictureUrl||'');
                 const profileName=document.getElementById('customer-line-profile-name');
