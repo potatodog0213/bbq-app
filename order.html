@@ -1108,6 +1108,8 @@
 
 .customer-menu-card{pointer-events:auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:pointer}.customer-menu-card[role="button"]{user-select:none;-webkit-user-select:none}
 .customer-line-profile{display:inline-flex;align-items:center;justify-content:center;gap:9px;margin-top:12px;padding:7px 13px 7px 7px;border:1px solid #eadbc7;border-radius:999px;background:#fffaf3;color:#704a32;font-size:13px;font-weight:800}.customer-line-profile img{display:none;width:30px;height:30px;border-radius:50%;object-fit:cover;background:#f1e4d5}.customer-line-profile img[src=""]{display:none}
+
+.customer-cart-floating-button{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:10020;display:flex;align-items:center;gap:9px;min-height:54px;padding:0 17px;border:0;border-radius:999px;background:#80583b;color:#fff;box-shadow:0 8px 26px rgba(73,45,25,.28);font:inherit;font-weight:850;cursor:pointer}.customer-cart-floating-icon{font-size:21px}.customer-cart-floating-label{font-size:15px}.customer-cart-floating-count{display:grid;place-items:center;min-width:23px;height:23px;padding:0 5px;border-radius:99px;background:#fff;color:#80583b;font-size:13px;font-weight:900}.customer-cart-modal-overlay{display:none;position:fixed;inset:0;z-index:10030;background:rgba(35,25,18,.52);padding:16px;box-sizing:border-box;align-items:flex-end;justify-content:center}.customer-cart-modal-overlay.is-open{display:flex}.customer-cart-modal{width:min(100%,560px);max-height:min(86vh,820px);overflow:auto;margin:0;padding:17px 16px calc(18px + env(safe-area-inset-bottom));border-radius:20px 20px 16px 16px;box-shadow:0 18px 55px rgba(0,0,0,.25);box-sizing:border-box}.customer-cart-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:-17px;z-index:2;background:#fff;padding:4px 0 11px;border-bottom:1px solid #f0e5d8;margin-bottom:10px}.customer-cart-modal-head h3{margin:0}.customer-cart-modal-close{width:36px;height:36px;flex:0 0 36px;border:1px solid #eadbc7;border-radius:50%;background:#fff8ef;color:#79563c;font-size:18px;font-weight:800}.customer-cart-modal .customer-order-form{padding-top:8px}.customer-cart-modal .customer-order-submit{margin-top:16px}@media(min-width:700px){.customer-cart-modal-overlay{align-items:center}.customer-cart-modal{border-radius:20px}}
 </style>
 
     <!-- PWA / iOS 安裝設定：僅新增安裝中繼資料，不更動原有系統功能 -->
@@ -3039,7 +3041,13 @@
             content.innerHTML = `<div class="customer-order-wrap">
               <div class="customer-order-brand customer-order-brand-bar">${allSettings.customerOrderBrandLogo?.url?`<img class="customer-order-brand-logo" src="${customerEscape(allSettings.customerOrderBrandLogo.url)}" alt="馬鈴吉碳烤 Logo">`:"<div class=\"customer-order-brand-mark\" aria-hidden=\"true\">🍢</div>"}<div class="customer-order-brand-name"><h1>馬鈴吉碳烤</h1><p>線上預訂・現場取餐</p></div><div class="customer-line-profile" id="customer-line-profile"><img id="customer-line-avatar" alt="LINE 頭像" src="" referrerpolicy="no-referrer"><span id="customer-line-profile-name">LINE 登入中</span></div></div>
               <div id="customer-public-menu"></div>
-              <section class="customer-order-group"><h3>🧾 訂單資料</h3>
+              <div id="customer-cart-floating-root">
+                <button type="button" id="customer-cart-floating-button" class="customer-cart-floating-button" onclick="toggleCustomerCartModal(true)" aria-label="開啟購物車">
+                  <span class="customer-cart-floating-icon">🛒</span><span class="customer-cart-floating-label">購物車</span><span id="customer-cart-floating-count" class="customer-cart-floating-count">0</span>
+                </button>
+                <div id="customer-cart-modal-overlay" class="customer-cart-modal-overlay" onclick="if(event.target===this)toggleCustomerCartModal(false)" aria-hidden="true">
+                  <section class="customer-order-group customer-cart-modal" role="dialog" aria-modal="true" aria-labelledby="customer-cart-modal-title">
+                    <div class="customer-cart-modal-head"><h3 id="customer-cart-modal-title">🧾 確認訂單</h3><button type="button" class="customer-cart-modal-close" onclick="toggleCustomerCartModal(false)" aria-label="關閉購物車">✕</button></div>
                 <div id="customer-public-cart"></div>
                 <div id="customer-public-gift-drinks"></div>
                 <div class="customer-order-form">
@@ -3050,8 +3058,10 @@
                 </div>
                 <div style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true"><label>不要填寫<input id="customer-public-website" tabindex="-1" autocomplete="off"></label></div>
 
-                <button class="customer-order-submit" id="customer-public-submit" onclick="submitCustomerPublicOrder()">送出訂單</button>
-              </section>
+                <button class="customer-order-submit" id="customer-public-submit" onclick="submitCustomerPublicOrder()">確認內容並送出訂單</button>
+                  </section>
+                </div>
+              </div>
             </div>`;
             const profileName=document.getElementById('customer-line-profile-name');
             const profileAvatar=document.getElementById('customer-line-avatar');
@@ -3095,11 +3105,11 @@
         function customerLocalDateValue(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;}
         function customerParseLocalDate(value){const [y,m,d]=String(value||'').split('-').map(Number);return new Date(y||2000,(m||1)-1,d||1,12,0,0,0);}
         function customerDateAddDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d;}
-        function customerAllowedMinutes(hour){if(Number(hour)===0)return ['00'];if(Number(hour)===17)return ['30','35','40','45','50','55'];return Array.from({length:12},(_,i)=>String(i*5).padStart(2,'0'));}
-        function customerIsAllowedPickup(date){const h=date.getHours(),m=date.getMinutes();return (h===17&&m>=30&&m<=55&&m%5===0)||(h>=18&&h<=23&&m%5===0)||(h===0&&m===0);}
+        function customerAllowedMinutes(hour){return Array.from({length:12},(_,i)=>String(i*5).padStart(2,'0'));}
+        function customerIsAllowedPickup(date){const h=date.getHours(),m=date.getMinutes();return (h===17&&m>=30&&m<=55&&m%5===0)||(h>=18&&h<=23&&m%5===0)||((h===0||h===1)&&m%5===0)||(h===2&&m===0);}
         function customerPickupDateTime(date,hour,minute){const pickupDate=new Date(`${date}T12:00:00`);if(Number(hour)<=2)pickupDate.setDate(pickupDate.getDate()+1);pickupDate.setHours(Number(hour),Number(minute),0,0);return pickupDate;}
         function customerPickupIsSelectable(date,hour,minute){const selected=customerPickupDateTime(date,hour,minute);if(!customerIsAllowedPickup(selected))return false;const lead=customerPickupPickerState?.mode==='admin'?30:10;return selected.getTime()>Date.now()+lead*60000;}
-        function customerPickupValidHours(date){return [17,18,19,20,21,22,23,0].filter(hour=>customerAllowedMinutes(hour).some(minute=>customerPickupIsSelectable(date,hour,minute)));}
+        function customerPickupValidHours(date){return [17,18,19,20,21,22,23,0,1,2].filter(hour=>customerAllowedMinutes(hour).some(minute=>customerPickupIsSelectable(date,hour,minute)));}
         function customerNextValidPickupDateTime(leadMinutes=10){let candidate=new Date(Date.now()+leadMinutes*60000);candidate.setSeconds(0,0);candidate.setMinutes(Math.ceil(candidate.getMinutes()/5)*5);for(let i=0;i<14*24*12;i++,candidate=new Date(candidate.getTime()+5*60000)){if(customerIsAllowedPickup(candidate)&&candidate.getTime()>Date.now()+leadMinutes*60000)return candidate;}return new Date(Date.now()+24*60*60000);}
         function openCustomerPickupPicker(){openCustomerDateTimePicker({mode:'public'});}
         function openCustomerAdminProposeTimePicker(orderId,currentValue){openCustomerDateTimePicker({mode:'admin',orderId,currentValue});}
@@ -3154,6 +3164,9 @@ function customerPublicProductClick(id){if(customerPublicSoldOutIds.has(String(i
             const el=document.getElementById('customer-public-cart');if(!el)return;
             const rows=Object.entries(customerPublicCart).filter(([key,qty])=>Number(qty)>0&&!customerPublicSoldOutIds.has(key.split('::')[0])).map(([key,qty])=>{const [id,levelKey]=key.split('::');const product=customerPublicProductById.get(id),isDrink=product&&customerCategory(product,customerPublicMenuSettings)==='飲品類';return {key,id,level:isDrink||levelKey==='__none__'?'':levelKey,qty:Number(qty),product};}).filter(x=>x.product);
             const total=customerPublicCartTotal();
+            const cartCount=Object.entries(customerPublicCart).reduce((sum,[key,qty])=>sum+(!customerPublicSoldOutIds.has(key.split('::')[0])?(Number(qty)||0):0),0);
+            const countBadge=document.getElementById('customer-cart-floating-count');if(countBadge)countBadge.textContent=String(cartCount);
+            const floatingButton=document.getElementById('customer-cart-floating-button');if(floatingButton)floatingButton.setAttribute('aria-label',`開啟購物車，${cartCount} 件商品，${customerMoney(total)}`);
             const spiceOrder=['不辣','小辣','中辣','大辣','未指定辣度'];
             const grouped=new Map();rows.forEach(row=>{if(!grouped.has(row.level))grouped.set(row.level,[]);grouped.get(row.level).push(row);});
             const levels=[...grouped.keys()].sort((a,b)=>{const ai=spiceOrder.indexOf(a),bi=spiceOrder.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');});
@@ -3191,6 +3204,7 @@ function customerPublicProductClick(id){if(customerPublicSoldOutIds.has(String(i
                 const {error}=await _supabase.from('customer_order_visits').insert({
                     visitor_key:visitorKey,visit_session_id:sessionId,
                     display_name:String(customerLineDisplayName||'').slice(0,80)||null,
+                    picture_url:String(customerLinePictureUrl||'').trim().slice(0,2048)||null,
                     source:'customer-order-page'
                 });
                 if(error&&error.code!=='23505')console.warn('[點餐訪客分析] 紀錄未成功，請確認已建立專用資料表。',error.message);
@@ -3238,6 +3252,7 @@ function customerPublicProductClick(id){if(customerPublicSoldOutIds.has(String(i
                 return false;
             }
         }
+        function toggleCustomerCartModal(open){const overlay=document.getElementById('customer-cart-modal-overlay');if(!overlay)return;overlay.classList.toggle('is-open',!!open);overlay.setAttribute('aria-hidden',open?'false':'true');document.body.style.overflow=open?'hidden':'';if(open){renderCustomerPublicCart();}else{document.body.style.overflow='';}}
         async function submitCustomerPublicOrder(){
             let editState=window.customerPublicEditOrderState||null;try{if(!editState){editState=JSON.parse(sessionStorage.getItem('customerPublicEditOrderState')||'null');if(editState)window.customerPublicEditOrderState=editState;}}catch(e){}
             if(editState&&!['new','confirmed'].includes(editState.status)){customerOrderAlert(editState.status==='preparing'?'店家已開始製作，無法再修改餐點。':'這筆訂單目前狀態已不允許修改餐點。',{title:'無法修改訂單',icon:'!'});return;}
@@ -3254,7 +3269,7 @@ function customerPublicProductClick(id){if(customerPublicSoldOutIds.has(String(i
                 const requestBody=editState?{action:'direct-edit-order',order_id:editState.orderId,line_access_token:customerLineAccessToken,items,free_drinks}:{action:'create-order',customer_name:name,customer_phone:phone,pickup_time:selectedPickup.toISOString(),note,items,free_drinks,website:document.getElementById('customer-public-website')?.value||'',line_access_token:customerLineAccessToken,submitted_at:Date.now()};const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:requestBody});
                 console.info('[馬鈴吉] 訂單建立 API 耗時：',Math.round(performance.now()-submitStartedAt),'ms');
                 if(error)throw error;if(!data?.ok)throw new Error(data?.error||'訂單送出失敗');
-                document.querySelector('.customer-order-wrap').innerHTML=`<div class="customer-order-success"><div style="font-size:42px;">✓</div><h2>${editState?'訂單修改已提交':'訂單已送出'}</h2><p>${editState?'店家已收到修改通知，請留意後續確認。':'訂單已成立。'}</p>${!editState&&data?.order_number?`<p>訂單編號：<b>${customerEscape(data.order_number)}</b></p>`:''}${!editState&&data?.status_url?`<p><a href="${customerEscape(data.status_url)}" style="display:inline-block;margin:10px auto;color:#80583b;font-weight:800">查看這筆訂單進度 →</a></p>`:''}<a href="history.html" style="display:block;margin-top:14px;color:#80583b;font-weight:800">查看訂單</a></div>`;window.customerPublicEditOrderState=null;try{sessionStorage.removeItem('customerPublicEditOrderState');}catch(e){}
+                document.body.style.overflow='';document.querySelector('.customer-order-wrap').innerHTML=`<div class="customer-order-success"><div style="font-size:42px;">✓</div><h2>${editState?'訂單修改已提交':'訂單已送出'}</h2><p>${editState?'店家已收到修改通知，請留意後續確認。':'訂單已成立。'}</p>${!editState&&data?.order_number?`<p>訂單編號：<b>${customerEscape(data.order_number)}</b></p>`:''}${!editState&&data?.status_url?`<p><a href="${customerEscape(data.status_url)}" style="display:inline-block;margin:10px auto;color:#80583b;font-weight:800">查看這筆訂單進度 →</a></p>`:''}<a href="history.html" style="display:block;margin-top:14px;color:#80583b;font-weight:800">查看訂單</a></div>`;window.customerPublicEditOrderState=null;try{sessionStorage.removeItem('customerPublicEditOrderState');}catch(e){}
             }catch(e){let detail=e?.message||'未知錯誤';try{if(e?.context?.json){const payload=await e.context.json();detail=payload?.error||payload?.message||detail;}}catch(_){}console.error('customer order submit failed',e,detail);customerOrderAlert('訂單送出失敗：'+detail);customerPublicSubmitInFlight=false;btn.disabled=false;btn.textContent='重新送出訂單';}
         }
         function customerOrderDialog(message,{title='訂單通知',icon='✦',confirm=false,confirmText='確定',cancelText='再想一下',tone='default',eyebrow='MALINJI ORDER',detailHtml='',note='',danger=false}={}){
