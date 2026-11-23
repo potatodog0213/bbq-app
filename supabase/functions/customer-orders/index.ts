@@ -483,6 +483,9 @@ Deno.serve(async (req) => {
         .eq("id", orderId).eq("line_user_id", line.userId).maybeSingle();
       if (currentError) throw currentError;
       if (!currentOrder) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的修改權限" }, 403);
+      if (!["new", "confirmed"].includes(String(currentOrder.status))) {
+        return reply({ ok: false, error: "訂單已開始製作或已結束，無法再修改餐點" }, 409);
+      }
       if (new Date(currentOrder.pickup_time).getTime() <= Date.now() + 15 * 60_000) {
         return reply({ ok: false, error: "距離預定取餐時間不足 15 分鐘，已無法修改餐點" }, 409);
       }
