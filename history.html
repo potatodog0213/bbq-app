@@ -3249,6 +3249,7 @@
             document.getElementById('top-action-container').innerHTML='';
             document.getElementById('page-content').innerHTML=`
                 <div class="customer-order-wrap">
+                <a href="order.html?customer-order=1" class="customer-order-submit" style="display:block;text-align:center;text-decoration:none">← 返回線上點餐</a>
                     <h1 style="margin:8px 0 16px;text-align:center;color:#704a32;font-size:24px">我的訂單</h1>
                     <section class="customer-order-group">
                         <div style="display:flex;align-items:center;gap:12px">
@@ -3261,7 +3262,7 @@
                     <section class="customer-order-group">
                         <div id="customer-history-results"><p class="customer-order-muted" style="text-align:center;padding:18px">正在確認 LINE 登入…</p></div>
                     </section>
-                    <a href="order.html?customer-order=1" class="customer-order-submit" style="display:block;text-align:center;text-decoration:none">← 返回線上點餐</a>
+                    
                 </div>`;
             if(!await customerEnsureLineLogin())return;
             await lookupCustomerOrders(false);
