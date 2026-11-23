@@ -515,7 +515,7 @@ Deno.serve(async (req) => {
         .eq("id", id).eq("line_user_id", line.userId).maybeSingle();
       if (readError) throw readError;
       if (!order) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的取消權限" }, 403);
-      if (!["new", "confirmed", "preparing"].includes(String(order.status))) return reply({ ok: false, error: "此訂單目前無法申請取消" }, 409);
+      if (!["new", "confirmed"].includes(String(order.status))) return reply({ ok: false, error: "此訂單目前無法申請取消" }, 409);
       const pickupTimestamp = new Date(order.pickup_time).getTime();
       if (!Number.isFinite(pickupTimestamp) || pickupTimestamp <= Date.now() + 60 * 60 * 1000) {
         return reply({ ok: false, error: "距離取餐時間不足 1 小時，已無法申請取消訂單" }, 409);
@@ -547,7 +547,7 @@ Deno.serve(async (req) => {
       if (typeof meta.cancel_requested_at !== "string") return reply({ ok: false, error: "此訂單沒有待處理的取消申請" }, 409);
       const nextMeta = { ...meta, cancel_requested_at: null, cancel_request_reviewed_at: new Date().toISOString(), cancel_request_result: accepted ? "accepted" : "declined" };
       const update: Record<string, unknown> = { note: writeNote(customerNote, nextMeta) };
-      if (accepted) { if (!["new", "confirmed", "preparing"].includes(String(order.status))) return reply({ ok: false, error: "訂單狀態已變更，無法取消" }, 409); update.status = "cancelled"; update.cancelled_at = new Date().toISOString(); }
+      if (accepted) { if (!["new", "confirmed"].includes(String(order.status))) return reply({ ok: false, error: "訂單狀態已變更，無法取消" }, 409); update.status = "cancelled"; update.cancelled_at = new Date().toISOString(); }
       const { error } = await admin.from("customer_orders").update(update).eq("id", id).eq("status", order.status);
       if (error) throw error;
       return reply({ ok: true, status: accepted ? "cancelled" : order.status });
