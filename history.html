@@ -1382,6 +1382,111 @@
     }
 }
 
+
+/* MY-ORDERS-LAYOUT-FIX-20261123 */
+.customer-history-page,
+.customer-history-page * {
+    box-sizing: border-box;
+}
+
+.customer-history-page #customer-history-results {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.customer-history-page #customer-history-results > article.customer-admin-card {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 14px 0;
+    padding: 17px;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    border: 1px solid #eadbc7;
+    border-radius: 17px;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(91,62,38,.055);
+}
+
+.customer-history-page .customer-admin-meta,
+.customer-history-page .customer-admin-items {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.85;
+}
+
+.customer-history-page .customer-admin-items {
+    padding: 12px;
+    margin: 12px 0;
+    border: 1px solid #f0e4d5;
+    border-radius: 12px;
+    background: #fffaf3;
+    white-space: pre-line;
+}
+
+.customer-history-page .customer-order-timeline {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.customer-history-page .customer-order-timeline-item {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.customer-history-page .customer-order-timeline-copy {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.customer-history-page .customer-admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+}
+
+.customer-history-page .customer-admin-actions button {
+    max-width: 100%;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.customer-history-page #customer-history-results img {
+    max-width: 100%;
+    height: auto;
+}
+
+@media (max-width: 560px) {
+    .customer-history-page #customer-history-results > article.customer-admin-card {
+        padding: 13px;
+        margin: 11px 0;
+        border-radius: 14px;
+    }
+
+    .customer-history-page .customer-order-timeline {
+        grid-template-columns: 1fr;
+        gap: 7px;
+    }
+
+    .customer-history-page .customer-admin-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .customer-history-page .customer-admin-actions button {
+        width: 100%;
+        min-height: 42px;
+    }
+}
+/* END MY-ORDERS-LAYOUT-FIX */
 </style>
 
 </head>
