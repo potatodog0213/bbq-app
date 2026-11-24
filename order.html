@@ -3179,9 +3179,19 @@
             for(let day=1;day<=days;day++){
                 const d=new Date(y,m,day,12),value=customerLocalDateValue(d),isRest=state.mode!=='admin'&&d.getDay()===3;
                 const disabled=value<state.minDate||value>state.maxDate||isRest,selected=value===state.date,today=value===state.minDate;
-                cells.push(`<button type="button" class="customer-pickup-day ${isRest?'customer-pickup-day-rest ':''}${selected&&!isRest?'selected ':''}${today?'today':''}" ${disabled?'disabled':''} ${isRest?'aria-label="星期三公休" title="公休"':''} ${disabled?'':'onclick="selectCustomerPickupDate(\'${value}\')"'}>${isRest?'休':day}</button>`);
+                cells.push(`<button type="button" class="customer-pickup-day ${isRest?'customer-pickup-day-rest ':''}${selected&&!isRest?'selected ':''}${today?'today':''}" data-pickup-date="${value}" ${disabled?'disabled':''} ${isRest?'aria-label="星期三公休" title="公休"':''}>${isRest?'休':day}</button>`);
             }
             grid.innerHTML=cells.join('');
+            // 使用日曆事件委派處理日期點擊，避免按鈕內嵌 onclick 未觸發而造成日期不更新。
+            if(!grid.dataset.pickupDateBound){
+                grid.addEventListener('click',event=>{
+                    const button=event.target.closest('button[data-pickup-date]');
+                    if(!button||button.disabled)return;
+                    event.preventDefault();
+                    selectCustomerPickupDate(button.dataset.pickupDate);
+                });
+                grid.dataset.pickupDateBound='1';
+            }
             const prev=new Date(y,m-1,1),next=new Date(y,m+1,1),minMonth=state.minDate.slice(0,7),maxMonth=state.maxDate.slice(0,7);
             const buttons=document.querySelectorAll('#customer-pickup-overlay .customer-pickup-calendar-head button');
             if(buttons[0])buttons[0].disabled=customerLocalDateValue(prev).slice(0,7)<minMonth;
@@ -3202,8 +3212,11 @@
             if(value<customerPickupPickerState.minDate||value>customerPickupPickerState.maxDate)return;
             if(customerPickupPickerState.mode!=='admin'&&selectedDate.getDay()===3)return;
             // 點選日期後，以使用者剛選的日期作為唯一狀態來源，避免預覽仍顯示原本日期。
-            customerPickupPickerState.date=value;customerPickupPickerState.month=new Date(y,m-1,1);
-            renderCustomerPickupCalendar();populateCustomerPickupTimeOptions();updateCustomerPickupPreview();
+            customerPickupPickerState.date=value;
+            customerPickupPickerState.month=new Date(y,m-1,1);
+            renderCustomerPickupCalendar();
+            populateCustomerPickupTimeOptions();
+            updateCustomerPickupPreview();
         }
         function populateCustomerPickupTimeOptions(){
             const state=customerPickupPickerState,hourSelect=document.getElementById('customer-pickup-hour'),minuteSelect=document.getElementById('customer-pickup-minute');
