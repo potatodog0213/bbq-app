@@ -1417,6 +1417,22 @@
 .customer-manage-photo-controls label:before{content:'＋';display:inline-grid;place-items:center;width:20px;height:20px;border-radius:7px;background:#80583b;color:white;font-size:15px;font-weight:900}
 .customer-manage-photo-controls label:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(112,74,50,.14)}
 .customer-manage-photo-controls input[type="file"]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+
+/* 訂單卡片視覺更新：柔和奶茶米色搭配鼠尾草綠，並加入進場動畫 */
+@keyframes customerOrderCardEnter{from{opacity:0;transform:translateY(13px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.customer-admin-card{background:linear-gradient(145deg,#fffdf8 0%,#f7f4eb 100%);border:1px solid #d9dfd1;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 5px 18px rgba(66,83,63,.08);animation:customerOrderCardEnter .42s cubic-bezier(.2,.75,.25,1) both;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.customer-admin-card:hover{transform:translateY(-2px);box-shadow:0 9px 24px rgba(66,83,63,.13);border-color:#b9c9b5}
+.customer-admin-card:nth-child(2){animation-delay:.04s}.customer-admin-card:nth-child(3){animation-delay:.08s}.customer-admin-card:nth-child(4){animation-delay:.12s}.customer-admin-card:nth-child(5){animation-delay:.16s}
+.customer-admin-card h3,.customer-admin-order-heading{color:#405b4a!important}
+.customer-admin-card.is-unread{border-left:5px solid #c28b45;background:linear-gradient(145deg,#fffaf0,#f7f1e4)}
+.customer-admin-items{background:#f1f4ec;border:1px solid #e0e7d9;border-radius:13px;padding:10px;margin:10px 0}
+.customer-order-detail-table th{background:#e7eee3;color:#405b4a}
+.customer-order-detail-table .customer-order-spice-heading td{background:#edf3e9;color:#46634d;padding-top:11px}
+.customer-order-detail-table .customer-order-no-spice-heading td{background:#f8eee1;color:#8b6440;font-weight:900;padding-top:11px;border-top:2px dashed #dfc5a4}
+.customer-order-detail-total{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#e9f0e6;border:1px solid #d6e2d2;border-radius:12px;padding:11px 13px;color:#405b4a}
+.customer-admin-actions button.primary{background:#55745c;color:#fff;border-color:#55745c}
+.customer-admin-actions button.primary:hover{background:#405f49}
+@media(prefers-reduced-motion:reduce){.customer-admin-card{animation:none!important;transition:none!important}}
 </style>
 
 </head>
@@ -3829,31 +3845,31 @@
             renderCustomerAdminOrderCards();customerUpdateUnreadBadge();
         }
 
-                function customerFormatSpiceGroupedItems(items,includeGift=true){
-
         function customerFormatOrderDetailTable(items){
-            const rows=Array.isArray(items)?items:[];const order=['不辣','小辣','中辣','大辣','未指定辣度'];const groups=new Map();
-            rows.forEach(item=>{const level=item.spice_level||'';if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});
-            const body=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`${level?`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${customerEscape(level)}</td></tr>`:''}${groups.get(level).map(item=>`<tr><td>${customerEscape(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Number(item.quantity)||0}</td><td>${customerMoney(item.subtotal)}</td></tr>`).join('')}`).join('');
-            return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
-        }
-        function customerOrderItemQuantity(items){return (Array.isArray(items)?items:[]).reduce((sum,item)=>sum+Math.max(0,Number(item.quantity)||0),0);}
+            const rows=Array.isArray(items)?items:[];
             const order=['不辣','小辣','中辣','大辣','未指定辣度'];
-            const groups=new Map(),noSpice=[];
-            (Array.isArray(items)?items:[]).forEach(item=>{
+            const groups=new Map();
+            const noSpice=[];
+            rows.forEach(item=>{
                 const level=String(item.spice_level||'').trim();
                 if(!level){noSpice.push(item);return;}
                 if(!groups.has(level))groups.set(level,[]);
                 groups.get(level).push(item);
             });
-            const formatItems=list=>list.map(i=>`${customerEscape(i.name)} × ${Number(i.quantity)||0}${includeGift&&i.is_gift?'（贈品）':''}　${customerMoney(i.subtotal)}`).join('<br>');
+            const safe=value=>customerEscape(String(value??''));
+            const rowHtml=item=>`<tr><td>${safe(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Math.max(0,Number(item.quantity)||0)}</td><td>${customerMoney(item.subtotal)}</td></tr>`;
             const spicyHtml=[...groups.keys()].sort((a,b)=>{
                 const ai=order.indexOf(a),bi=order.indexOf(b);
                 return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');
-            }).map(level=>`<div class="customer-order-spice-heading">🌶️ ${customerEscape(level)}</div>${formatItems(groups.get(level))}`).join('<br>');
-            const noSpiceHtml=noSpice.length?`<div class="customer-order-no-spice"><div class="customer-order-no-spice-title">其他品項・此品項沒有辣度選擇</div><div class="customer-order-no-spice-items">${formatItems(noSpice)}</div></div>`:'';
-            return [spicyHtml,noSpiceHtml].filter(Boolean).join('');
+            }).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${safe(level)}</td></tr>${groups.get(level).map(rowHtml).join('')}`).join('');
+            const noSpiceHtml=noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🍢 無辣度選擇／免選辣度</td></tr>${noSpice.map(rowHtml).join('')}`:'';
+            const body=spicyHtml+noSpiceHtml;
+            return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
         }
+        function customerOrderItemQuantity(items){
+            return (Array.isArray(items)?items:[]).reduce((sum,item)=>sum+Math.max(0,Number(item.quantity)||0),0);
+        }
+
         function renderCustomerAdminOrderCards(){
             const box=document.getElementById('customer-admin-order-list');if(!box)return;const read=customerReadOrderIds();
             const rows=customerAdminOrders.filter(o=>customerAdminStatusFilter==='all'||(customerAdminStatusFilter==='new'?o.status==='new':o.status===customerAdminStatusFilter)).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
