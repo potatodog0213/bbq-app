@@ -58,6 +58,17 @@ h2{font-size:19px;font-weight:800;color:#74482e}
 button{font-weight:700;min-height:44px}
 input,textarea{padding:13px;border-radius:11px}
 @media(max-width:420px){body{padding:12px 10px 30px}.card{padding:17px}.map-wrap iframe{height:245px}.store-address{align-items:flex-start;flex-direction:column}.store-address a{width:100%;text-align:center}}
+
+.day-editor{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;padding:15px!important;margin:12px 0!important;background:linear-gradient(145deg,#fffdf8,#f8eddb)!important;border:1px solid #eadbc7;border-radius:16px;box-shadow:0 3px 10px rgba(112,78,49,.05)}
+.day-heading{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid #eadbc7}
+.day-heading strong{color:#70462d;font-size:16px;font-weight:850}
+.day-heading label{display:flex;align-items:center;gap:7px;color:#795b43;font-size:14px;font-weight:750}
+.day-heading input[type=checkbox]{width:19px!important;height:19px!important;accent-color:#9a6040}
+.time-field{display:flex;flex-direction:column;gap:7px;min-width:0;color:#9a8067;font-size:12px;font-weight:750}
+.time-field select{width:100%;min-width:0;box-sizing:border-box;height:46px;padding:0 10px;border:1px solid #dfc6a8;border-radius:11px;background:#fffaf2;color:#70462d;font-size:17px;font-weight:850;font-variant-numeric:tabular-nums}
+.time-field select:focus{border-color:#a96c45;box-shadow:0 0 0 3px rgba(169,108,69,.13)}
+@media(max-width:420px){.day-editor{padding:12px!important;gap:10px!important}}
+
 </style>
 </head>
 <body>
@@ -88,14 +99,9 @@ input,textarea{padding:13px;border-radius:11px}
 
 
 
-<section class="card hidden" id="loginPanel">
-<h2>店家登入</h2>
-<label>登入信箱</label>
-<input id="email" type="email" autocomplete="username">
-<label>密碼</label>
-<input id="password" type="password" autocomplete="current-password">
-<div class="actions"><button id="loginBtn">登入並修改資訊</button></div>
-<div class="status" id="loginStatus"></div>
+<section class="card hidden" id="accessPanel">
+<h2>店家管理</h2>
+<div class="notice">請先從首頁登入店家管理帳號，再進入此頁修改資訊。</div>
 </section>
 
 <section class="card hidden" id="editPanel">
@@ -104,23 +110,18 @@ input,textarea{padding:13px;border-radius:11px}
 <input id="editName">
 <label>&#24215;&#23478;&#22320;&#22336;</label>
 <input id="editAddress" placeholder="Address">
-<label><input id="cashEnabled" type="checkbox"> 開放現金付款</label>
-<label><input id="bankEnabled" type="checkbox"> 開放銀行轉帳</label>
-<label>銀行轉帳說明</label>
-<textarea id="bankNote"></textarea>
-<label>取餐注意事項</label>
-<textarea id="pickupNotice"></textarea>
 <label>每日營業時間</label>
 <div id="hoursEditor"></div>
 <div class="actions">
 <button id="saveBtn">儲存修改</button>
-<button class="secondary" id="logoutBtn">登出</button>
+
 </div>
 <div class="status" id="editStatus"></div>
 </section>
 </main>
 
 <script>
+
 const SUPABASE_URL='https://gyonwgjafukzlmnosykt.supabase.co';
 const SUPABASE_KEY='sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -142,152 +143,147 @@ function el(id){return document.getElementById(id)}
 function showStatus(id,msg){el(id).textContent=msg}
 
 function renderNextOpening(hours){
-const parts=new Intl.DateTimeFormat('en-US',{
-timeZone:'Asia/Taipei',weekday:'short',year:'numeric',
-month:'2-digit',day:'2-digit',hour:'2-digit',
-minute:'2-digit',hourCycle:'h23'
-}).formatToParts(new Date());
-const p={};
-parts.forEach(x=>p[x.type]=x.value);
-const week=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const today=week.indexOf(p.weekday);
-const minutes=Number(p.hour)*60+Number(p.minute);
-const keys=['sun','mon','tue','wed','thu','fri','sat'];
-for(let i=0;i<8;i++){
-const d=hours[keys[(today+i)%7]]||defaultHours[keys[(today+i)%7]];
-if(!d.open)continue;
-const start=d.start||'17:30';
-const sm=Number(start.slice(0,2))*60+Number(start.slice(3,5));
-if(i===0&&minutes>=sm)continue;
-const label=i===0?'\u4eca\u5929':i===1?'\u660e\u5929':d.label;
-el('nextOpenView').textContent=label+' '+start+' \u958b\u59cb\u71df\u696d';
-return;
-}
-el('nextOpenView').textContent='--';
+  const parts=new Intl.DateTimeFormat('en-US',{
+    timeZone:'Asia/Taipei',weekday:'short',hour:'2-digit',
+    minute:'2-digit',hourCycle:'h23'
+  }).formatToParts(new Date());
+  const p={};
+  parts.forEach(x=>p[x.type]=x.value);
+  const week=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const today=week.indexOf(p.weekday);
+  const minutes=Number(p.hour)*60+Number(p.minute);
+  const keys=['sun','mon','tue','wed','thu','fri','sat'];
+
+  for(let i=0;i<8;i++){
+    const d=hours[keys[(today+i)%7]]||defaultHours[keys[(today+i)%7]];
+    if(!d.open)continue;
+    const start=d.start||'17:30';
+    const sm=Number(start.slice(0,2))*60+Number(start.slice(3,5));
+    if(i===0&&minutes>=sm)continue;
+    const label=i===0?'今天':i===1?'明天':d.label;
+    el('nextOpenView').textContent=label+' '+start+' 開始營業';
+    return;
+  }
+  el('nextOpenView').textContent='--';
 }
 
 function renderPublic(info){
-el('storeTitle').textContent=info.store_name||'&#39340;&#37428;&#21513;&#30899;&#28907;';
-const address=info.store_address||'\u6843\u5712\u5e02\u516b\u5fb7\u5340\u5927\u548c\u91cc\u4ecb\u58fd\u8def\u4e8c\u6bb518\u865f';
-el('addressView').textContent=address;
-el('mapLink').href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(address);
-renderNextOpening(info.business_hours||defaultHours);
-const hours=info.business_hours||defaultHours;
-el('hoursView').innerHTML=days.map(day=>{
-const d=hours[day]||defaultHours[day];
-return `<div class="hours"><span>${d.label}</span><strong class="${d.open?'open':'closed'}">${d.open?`${d.start}－${d.end}`:'公休'}</strong></div>`;
-}).join('');
-const payments=[];
-if(info.payment_cash_enabled)payments.push('現金');
-if(info.payment_bank_transfer_enabled)payments.push('銀行轉帳');
-el('paymentView').textContent=payments.length?payments.join('、'):'目前未開放付款方式';
-if(info.payment_bank_transfer_enabled&&info.bank_transfer_note){
-el('paymentView').textContent+=(payments.length?'\n':'')+info.bank_transfer_note;
+  el('storeTitle').textContent=info.store_name||'馬鈴吉碳烤';
+  const address=info.store_address||'桃園市八德區大和里介壽路二段18號';
+  el('addressView').textContent=address;
+  el('mapLink').href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(address);
+  const hours=info.business_hours||defaultHours;
+  renderNextOpening(hours);
+  el('hoursView').innerHTML=days.map(day=>{
+    const d=hours[day]||defaultHours[day];
+    return '<div class="hours"><span>'+d.label+'</span><strong class="'+
+      (d.open?'open':'closed')+'">'+
+      (d.open?d.start+'－'+d.end:'公休')+
+      '</strong></div>';
+  }).join('');
 }
-el('pickupView').textContent=info.pickup_notice||'';
+
+
+function timeOptions(selected){
+  selected=selected||'17:30';
+  const values=[];
+  for(let m=0;m<1440;m+=15){
+    values.push(String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'));
+  }
+  if(!values.includes(selected))values.push(selected);
+  values.sort();
+  return values.map(t=>'<option value="'+t+'"'+(t===selected?' selected':'')+'>'+t+'</option>').join('');
 }
 
 function renderEditor(info){
-el('editName').value=info.store_name||'';
-el('editAddress').value=info.store_address||'\u6843\u5712\u5e02\u516b\u5fb7\u5340\u5927\u548c\u91cc\u4ecb\u58fd\u8def\u4e8c\u6bb518\u865f';
-el('cashEnabled').checked=!!info.payment_cash_enabled;
-el('bankEnabled').checked=!!info.payment_bank_transfer_enabled;
-el('bankNote').value=info.bank_transfer_note||'';
-el('pickupNotice').value=info.pickup_notice||'';
-const hours=info.business_hours||defaultHours;
-el('hoursEditor').innerHTML=days.map(day=>{
-const d=hours[day]||defaultHours[day];
-return `<div class="day-editor">
-<strong>${d.label}</strong>
-<label><input type="checkbox" data-day="${day}" class="day-open" ${d.open?'checked':''}>營業</label>
-<input type="time" data-day="${day}" data-field="start" value="${d.start||'17:30'}">
-<input type="time" data-day="${day}" data-field="end" value="${d.end||'00:00'}">
-</div>`;
-}).join('');
-}
-
-async function loadInfo(){
-const {data,error}=await db.from('store_public_info').select('*').eq('id',true).single();
-if(error){
-el('hoursView').textContent='店面資訊載入失敗，請稍後再試。';
-el('paymentView').textContent=error.message;
-return;
-}
-currentInfo=data;
-renderPublic(data);
-if(editing){
-el('loginPanel').classList.remove('hidden');
-const {data:{session}}=await db.auth.getSession();
-if(session)await checkOwner();
-}
+  el('editName').value=info.store_name||'';
+  el('editAddress').value=info.store_address||'桃園市八德區大和里介壽路二段18號';
+  const hours=info.business_hours||defaultHours;
+  el('hoursEditor').innerHTML=days.map(day=>{
+    const d=hours[day]||defaultHours[day];
+    return '<div class="day-editor"><div class="day-heading"><strong>'+d.label+'</strong>'+
+      '<label><input type="checkbox" data-day="'+day+
+      '" class="day-open" '+(d.open?'checked':'')+'>營業</label></div>'+
+      '<label class="time-field"><span>開始營業</span><select data-day="'+day+'" data-field="start">'+
+      timeOptions(d.start||'17:30')+'</select></label>'+
+      '<label class="time-field"><span>結束營業</span><select data-day="'+day+'" data-field="end">'+
+      timeOptions(d.end||'00:00')+'</select></label></div>';
+  }).join('');
 }
 
 async function checkOwner(){
-const {data:{user}}=await db.auth.getUser();
-if(user?.app_metadata?.role!=='store_owner'){
-await db.auth.signOut();
-showStatus('loginStatus','此帳號沒有店家修改權限。');
-return;
-}
-el('loginPanel').classList.add('hidden');
-el('editPanel').classList.remove('hidden');
-renderEditor(currentInfo);
+  const {data:{session}}=await db.auth.getSession();
+  if(!session){
+    el('editPanel').classList.add('hidden');
+    el('accessPanel').classList.remove('hidden');
+    return;
+  }
+
+  const {data:{user},error}=await db.auth.getUser();
+  if(error||user?.app_metadata?.role!=='store_owner'){
+    el('editPanel').classList.add('hidden');
+    el('accessPanel').classList.remove('hidden');
+    return;
+  }
+
+  el('accessPanel').classList.add('hidden');
+  el('editPanel').classList.remove('hidden');
+  renderEditor(currentInfo);
 }
 
-el('loginBtn').addEventListener('click',async()=>{
-el('loginBtn').disabled=true;
-showStatus('loginStatus','登入中…');
-const {error}=await db.auth.signInWithPassword({
-email:el('email').value.trim(),
-password:el('password').value
-});
-el('loginBtn').disabled=false;
-if(error){showStatus('loginStatus','登入失敗：'+error.message);return;}
-await checkOwner();
-});
+async function loadInfo(){
+  const {data,error}=await db.from('store_public_info').select('*').eq('id',true).single();
+  if(error){
+    el('hoursView').textContent='店面資訊載入失敗，請稍後再試。';
+    return;
+  }
+  currentInfo=data;
+  renderPublic(data);
+  if(editing)await checkOwner();
+}
 
 el('saveBtn').addEventListener('click',async()=>{
-el('saveBtn').disabled=true;
-showStatus('editStatus','儲存中…');
-const hours={};
-days.forEach(day=>{
-const old=(currentInfo.business_hours||defaultHours)[day]||defaultHours[day];
-const open=el('hoursEditor').querySelector(`.day-open[data-day="${day}"]`).checked;
-hours[day]={
-label:old.label,
-open,
-start:el('hoursEditor').querySelector(`[data-day="${day}"][data-field="start"]`).value,
-end:el('hoursEditor').querySelector(`[data-day="${day}"][data-field="end"]`).value
-};
-});
-const update={
-store_name:el('editName').value.trim(),
-store_address:el('editAddress').value.trim(),
-payment_cash_enabled:el('cashEnabled').checked,
-payment_bank_transfer_enabled:el('bankEnabled').checked,
-bank_transfer_note:el('bankNote').value,
-pickup_notice:el('pickupNotice').value,
-business_hours:hours,
-updated_at:new Date().toISOString()
-};
-const {data,error}=await db.from('store_public_info').update(update).eq('id',true).select().single();
-el('saveBtn').disabled=false;
-if(error){showStatus('editStatus','儲存失敗：'+error.message);return;}
-currentInfo=data;
-renderPublic(data);
-renderEditor(data);
-showStatus('editStatus','已成功儲存。');
+  el('saveBtn').disabled=true;
+  showStatus('editStatus','儲存中…');
+  try{
+    const hours={};
+    days.forEach(day=>{
+      const old=(currentInfo.business_hours||defaultHours)[day]||defaultHours[day];
+      hours[day]={
+        label:old.label,
+        open:el('hoursEditor').querySelector('.day-open[data-day="'+day+'"]').checked,
+        start:el('hoursEditor').querySelector('[data-day="'+day+'"][data-field="start"]').value,
+        end:el('hoursEditor').querySelector('[data-day="'+day+'"][data-field="end"]').value
+      };
+    });
+
+    const update={
+      store_name:el('editName').value.trim(),
+      store_address:el('editAddress').value.trim(),
+      business_hours:hours,
+      updated_at:new Date().toISOString()
+    };
+
+    const {data,error}=await db.from('store_public_info').update(update).eq('id',true).select().single();
+    if(error){
+      showStatus('editStatus','儲存失敗：'+error.message);
+      return;
+    }
+
+    currentInfo=data;
+    renderPublic(data);
+    renderEditor(data);
+    showStatus('editStatus','已成功儲存。');
+  }catch(error){
+    showStatus('editStatus','儲存失敗：'+error.message);
+  }finally{
+    el('saveBtn').disabled=false;
+  }
 });
 
-el('logoutBtn').addEventListener('click',async()=>{
-await db.auth.signOut();
-el('editPanel').classList.add('hidden');
-el('loginPanel').classList.remove('hidden');
-showStatus('loginStatus','已登出。');
-});
-
-if(editing)el('loginPanel').classList.remove('hidden');
+if(editing)el('accessPanel').classList.remove('hidden');
 loadInfo();
+
 </script>
 </body>
 </html>
