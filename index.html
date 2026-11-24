@@ -1417,84 +1417,6 @@
 .customer-manage-photo-controls label:before{content:'＋';display:inline-grid;place-items:center;width:20px;height:20px;border-radius:7px;background:#80583b;color:white;font-size:15px;font-weight:900}
 .customer-manage-photo-controls label:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(112,74,50,.14)}
 .customer-manage-photo-controls input[type="file"]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
-
-/* 訂單卡片視覺更新：柔和奶茶米色搭配鼠尾草綠，並加入進場動畫 */
-@keyframes customerOrderCardEnter{from{opacity:0;transform:translateY(13px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
-.customer-admin-card{background:linear-gradient(145deg,#fffdf8 0%,#f7f4eb 100%);border:1px solid #d9dfd1;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 5px 18px rgba(66,83,63,.08);animation:customerOrderCardEnter .42s cubic-bezier(.2,.75,.25,1) both;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
-.customer-admin-card:hover{transform:translateY(-2px);box-shadow:0 9px 24px rgba(66,83,63,.13);border-color:#b9c9b5}
-.customer-admin-card:nth-child(2){animation-delay:.04s}.customer-admin-card:nth-child(3){animation-delay:.08s}.customer-admin-card:nth-child(4){animation-delay:.12s}.customer-admin-card:nth-child(5){animation-delay:.16s}
-.customer-admin-card h3,.customer-admin-order-heading{color:#405b4a!important}
-.customer-admin-card.is-unread{border-left:5px solid #c28b45;background:linear-gradient(145deg,#fffaf0,#f7f1e4)}
-.customer-admin-items{background:#f1f4ec;border:1px solid #e0e7d9;border-radius:13px;padding:10px;margin:10px 0}
-.customer-order-detail-table th{background:#e7eee3;color:#405b4a}
-.customer-order-detail-table .customer-order-spice-heading td{background:#edf3e9;color:#46634d;padding-top:11px}
-.customer-order-detail-table .customer-order-no-spice-heading td{background:#f8eee1;color:#8b6440;font-weight:900;padding-top:11px;border-top:2px dashed #dfc5a4}
-.customer-order-detail-total{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#e9f0e6;border:1px solid #d6e2d2;border-radius:12px;padding:11px 13px;color:#405b4a}
-.customer-admin-actions button.primary{background:#55745c;color:#fff;border-color:#55745c}
-.customer-admin-actions button.primary:hover{background:#405f49}
-@media(prefers-reduced-motion:reduce){.customer-admin-card{animation:none!important;transition:none!important}}
-</style>
-
-
-<style id="customer-admin-photo-button-refresh">
-.customer-manage-photo-controls{display:flex!important;align-items:center!important;gap:9px!important;flex-wrap:wrap!important}
-.customer-manage-photo-controls>label,.customer-manage-photo-controls>button{box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:136px!important;min-width:136px!important;height:42px!important;min-height:42px!important;margin:0!important;padding:0 10px!important;border-radius:11px!important;font-size:13px!important;font-weight:850!important;line-height:1!important;white-space:nowrap!important}
-.customer-manage-photo-controls>button,.customer-manage-photo-controls>.customer-manage-remove-photo{border:1px solid #d9b98f!important;background:linear-gradient(135deg,#fff,#f8eee2)!important;color:#9a4d3f!important;cursor:pointer!important;box-shadow:0 2px 7px rgba(112,74,50,.08)!important}
-.customer-manage-photo-controls>button:hover{background:#f9e8df!important;transform:translateY(-1px)}
-.customer-manage-photo-controls>label:before{flex:0 0 20px}
-.customer-manage-logo-controls{margin-top:8px}
-.customer-order-spice-section td{background:#f1f7f1!important;color:#416b50!important;font-weight:900!important;padding:9px 10px!important;border-top:2px solid #c9ddce!important}
-.customer-order-no-spice-heading td{background:#fff5e8!important;color:#946238!important;font-weight:900!important;padding:9px 10px!important;border-top:2px solid #ead3b4!important}
-</style>
-
-<style id="customer-index-milk-tea-refresh">
-/* 管理介面恢復奶茶米色系 */
-#customer-admin-order-list .customer-admin-card,
-.customer-admin-order-card,
-.customer-manage-product-card,
-.customer-manage-section{
-  border-color:#ead8c3;
-}
-#customer-admin-order-list .customer-admin-card{
-  background:linear-gradient(145deg,#fffdf9 0%,#f8eddb 100%);
-  box-shadow:0 7px 20px rgba(112,74,50,.08);
-}
-#customer-admin-order-list .customer-admin-items{
-  background:#fffaf2;border-color:#eadbc7;
-}
-#customer-admin-order-list .customer-order-detail-table th{
-  background:#f1dfc7;color:#704a32;
-}
-#customer-admin-order-list .customer-order-detail-table td{
-  color:#594332;border-bottom-color:#eee1d1;
-}
-#customer-admin-order-list .customer-order-spice-heading td{
-  background:#f8eddb;color:#9a6336;
-}
-#customer-admin-order-list .customer-order-no-spice-heading td{
-  background:#f4e9d8;color:#806044;
-}
-.customer-manage-photo-controls{
-  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
-}
-.customer-manage-photo-controls > label,
-.customer-manage-photo-controls > button{
-  box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;
-  min-width:112px;height:40px;padding:0 13px;border:1px solid #d9bea0;
-  border-radius:10px;background:#fff5e8;color:#80583b;font:inherit;
-  font-size:13px;font-weight:800;line-height:1.2;cursor:pointer;
-}
-.customer-manage-photo-controls > label:hover,
-.customer-manage-photo-controls > button:hover{
-  background:#f3e1ca;border-color:#bd9066;
-}
-.customer-manage-photo-controls > label input[type="file"]{
-  position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;
-}
-.customer-manage-photo-controls > button{
-  background:#fff0e9;border-color:#dfb6a5;color:#98563e;
-}
-.customer-manage-photo-controls > button:hover{background:#f8dfd4;border-color:#c98b73}
 </style>
 
 </head>
@@ -3907,33 +3829,44 @@
             renderCustomerAdminOrderCards();customerUpdateUnreadBadge();
         }
 
+                function customerFormatSpiceGroupedItems(items,includeGift=true){
+
         function customerFormatOrderDetailTable(items){
-            const rows=Array.isArray(items)?items:[];
+            const rows=Array.isArray(items)?items:[];const order=['不辣','小辣','中辣','大辣','未指定辣度'];const groups=new Map();
+            rows.forEach(item=>{const level=item.spice_level||'';if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});
+            const body=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`${level?`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${customerEscape(level)}</td></tr>`:''}${groups.get(level).map(item=>`<tr><td>${customerEscape(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Number(item.quantity)||0}</td><td>${customerMoney(item.subtotal)}</td></tr>`).join('')}`).join('');
+            return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
+        }
+        function customerFormatOrderAuditDelta(oldItems,newItems){
+            const summarize=items=>{const map=new Map();(Array.isArray(items)?items:[]).forEach(item=>{const name=String(item.name||'商品').trim(),spice=String(item.spice_level||'').trim(),gift=!!item.is_gift,key=JSON.stringify([name,spice,gift]);const entry=map.get(key)||{name,spice,gift,quantity:0};entry.quantity+=Math.max(0,Number(item.quantity)||0);map.set(key,entry);});return map;};
+            const before=summarize(oldItems),after=summarize(newItems),keys=new Set([...before.keys(),...after.keys()]),added=[],removed=[];
+            keys.forEach(key=>{const a=before.get(key),b=after.get(key),base=a||b,diff=(b?.quantity||0)-(a?.quantity||0);if(diff>0)added.push({...base,quantity:diff});else if(diff<0)removed.push({...base,quantity:Math.abs(diff)});});
+            const format=list=>list.map(item=>`${customerEscape(item.name)}${item.spice?`（${customerEscape(item.spice)}）`:''}${item.gift?'（贈品）':''} × ${item.quantity}`).join('<br>');
+            if(!added.length&&!removed.length)return '<div style="color:#6b5140;font-weight:700">客人訂單沒有變化</div>';
+            return `${added.length?`<div><b style="color:#28734b">增加餐點</b><br>${format(added)}</div>`:''}${removed.length?`<div style="margin-top:6px"><b style="color:#a34b38">減少餐點</b><br>${format(removed)}</div>`:''}`;
+        }
+        function customerOrderItemQuantity(items){return (Array.isArray(items)?items:[]).reduce((sum,item)=>sum+Math.max(0,Number(item.quantity)||0),0);}
             const order=['不辣','小辣','中辣','大辣','未指定辣度'];
             const groups=new Map(),noSpice=[];
-            rows.forEach(item=>{
-                const raw=String(item.spice_level??'').trim();
-                const level=['無','無辣度','免辣度','none','null'].includes(raw.toLowerCase())?'':raw;
+            (Array.isArray(items)?items:[]).forEach(item=>{
+                const level=String(item.spice_level||'').trim();
                 if(!level){noSpice.push(item);return;}
                 if(!groups.has(level))groups.set(level,[]);
                 groups.get(level).push(item);
             });
-            const safe=value=>customerEscape(String(value??''));
-            const rowHtml=item=>`<tr><td>${safe(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Math.max(0,Number(item.quantity)||0)}</td><td>${customerMoney(item.subtotal)}</td></tr>`;
-            const spicyRows=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">${safe(level)}</td></tr>${groups.get(level).map(rowHtml).join('')}`).join('');
-            const spicyHtml=spicyRows;
-            const noSpiceHtml=noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🥤 飲料或特殊商品</td></tr>${noSpice.map(rowHtml).join('')}`:'';
-            return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${spicyHtml}${noSpiceHtml}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
+            const formatItems=list=>list.map(i=>`${customerEscape(i.name)} × ${Number(i.quantity)||0}${includeGift&&i.is_gift?'（贈品）':''}　${customerMoney(i.subtotal)}`).join('<br>');
+            const spicyHtml=[...groups.keys()].sort((a,b)=>{
+                const ai=order.indexOf(a),bi=order.indexOf(b);
+                return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');
+            }).map(level=>`<div class="customer-order-spice-heading">🌶️ ${customerEscape(level)}</div>${formatItems(groups.get(level))}`).join('<br>');
+            const noSpiceHtml=noSpice.length?`<div class="customer-order-no-spice"><div class="customer-order-no-spice-title">其他品項・此品項沒有辣度選擇</div><div class="customer-order-no-spice-items">${formatItems(noSpice)}</div></div>`:'';
+            return [spicyHtml,noSpiceHtml].filter(Boolean).join('');
         }
-        function customerOrderItemQuantity(items){
-            return (Array.isArray(items)?items:[]).reduce((sum,item)=>sum+Math.max(0,Number(item.quantity)||0),0);
-        }
-
         function renderCustomerAdminOrderCards(){
             const box=document.getElementById('customer-admin-order-list');if(!box)return;const read=customerReadOrderIds();
             const rows=customerAdminOrders.filter(o=>customerAdminStatusFilter==='all'||(customerAdminStatusFilter==='new'?o.status==='new':o.status===customerAdminStatusFilter)).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-            if(!rows.length){const emptyHtml='<p class="customer-order-muted" style="text-align:center;padding:22px;">目前沒有符合條件的訂單。</p>';if(box.innerHTML!==emptyHtml)box.innerHTML=emptyHtml;return;}
-            const nextHtml=rows.map(o=>{
+            if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:22px;">目前沒有符合條件的訂單。</p>';return;}
+            box.innerHTML=rows.map(o=>{
                 const items=Array.isArray(o.items)?o.items:[],itemText=customerFormatOrderDetailTable(items),itemQty=customerOrderItemQuantity(items);
                 const pickup=new Date(o.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
                 const created=new Date(o.created_at).toLocaleString('zh-TW');const unread=o.status==='new'&&!read.has(String(o.id));
@@ -3943,10 +3876,10 @@
                 const cancelAction=cancelRequestedAt?`<div class="customer-admin-actions"><b style="color:#a33">客人申請取消・${customerEscape(new Date(cancelRequestedAt).toLocaleString('zh-TW'))}</b><button class="primary" onclick="customerReviewCancelRequest('${customerEscape(o.id)}',true)">同意取消</button><button onclick="customerReviewCancelRequest('${customerEscape(o.id)}',false)">不同意</button></div>`:(['new','confirmed'].includes(o.status)?`<button class="customer-time-action" onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','cancelled')">取消訂單</button>`:'');
                 const readAction=o.status==='new'&&!read.has(String(o.id))?`<button onclick="markCustomerOrderRead('${customerEscape(o.id)}')">標記已讀</button>`:'';
                 const addonHtml=(o.addons||[]).map((a,i)=>`<div style="margin-top:8px;padding:10px;border:1px solid #ead8c5;border-radius:10px;background:#fffaf4"><b>過往餐點異動紀錄 ${i+1}・${customerEscape(new Date(a.created_at).toLocaleString('zh-TW'))}</b><div>${customerFormatOrderDetailTable(a.items)}</div><b>異動金額：${customerMoney(a.total_amount)}</b></div>`).join('');
-                const auditHtml=(o.change_audits||[]).map(h=>`<div style="margin-top:8px;padding:10px;border:1px solid #d8e4dc;border-radius:10px;background:#f7fbf8"><b>修改完成紀錄・${customerEscape(new Date(h.created_at).toLocaleString('zh-TW'))}</b><div style="margin-top:6px">修改前：${customerFormatOrderDetailTable(h.old_items)}<br>金額 ${customerMoney(h.old_total_amount)}</div><div style="margin-top:6px">修改後：${customerFormatOrderDetailTable(h.new_items)}<br>金額 ${customerMoney(h.new_total_amount)}</div></div>`).join('');
+                const auditHtml=(o.change_audits||[]).map(h=>`<div style="margin-top:8px;padding:10px;border:1px solid #d8e4dc;border-radius:10px;background:#f7fbf8"><b>修改紀錄・${customerEscape(new Date(h.created_at).toLocaleString('zh-TW'))}</b><div style="margin-top:6px">${customerFormatOrderAuditDelta(h.old_items,h.new_items)}</div></div>`).join('');
                 const lineProfile=customerAdminLineProfiles[String(o.line_user_id||'')]||{};const avatarMarkup=lineProfile.pictureUrl?`<img class="customer-admin-line-avatar" src="${customerEscape(lineProfile.pictureUrl)}" alt="LINE 頭像" referrerpolicy="no-referrer" loading="lazy">`:'<span class="customer-admin-line-avatar-fallback" aria-hidden="true">👤</span>';
                 return `<article class="customer-admin-card ${unread?'is-unread':''}"><h3 class="customer-admin-order-heading"><span class="customer-admin-order-title">${avatarMarkup}<span>${customerEscape(customerDisplayOrderLabel(o))}</span></span><span style="font-size:13px;">${customerEscape(({new:'待確認',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'})[o.status]||o.status)}</span>${unread?'<span class="customer-unread-badge">未讀</span>':''}</h3><div class="customer-admin-meta">客人：${customerEscape(o.customer_name)}<br>手機：<a href="tel:${customerEscape(o.customer_phone||'')}">${customerEscape(o.customer_phone||'未提供')}</a><br>取餐時間：${customerEscape(pickup)}${proposedTime?'<br><b>已提出待客人回覆：'+customerEscape(new Date(proposedTime).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))+'</b>':''}${customerResponse==='declined'?'<br><b style=\"color:#b45309\">客人表示新時間不方便，請重新安排</b>':''}<br>下單時間：${customerEscape(created)}</div><div class="customer-admin-items">${itemText}</div><div class="customer-order-detail-total"><span>共計：${itemQty} 樣</span><strong>總金額：${customerMoney(o.total_amount)}</strong></div>${addonHtml?`<div class="customer-admin-meta"><b>歷史異動紀錄</b>${addonHtml}</div>`:''}${auditHtml?`<div class="customer-admin-meta"><b>修改稽核紀錄</b>${auditHtml}</div>`:''}<div class="customer-admin-meta">備註：${customerEscape(visibleNote)}</div><div class="customer-admin-actions">${readAction}${actions}${cancelAction}</div></article>`;
-            }).join('');if(box.innerHTML!==nextHtml)box.innerHTML=nextHtml;customerUpdateUnreadBadge();
+            }).join('');customerUpdateUnreadBadge();
         }
 
                 function subscribeCustomerAdminRealtime(){
@@ -3976,7 +3909,7 @@
             }
             const products=customerAdminProducts;const row={settings_json:customerAdminSettingsJson};customerAdminProductImages=customerAdminSettingsJson.customerOrderProductImages||{};const cfg=customerAdminSettingsJson.customerOrderSpicySettings||{},soldOut=customerAdminSettingsJson.customerOrderSoldOutDate===customerLocalDateValue(new Date())?new Set((customerAdminSettingsJson.customerOrderSoldOutProductIds||[]).map(String)):new Set(),menuSettings=customerAdminSettingsJson.menuItemSettings||{},drinkIds=customerAdminSettingsJson.customerOrderGiftDrinkProductIds;
             const drinkProducts=customerAdminProducts.filter(p=>customerCategory(p,menuSettings)==='飲品類'),giftIds=new Set(Array.isArray(drinkIds)?drinkIds.map(String):drinkProducts.map(p=>String(p.id)));
-            box.innerHTML=`<div class="customer-manage-wrap"><section class="customer-manage-section"><h3>🍢 餐點管理</h3><label style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:800;color:#72543e">顯示商品分類<select id="customer-manage-category-filter" onchange="filterCustomerManageCategory(this.value)" style="min-width:170px;padding:10px;border:1px solid #dfcdb8;border-radius:10px;background:#fff"><option value="全部分類">全部分類</option>${['碳烤伴餐類','雞肉類','牛肉類','豬肉類','羊肉類','海鮮類','蔬菜類','炸物類','飲品類'].map(category=>`<option value="${category}">${category}</option>`).join('')}</select></label></section><section class="customer-manage-section"><h3>店家 Logo 設定</h3>${customerAdminSettingsJson.customerOrderBrandLogo?.url?`<img src="${customerEscape(customerAdminSettingsJson.customerOrderBrandLogo.url)}" alt="目前店家 Logo" style="display:block;width:76px;height:76px;object-fit:contain;background:#fff;border:1px solid #eadbc7;border-radius:14px;padding:6px;margin-bottom:10px">`: ''}<div class="customer-manage-photo-controls customer-manage-logo-controls"><label>上傳／更換 Logo <input type="file" accept="image/*" onchange="uploadCustomerBrandLogo(this)"></label>${customerAdminSettingsJson.customerOrderBrandLogo?.url?'<button class="customer-manage-remove-photo" type="button" onclick="removeCustomerBrandLogo()">移除 Logo</button>':''}</div></section><section class="customer-manage-section"><h3>今日餐點供應</h3><div class="customer-manage-count"><span>目前共有 <b id="customer-menu-total-count">${customerAdminProducts.length}</b> 種品項</span><span>今日供應 <b id="customer-menu-available-count">${customerAdminProducts.filter(p=>!soldOut.has(String(p.id))).length}</b> 種</span></div><div class="customer-manage-grid">${customerAdminProducts.map(p=>{const id=String(p.id),v=cfg[id]||{enabled:true,levels:['不辣','小辣','中辣','大辣']},levels=v.levels||['不辣','小辣','中辣','大辣'];return `<article class="customer-manage-product" data-category="${customerEscape(customerCategory(p,menuSettings))}"><div class="customer-manage-product-head"><strong>${customerEscape(p.name)}</strong><span class="customer-manage-product-price">${customerMoney(p.price)}</span></div><label class="customer-manage-category">餐點分類<select id="customer-category-${customerEscape(id)}" onchange="updateCustomerManageProductCategory('${customerEscape(id)}',this.value)">${['碳烤伴餐類','雞肉類','牛肉類','豬肉類','羊肉類','海鮮類','蔬菜類','炸物類','飲品類'].map(category=>`<option value="${category}" ${customerCategory(p,menuSettings)===category?'selected':''}>${category}</option>`).join('')}</select></label><div class="customer-manage-product-image-preview" id="customer-manage-image-preview-${customerEscape(id)}">${(typeof customerAdminProductImages[id]==='string'?customerAdminProductImages[id]:customerAdminProductImages[id]?.url)?`<img class="customer-manage-product-image" src="${customerEscape(typeof customerAdminProductImages[id]==='string'?customerAdminProductImages[id]:customerAdminProductImages[id].url)}" alt="${customerEscape(p.name)}" loading="lazy">`:'<div class="customer-manage-product-image-empty">尚未設定餐點照片</div>'}</div><div class="customer-manage-photo-controls"><label>新增／更換照片<input type="file" accept="image/*" onchange="uploadCustomerMenuProductImage(\'${customerEscape(id)}\',this)"></label><button id="customer-manage-image-remove-${customerEscape(id)}" type="button" onclick="removeCustomerMenuProductImage(\'${customerEscape(id)}\')" style="${customerAdminProductImages[id]?'':'display:none'}">移除照片</button><span id="customer-menu-image-status-${customerEscape(id)}" class="customer-order-muted"></span></div><label class="customer-manage-toggle soldout"><input type="checkbox" id="soldout-${customerEscape(id)}" ${soldOut.has(id)?'checked':''} onchange="updateCustomerMenuSupplyCount()"> 今日已售完</label><div class="customer-manage-spice"><div class="spice-head"><b>🌶️ 辣度設定</b><span class="customer-order-muted">預設開啟</span></div><label class="spice-enable"><input type="checkbox" id="spicy-enabled-${customerEscape(id)}" ${v.enabled!==false?'checked':''}> 開放客人選擇辣度</label><div class="spice-levels">${['不辣','小辣','中辣','大辣'].map(level=>`<label><input type="checkbox" class="spicy-level-${customerEscape(id)}" value="${level}" ${levels.includes(level)?'checked':''}> ${level}</label>`).join('')}</div></div></article>`;}).join('')||'<p class="customer-order-muted">目前沒有販售品項。</p>'}</div></section><section class="customer-manage-section"><h3>🏆 點餐銷售排行榜</h3><p>由店家指定點餐頁顯示的第一名至第三名；未選擇的名次不顯示。</p><div class="customer-manage-drink">${[1,2,3].map(rank=>`<label style="display:flex;align-items:center;gap:8px">第 ${rank} 名 <select class="customer-leaderboard-rank-select" id="customer-leaderboard-rank-${rank}" style="flex:1;min-width:0;padding:9px;border:1px solid #dfcdb8;border-radius:9px;background:#fff"><option value="">不指定</option>${products.map(p=>`<option value="${customerEscape(p.id)}" ${String(customerAdminSettingsJson.customerOrderLeaderboardProductIds?.[rank-1]||'')===String(p.id)?'selected':''}>${customerEscape(p.name)}</option>`).join('')}</select></label>`).join('')}</div></section><section class="customer-manage-section"><h3>🥤 贈品飲料</h3><p>勾選目前可供客人選擇的飲料；已售完的飲料也可在上方品項卡片標示售完。</p><div class="customer-manage-drink">${drinkProducts.map(p=>`<label><input type="checkbox" class="gift-drink-option" value="${customerEscape(p.id)}" ${giftIds.has(String(p.id))?'checked':''}> ${customerEscape(p.name)}</label>`).join('')||'<p class="customer-order-muted">目前販售品項中沒有分類為「飲品類」的品項，請先到菜單分類設定飲品。</p>'}</div></section><button class="customer-manage-save" onclick="saveCustomerMenuManagement()">儲存餐點管理設定</button></div>`;
+            box.innerHTML=`<div class="customer-manage-wrap"><section class="customer-manage-section"><h3>🍢 餐點管理</h3><label style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:800;color:#72543e">顯示商品分類<select id="customer-manage-category-filter" onchange="filterCustomerManageCategory(this.value)" style="min-width:170px;padding:10px;border:1px solid #dfcdb8;border-radius:10px;background:#fff"><option value="全部分類">全部分類</option>${['碳烤伴餐類','雞肉類','牛肉類','豬肉類','羊肉類','海鮮類','蔬菜類','炸物類','飲品類'].map(category=>`<option value="${category}">${category}</option>`).join('')}</select></label></section><section class="customer-manage-section"><h3>店家 Logo 設定</h3><p>上傳後會顯示在客人點餐頁店名左側。</p>${customerAdminSettingsJson.customerOrderBrandLogo?.url?`<img src="${customerEscape(customerAdminSettingsJson.customerOrderBrandLogo.url)}" alt="目前店家 Logo" style="display:block;width:76px;height:76px;object-fit:contain;background:#fff;border:1px solid #eadbc7;border-radius:14px;padding:6px;margin-bottom:10px">`: ''}<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="customer-manage-photo-controls">上傳／更換 Logo <input type="file" accept="image/*" onchange="uploadCustomerBrandLogo(this)"></label>${customerAdminSettingsJson.customerOrderBrandLogo?.url?'<button type="button" onclick="removeCustomerBrandLogo()">移除 Logo</button>':''}</div></section><section class="customer-manage-section"><h3>今日餐點供應</h3><div class="customer-manage-count"><span>目前共有 <b id="customer-menu-total-count">${customerAdminProducts.length}</b> 種品項</span><span>今日供應 <b id="customer-menu-available-count">${customerAdminProducts.filter(p=>!soldOut.has(String(p.id))).length}</b> 種</span></div><div class="customer-manage-grid">${customerAdminProducts.map(p=>{const id=String(p.id),v=cfg[id]||{enabled:true,levels:['不辣','小辣','中辣','大辣']},levels=v.levels||['不辣','小辣','中辣','大辣'];return `<article class="customer-manage-product" data-category="${customerEscape(customerCategory(p,menuSettings))}"><div class="customer-manage-product-head"><strong>${customerEscape(p.name)}</strong><span class="customer-manage-product-price">${customerMoney(p.price)}</span></div><label class="customer-manage-category">餐點分類<select id="customer-category-${customerEscape(id)}" onchange="updateCustomerManageProductCategory('${customerEscape(id)}',this.value)">${['碳烤伴餐類','雞肉類','牛肉類','豬肉類','羊肉類','海鮮類','蔬菜類','炸物類','飲品類'].map(category=>`<option value="${category}" ${customerCategory(p,menuSettings)===category?'selected':''}>${category}</option>`).join('')}</select></label><div class="customer-manage-product-image-preview" id="customer-manage-image-preview-${customerEscape(id)}">${(typeof customerAdminProductImages[id]==='string'?customerAdminProductImages[id]:customerAdminProductImages[id]?.url)?`<img class="customer-manage-product-image" src="${customerEscape(typeof customerAdminProductImages[id]==='string'?customerAdminProductImages[id]:customerAdminProductImages[id].url)}" alt="${customerEscape(p.name)}" loading="lazy">`:'<div class="customer-manage-product-image-empty">尚未設定餐點照片</div>'}</div><div class="customer-manage-photo-controls"><label>新增／更換照片<input type="file" accept="image/*" onchange="uploadCustomerMenuProductImage(\'${customerEscape(id)}\',this)"></label><button id="customer-manage-image-remove-${customerEscape(id)}" type="button" onclick="removeCustomerMenuProductImage(\'${customerEscape(id)}\')" style="${customerAdminProductImages[id]?'':'display:none'}">移除照片</button><span id="customer-menu-image-status-${customerEscape(id)}" class="customer-order-muted"></span></div><label class="customer-manage-toggle soldout"><input type="checkbox" id="soldout-${customerEscape(id)}" ${soldOut.has(id)?'checked':''} onchange="updateCustomerMenuSupplyCount()"> 今日已售完</label><div class="customer-manage-spice"><div class="spice-head"><b>🌶️ 辣度設定</b><span class="customer-order-muted">預設開啟</span></div><label class="spice-enable"><input type="checkbox" id="spicy-enabled-${customerEscape(id)}" ${v.enabled!==false?'checked':''}> 開放客人選擇辣度</label><div class="spice-levels">${['不辣','小辣','中辣','大辣'].map(level=>`<label><input type="checkbox" class="spicy-level-${customerEscape(id)}" value="${level}" ${levels.includes(level)?'checked':''}> ${level}</label>`).join('')}</div></div></article>`;}).join('')||'<p class="customer-order-muted">目前沒有販售品項。</p>'}</div></section><section class="customer-manage-section"><h3>🏆 點餐銷售排行榜</h3><p>由店家指定點餐頁顯示的第一名至第三名；未選擇的名次不顯示。</p><div class="customer-manage-drink">${[1,2,3].map(rank=>`<label style="display:flex;align-items:center;gap:8px">第 ${rank} 名 <select class="customer-leaderboard-rank-select" id="customer-leaderboard-rank-${rank}" style="flex:1;min-width:0;padding:9px;border:1px solid #dfcdb8;border-radius:9px;background:#fff"><option value="">不指定</option>${products.map(p=>`<option value="${customerEscape(p.id)}" ${String(customerAdminSettingsJson.customerOrderLeaderboardProductIds?.[rank-1]||'')===String(p.id)?'selected':''}>${customerEscape(p.name)}</option>`).join('')}</select></label>`).join('')}</div></section><section class="customer-manage-section"><h3>🥤 贈品飲料</h3><p>勾選目前可供客人選擇的飲料；已售完的飲料也可在上方品項卡片標示售完。</p><div class="customer-manage-drink">${drinkProducts.map(p=>`<label><input type="checkbox" class="gift-drink-option" value="${customerEscape(p.id)}" ${giftIds.has(String(p.id))?'checked':''}> ${customerEscape(p.name)}</label>`).join('')||'<p class="customer-order-muted">目前販售品項中沒有分類為「飲品類」的品項，請先到菜單分類設定飲品。</p>'}</div></section><button class="customer-manage-save" onclick="saveCustomerMenuManagement()">儲存餐點管理設定</button></div>`;
         }
         function filterCustomerManageCategory(category){document.querySelectorAll('.customer-manage-product[data-category]').forEach(card=>{card.style.display=category==='全部分類'||card.dataset.category===category?'':'none';});}
         function updateCustomerManageProductCategory(productId,category){const select=document.getElementById('customer-category-'+productId),card=select?.closest('.customer-manage-product');if(!card)return;card.dataset.category=category;const filter=document.getElementById('customer-manage-category-filter');filterCustomerManageCategory(filter?.value||'全部分類');}
@@ -6190,22 +6123,11 @@ async function compressCustomerMenuImage(file){if(!file||!file.type.startsWith('
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script><script src="line-config.js"></script>
 <script>
 window.customerFormatOrderDetailTable = function(items){
- const rows=Array.isArray(items)?items:[],order=['不辣','小辣','中辣','大辣','未指定辣度'],groups=new Map(),noSpice=[];
- const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- rows.forEach(item=>{const raw=String(item.spice_level??'').trim(),level=['無','無辣度','免辣度','none','null'].includes(raw.toLowerCase())?'':raw;if(!level){noSpice.push(item);return;}if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});
- const rowHtml=item=>`<tr><td>${esc(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Math.max(0,Number(item.quantity)||0)}</td><td>${Number(item.subtotal||0).toLocaleString('zh-TW',{style:'currency',currency:'TWD',maximumFractionDigits:0})}</td></tr>`;
- const spicyRows=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">${esc(level)}</td></tr>${groups.get(level).map(rowHtml).join('')}`).join('');
- const body=(spicyRows||'')+(noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🥤 飲料或特殊商品</td></tr>${noSpice.map(rowHtml).join('')}`:'');
+ const rows=Array.isArray(items)?items:[],order=['不辣','小辣','中辣','大辣','未指定辣度'],groups=new Map();
+ rows.forEach(item=>{const level=item.spice_level||'';if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});
+ const body=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`${level?`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${String(level).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}</td></tr>`:''}${groups.get(level).map(item=>`<tr><td>${String(item.name||'商品').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}${item.is_gift?'（贈品）':''}</td><td>${Number(item.quantity)||0}</td><td>${Number(item.subtotal||0).toLocaleString('zh-TW',{style:'currency',currency:'TWD',maximumFractionDigits:0})}</td></tr>`).join('')}`).join('');
  return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
 };
 </script>
 </body>
 </html>
-<style id="customer-admin-order-number-coffee">
-/* 線上訂單管理：訂單編號標題改為深咖啡色 */
-#customer-admin-order-list .customer-admin-order-heading,
-#customer-admin-order-list .customer-admin-order-heading .customer-admin-order-title,
-#customer-admin-order-list .customer-admin-order-heading .customer-admin-order-title > span {
-  color:#5b4030 !important;
-}
-</style>
