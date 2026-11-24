@@ -3921,7 +3921,7 @@
             const safe=value=>customerEscape(String(value??''));
             const rowHtml=item=>`<tr><td>${safe(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Math.max(0,Number(item.quantity)||0)}</td><td>${customerMoney(item.subtotal)}</td></tr>`;
             const spicyRows=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">${safe(level)}</td></tr>${groups.get(level).map(rowHtml).join('')}`).join('');
-            const spicyHtml=spicyRows?`<tr class="customer-order-spice-section"><td colspan="3">🌶️ 可選擇辣度商品</td></tr>${spicyRows}`:'';
+            const spicyHtml=spicyRows;
             const noSpiceHtml=noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🥤 飲料或特殊商品</td></tr>${noSpice.map(rowHtml).join('')}`:'';
             return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${spicyHtml}${noSpiceHtml}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
         }
@@ -3932,8 +3932,8 @@
         function renderCustomerAdminOrderCards(){
             const box=document.getElementById('customer-admin-order-list');if(!box)return;const read=customerReadOrderIds();
             const rows=customerAdminOrders.filter(o=>customerAdminStatusFilter==='all'||(customerAdminStatusFilter==='new'?o.status==='new':o.status===customerAdminStatusFilter)).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-            if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:22px;">目前沒有符合條件的訂單。</p>';return;}
-            box.innerHTML=rows.map(o=>{
+            if(!rows.length){const emptyHtml='<p class="customer-order-muted" style="text-align:center;padding:22px;">目前沒有符合條件的訂單。</p>';if(box.innerHTML!==emptyHtml)box.innerHTML=emptyHtml;return;}
+            const nextHtml=rows.map(o=>{
                 const items=Array.isArray(o.items)?o.items:[],itemText=customerFormatOrderDetailTable(items),itemQty=customerOrderItemQuantity(items);
                 const pickup=new Date(o.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
                 const created=new Date(o.created_at).toLocaleString('zh-TW');const unread=o.status==='new'&&!read.has(String(o.id));
@@ -3946,7 +3946,7 @@
                 const auditHtml=(o.change_audits||[]).map(h=>`<div style="margin-top:8px;padding:10px;border:1px solid #d8e4dc;border-radius:10px;background:#f7fbf8"><b>修改完成紀錄・${customerEscape(new Date(h.created_at).toLocaleString('zh-TW'))}</b><div style="margin-top:6px">修改前：${customerFormatOrderDetailTable(h.old_items)}<br>金額 ${customerMoney(h.old_total_amount)}</div><div style="margin-top:6px">修改後：${customerFormatOrderDetailTable(h.new_items)}<br>金額 ${customerMoney(h.new_total_amount)}</div></div>`).join('');
                 const lineProfile=customerAdminLineProfiles[String(o.line_user_id||'')]||{};const avatarMarkup=lineProfile.pictureUrl?`<img class="customer-admin-line-avatar" src="${customerEscape(lineProfile.pictureUrl)}" alt="LINE 頭像" referrerpolicy="no-referrer" loading="lazy">`:'<span class="customer-admin-line-avatar-fallback" aria-hidden="true">👤</span>';
                 return `<article class="customer-admin-card ${unread?'is-unread':''}"><h3 class="customer-admin-order-heading"><span class="customer-admin-order-title">${avatarMarkup}<span>${customerEscape(customerDisplayOrderLabel(o))}</span></span><span style="font-size:13px;">${customerEscape(({new:'待確認',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'})[o.status]||o.status)}</span>${unread?'<span class="customer-unread-badge">未讀</span>':''}</h3><div class="customer-admin-meta">客人：${customerEscape(o.customer_name)}<br>手機：<a href="tel:${customerEscape(o.customer_phone||'')}">${customerEscape(o.customer_phone||'未提供')}</a><br>取餐時間：${customerEscape(pickup)}${proposedTime?'<br><b>已提出待客人回覆：'+customerEscape(new Date(proposedTime).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))+'</b>':''}${customerResponse==='declined'?'<br><b style=\"color:#b45309\">客人表示新時間不方便，請重新安排</b>':''}<br>下單時間：${customerEscape(created)}</div><div class="customer-admin-items">${itemText}</div><div class="customer-order-detail-total"><span>共計：${itemQty} 樣</span><strong>總金額：${customerMoney(o.total_amount)}</strong></div>${addonHtml?`<div class="customer-admin-meta"><b>歷史異動紀錄</b>${addonHtml}</div>`:''}${auditHtml?`<div class="customer-admin-meta"><b>修改稽核紀錄</b>${auditHtml}</div>`:''}<div class="customer-admin-meta">備註：${customerEscape(visibleNote)}</div><div class="customer-admin-actions">${readAction}${actions}${cancelAction}</div></article>`;
-            }).join('');customerUpdateUnreadBadge();
+            }).join('');if(box.innerHTML!==nextHtml)box.innerHTML=nextHtml;customerUpdateUnreadBadge();
         }
 
                 function subscribeCustomerAdminRealtime(){
@@ -6195,7 +6195,7 @@ window.customerFormatOrderDetailTable = function(items){
  rows.forEach(item=>{const raw=String(item.spice_level??'').trim(),level=['無','無辣度','免辣度','none','null'].includes(raw.toLowerCase())?'':raw;if(!level){noSpice.push(item);return;}if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});
  const rowHtml=item=>`<tr><td>${esc(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Math.max(0,Number(item.quantity)||0)}</td><td>${Number(item.subtotal||0).toLocaleString('zh-TW',{style:'currency',currency:'TWD',maximumFractionDigits:0})}</td></tr>`;
  const spicyRows=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">${esc(level)}</td></tr>${groups.get(level).map(rowHtml).join('')}`).join('');
- const body=(spicyRows?`<tr class="customer-order-spice-section"><td colspan="3">🌶️ 可選擇辣度商品</td></tr>${spicyRows}`:'')+(noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🥤 飲料或特殊商品</td></tr>${noSpice.map(rowHtml).join('')}`:'');
+ const body=(spicyRows||'')+(noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🥤 飲料或特殊商品</td></tr>${noSpice.map(rowHtml).join('')}`:'');
  return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
 };
 </script>
