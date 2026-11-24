@@ -3922,7 +3922,7 @@
             const rowHtml=item=>`<tr><td>${safe(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Math.max(0,Number(item.quantity)||0)}</td><td>${customerMoney(item.subtotal)}</td></tr>`;
             const spicyRows=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">${safe(level)}</td></tr>${groups.get(level).map(rowHtml).join('')}`).join('');
             const spicyHtml=spicyRows?`<tr class="customer-order-spice-section"><td colspan="3">🌶️ 可選擇辣度商品</td></tr>${spicyRows}`:'';
-            const noSpiceHtml=noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🍢 不提供辣度選擇商品</td></tr>${noSpice.map(rowHtml).join('')}`:'';
+            const noSpiceHtml=noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🥤 飲料或特殊商品</td></tr>${noSpice.map(rowHtml).join('')}`:'';
             return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${spicyHtml}${noSpiceHtml}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
         }
         function customerOrderItemQuantity(items){
@@ -6195,7 +6195,7 @@ window.customerFormatOrderDetailTable = function(items){
  rows.forEach(item=>{const raw=String(item.spice_level??'').trim(),level=['無','無辣度','免辣度','none','null'].includes(raw.toLowerCase())?'':raw;if(!level){noSpice.push(item);return;}if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});
  const rowHtml=item=>`<tr><td>${esc(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Math.max(0,Number(item.quantity)||0)}</td><td>${Number(item.subtotal||0).toLocaleString('zh-TW',{style:'currency',currency:'TWD',maximumFractionDigits:0})}</td></tr>`;
  const spicyRows=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">${esc(level)}</td></tr>${groups.get(level).map(rowHtml).join('')}`).join('');
- const body=(spicyRows?`<tr class="customer-order-spice-section"><td colspan="3">🌶️ 可選擇辣度商品</td></tr>${spicyRows}`:'')+(noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🍢 不提供辣度選擇商品</td></tr>${noSpice.map(rowHtml).join('')}`:'');
+ const body=(spicyRows?`<tr class="customer-order-spice-section"><td colspan="3">🌶️ 可選擇辣度商品</td></tr>${spicyRows}`:'')+(noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🥤 飲料或特殊商品</td></tr>${noSpice.map(rowHtml).join('')}`:'');
  return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
 };
 </script>
