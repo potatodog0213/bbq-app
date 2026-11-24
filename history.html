@@ -1523,6 +1523,76 @@
 .customer-order-pending-notice{margin:10px 0;padding:11px 13px;border-radius:11px;background:#fff5e6;border:1px solid #ead1a8;color:#80583b;font-size:13px;line-height:1.75}
 </style>
 
+
+<style id="customer-history-visual-refresh">
+/* 訂單查詢：清爽鼠尾草綠與暖白色系 */
+.customer-history-page #customer-history-results > article.customer-admin-card{
+    position:relative;
+    margin:16px 0;
+    padding:18px;
+    border:1px solid #dce7df;
+    border-radius:20px;
+    background:linear-gradient(145deg,#fff 0%,#f7fbf8 100%);
+    box-shadow:0 8px 24px rgba(44,75,59,.075);
+    animation:historyCardEnter .48s cubic-bezier(.2,.75,.25,1) both;
+    transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
+}
+.customer-history-page #customer-history-results > article.customer-admin-card:nth-child(2){animation-delay:.06s}
+.customer-history-page #customer-history-results > article.customer-admin-card:nth-child(3){animation-delay:.12s}
+.customer-history-page #customer-history-results > article.customer-admin-card:nth-child(4){animation-delay:.18s}
+.customer-history-page #customer-history-results > article.customer-admin-card:hover{
+    transform:translateY(-3px);
+    border-color:#b9d0c1;
+    box-shadow:0 13px 30px rgba(44,75,59,.12);
+}
+.customer-history-page .customer-admin-card > div:first-child b{color:#263f35;font-size:16px}
+.customer-history-page .customer-history-status{background:#edf2ee;color:#52685a;border:1px solid #dfe8e1}
+.customer-history-page .customer-history-status.active{background:#e1f0e6;color:#286443;border-color:#cce4d4}
+.customer-history-page .customer-admin-meta{color:#65756b}
+.customer-history-page .customer-admin-items{
+    margin-top:13px;padding:12px;border:1px solid #e1ebe4;
+    border-radius:14px;background:#fbfdfb;
+}
+.customer-history-page .customer-order-detail-table th{
+    background:#e8f0ea;color:#365a46;
+}
+.customer-history-page .customer-order-detail-table td{border-bottom-color:#e8eee9;color:#43564a}
+.customer-history-page .customer-order-detail-table .customer-order-spice-heading td{
+    padding-top:12px;background:#f0f6f1;color:#3d7653;border-bottom:0;
+}
+.customer-history-page .customer-order-detail-table .customer-order-no-spice-heading td{
+    padding-top:13px;background:#f4f1e8;color:#78643d;border-bottom:0;
+    border-top:1px dashed #d9d0b8;
+}
+.customer-history-page .customer-order-detail-total{
+    background:linear-gradient(100deg,#e8f1ea,#f2f6f1);
+    color:#365744;border:1px solid #dce9df;border-radius:13px;padding:11px 13px;
+}
+.customer-history-page .customer-order-timeline-item{
+    border-color:#e2ebe4;background:#fbfdfb;
+}
+.customer-history-page .customer-order-timeline-item.done .customer-order-timeline-dot{
+    background:#4b9b6a;box-shadow:0 0 0 4px #e3f2e8;
+}
+.customer-history-page .customer-order-timeline-copy strong{color:#3c5947}
+.customer-history-page .customer-history-progress span{background:#e5eae5}
+.customer-history-page .customer-history-progress span.done{background:#d8eadc}
+.customer-history-page .customer-history-progress span.done:after{background:#4b9b6a}
+.customer-history-page .customer-admin-actions button{
+    border-color:#cbdacf;background:#f6faf7;color:#3e654d;border-radius:11px;
+    transition:transform .18s ease,background .18s ease;
+}
+.customer-history-page .customer-admin-actions button:hover{transform:translateY(-1px);background:#eaf3ec}
+.customer-history-page .customer-admin-actions button.primary{
+    border-color:#477d5a;background:linear-gradient(135deg,#568b68,#3e7253);color:#fff;
+}
+@keyframes historyCardEnter{from{opacity:0;transform:translateY(14px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){
+ .customer-history-page #customer-history-results > article.customer-admin-card{animation:none;transition:none}
+ .customer-history-page #customer-history-results > article.customer-admin-card:hover{transform:none}
+}
+</style>
+
 </head>
 <body>
 
@@ -3779,9 +3849,26 @@
                 function customerFormatSpiceGroupedItems(items,includeGift=true){const order=['不辣','小辣','中辣','大辣','未指定辣度'];const groups=new Map();(Array.isArray(items)?items:[]).forEach(item=>{const level=item.spice_level||'';if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});return [...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`${level?`<div class="customer-order-spice-heading">🌶️ ${customerEscape(level)}</div>`:''}${groups.get(level).map(i=>`${customerEscape(i.name)} × ${Number(i.quantity)||0}${includeGift&&i.is_gift?'（贈品）':''}　${customerMoney(i.subtotal)}`).join('<br>')}`).join('<br>');}
 
         function customerFormatOrderDetailTable(items){
-            const rows=Array.isArray(items)?items:[];const order=['不辣','小辣','中辣','大辣','未指定辣度'];const groups=new Map();
-            rows.forEach(item=>{const level=item.spice_level||'';if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});
-            const body=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`${level?`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${customerEscape(level)}</td></tr>`:''}${groups.get(level).map(item=>`<tr><td>${customerEscape(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Number(item.quantity)||0}</td><td>${customerMoney(item.subtotal)}</td></tr>`).join('')}`).join('');
+            const rows=Array.isArray(items)?items:[];
+            const order=['不辣','小辣','中辣','大辣','未指定辣度'];
+            const spicy=new Map(), noSpice=[];
+            rows.forEach(item=>{
+                const raw=String(item.spice_level||'').trim();
+                if(!raw || ['無','無辣度','免辣度','none','null'].includes(raw.toLowerCase())){
+                    noSpice.push(item);
+                }else{
+                    if(!spicy.has(raw))spicy.set(raw,[]);
+                    spicy.get(raw).push(item);
+                }
+            });
+            const esc=value=>customerEscape(value??'');
+            const renderRows=group=>group.map(item=>`<tr><td>${esc(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Number(item.quantity)||0}</td><td>${customerMoney(item.subtotal)}</td></tr>`).join('');
+            const spicyBody=[...spicy.keys()].sort((a,b)=>{
+                const ai=order.indexOf(a),bi=order.indexOf(b);
+                return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');
+            }).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${esc(level)}</td></tr>${renderRows(spicy.get(level))}`).join('');
+            const noSpiceBody=noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🍢 無辣度商品</td></tr>${renderRows(noSpice)}`:'';
+            const body=spicyBody+noSpiceBody;
             return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
         }
         function customerOrderItemQuantity(items){return (Array.isArray(items)?items:[]).reduce((sum,item)=>sum+Math.max(0,Number(item.quantity)||0),0);}
@@ -6018,11 +6105,15 @@
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script><script src="line-config.js"></script>
 <script>
 window.customerFormatOrderDetailTable = function(items){
- const rows=Array.isArray(items)?items:[],order=['不辣','小辣','中辣','大辣','未指定辣度'],groups=new Map();
- rows.forEach(item=>{const level=item.spice_level||'';if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});
- const body=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`${level?`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${String(level).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}</td></tr>`:''}${groups.get(level).map(item=>`<tr><td>${String(item.name||'商品').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}${item.is_gift?'（贈品）':''}</td><td>${Number(item.quantity)||0}</td><td>${Number(item.subtotal||0).toLocaleString('zh-TW',{style:'currency',currency:'TWD',maximumFractionDigits:0})}</td></tr>`).join('')}`).join('');
+ const rows=Array.isArray(items)?items:[],order=['不辣','小辣','中辣','大辣','未指定辣度'],spicy=new Map(),noSpice=[];
+ const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ rows.forEach(item=>{const raw=String(item.spice_level||'').trim();if(!raw||['無','無辣度','免辣度','none','null'].includes(raw.toLowerCase()))noSpice.push(item);else{if(!spicy.has(raw))spicy.set(raw,[]);spicy.get(raw).push(item);}});
+ const render=group=>group.map(item=>`<tr><td>${esc(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Number(item.quantity)||0}</td><td>${Number(item.subtotal||0).toLocaleString('zh-TW',{style:'currency',currency:'TWD',maximumFractionDigits:0})}</td></tr>`).join('');
+ const spicyBody=[...spicy.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return(ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${esc(level)}</td></tr>${render(spicy.get(level))}`).join('');
+ const body=spicyBody+(noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🍢 無辣度商品</td></tr>${render(noSpice)}`:'');
  return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
 };
+</script>
 </script>
 </body>
 </html>
