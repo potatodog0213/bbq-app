@@ -1417,6 +1417,22 @@
 .customer-manage-photo-controls label:before{content:'＋';display:inline-grid;place-items:center;width:20px;height:20px;border-radius:7px;background:#80583b;color:white;font-size:15px;font-weight:900}
 .customer-manage-photo-controls label:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(112,74,50,.14)}
 .customer-manage-photo-controls input[type="file"]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+
+/* 訂單卡片視覺更新：柔和奶茶米色搭配鼠尾草綠，並加入進場動畫 */
+@keyframes customerOrderCardEnter{from{opacity:0;transform:translateY(13px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.customer-admin-card{background:linear-gradient(145deg,#fffdf8 0%,#f7f4eb 100%);border:1px solid #d9dfd1;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 5px 18px rgba(66,83,63,.08);animation:customerOrderCardEnter .42s cubic-bezier(.2,.75,.25,1) both;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.customer-admin-card:hover{transform:translateY(-2px);box-shadow:0 9px 24px rgba(66,83,63,.13);border-color:#b9c9b5}
+.customer-admin-card:nth-child(2){animation-delay:.04s}.customer-admin-card:nth-child(3){animation-delay:.08s}.customer-admin-card:nth-child(4){animation-delay:.12s}.customer-admin-card:nth-child(5){animation-delay:.16s}
+.customer-admin-card h3,.customer-admin-order-heading{color:#405b4a!important}
+.customer-admin-card.is-unread{border-left:5px solid #c28b45;background:linear-gradient(145deg,#fffaf0,#f7f1e4)}
+.customer-admin-items{background:#f1f4ec;border:1px solid #e0e7d9;border-radius:13px;padding:10px;margin:10px 0}
+.customer-order-detail-table th{background:#e7eee3;color:#405b4a}
+.customer-order-detail-table .customer-order-spice-heading td{background:#edf3e9;color:#46634d;padding-top:11px}
+.customer-order-detail-table .customer-order-no-spice-heading td{background:#f8eee1;color:#8b6440;font-weight:900;padding-top:11px;border-top:2px dashed #dfc5a4}
+.customer-order-detail-total{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#e9f0e6;border:1px solid #d6e2d2;border-radius:12px;padding:11px 13px;color:#405b4a}
+.customer-admin-actions button.primary{background:#55745c;color:#fff;border-color:#55745c}
+.customer-admin-actions button.primary:hover{background:#405f49}
+@media(prefers-reduced-motion:reduce){.customer-admin-card{animation:none!important;transition:none!important}}
 </style>
 
 </head>
@@ -3448,7 +3464,7 @@
                 const timeLabel=value=>value?new Date(value).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'尚未完成';
                 rows.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
                 box.innerHTML=rows.map(o=>{
-                    const items=Array.isArray(o.items)?o.items:[],itemText=customerFormatOrderDetailTable(items),itemQty=customerOrderItemQuantity(items),created=o.created_at?new Date(o.created_at).toLocaleString('zh-TW'):'',pickup=o.pickup_time?new Date(o.pickup_time).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'';
+                    const items=Array.isArray(o.items)?o.items:[],itemText=customerFormatOrderDetailTable(items),itemQty=items.reduce((sum,item)=>sum+Math.max(0,Number(item.quantity)||0),0),created=o.created_at?new Date(o.created_at).toLocaleString('zh-TW'):'',pickup=o.pickup_time?new Date(o.pickup_time).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'';
                     const active=['new','confirmed','preparing'].includes(o.status),steps=['new','confirmed','preparing','completed'],stepIndex=o.status==='cancelled'?-1:steps.indexOf(o.status),proposal=o.proposed_pickup_time?new Date(o.proposed_pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}):'';
                     const timeline=[{key:'new',label:'訂單成立',at:o.created_at},{key:'confirmed',label:'店家確認',at:o.confirmed_at},{key:'preparing',label:'開始製作',at:o.preparing_at},{key:'completed',label:'訂單完成',at:o.completed_at}];
                     const timelineHtml=`<div class="customer-order-timeline">${timeline.map((t,i)=>`<div class="customer-order-timeline-item ${t.at?'done':''}"><span class="customer-order-timeline-dot"></span><span class="customer-order-timeline-copy"><strong>${t.label}</strong><time>${t.at?customerEscape(timeLabel(t.at)):'尚未記錄'}</time></span></div>`).join('')}${o.status==='cancelled'?`<div class="customer-order-timeline-item done"><span class="customer-order-timeline-dot"></span><span class="customer-order-timeline-copy"><strong>訂單取消</strong><time>${customerEscape(timeLabel(o.cancelled_at))}</time></span></div>`:''}</div>`;
@@ -3829,45 +3845,34 @@
             renderCustomerAdminOrderCards();customerUpdateUnreadBadge();
         }
 
-                function customerFormatSpiceGroupedItems(items,includeGift=true){
-
         function customerFormatOrderDetailTable(items){
-            const rows=Array.isArray(items)?items:[];const order=['不辣','小辣','中辣','大辣','未指定辣度'];const groups=new Map();
-            rows.forEach(item=>{const level=item.spice_level||'';if(!groups.has(level))groups.set(level,[]);groups.get(level).push(item);});
-            const body=[...groups.keys()].sort((a,b)=>{const ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');}).map(level=>`${level?`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${customerEscape(level)}</td></tr>`:''}${groups.get(level).map(item=>`<tr><td>${customerEscape(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Number(item.quantity)||0}</td><td>${customerMoney(item.subtotal)}</td></tr>`).join('')}`).join('');
-            return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
-        }
-        function customerFormatOrderAuditDelta(oldItems,newItems){
-            const summarize=items=>{const map=new Map();(Array.isArray(items)?items:[]).forEach(item=>{const name=String(item.name||'商品').trim(),spice=String(item.spice_level||'').trim(),gift=!!item.is_gift,key=JSON.stringify([name,spice,gift]);const entry=map.get(key)||{name,spice,gift,quantity:0};entry.quantity+=Math.max(0,Number(item.quantity)||0);map.set(key,entry);});return map;};
-            const before=summarize(oldItems),after=summarize(newItems),keys=new Set([...before.keys(),...after.keys()]),added=[],removed=[];
-            keys.forEach(key=>{const a=before.get(key),b=after.get(key),base=a||b,diff=(b?.quantity||0)-(a?.quantity||0);if(diff>0)added.push({...base,quantity:diff});else if(diff<0)removed.push({...base,quantity:Math.abs(diff)});});
-            const format=list=>list.map(item=>`${customerEscape(item.name)}${item.spice?`（${customerEscape(item.spice)}）`:''}${item.gift?'（贈品）':''} × ${item.quantity}`).join('<br>');
-            if(!added.length&&!removed.length)return '<div style="color:#6b5140;font-weight:700">客人訂單沒有變化</div>';
-            return `${added.length?`<div><b style="color:#28734b">增加餐點</b><br>${format(added)}</div>`:''}${removed.length?`<div style="margin-top:6px"><b style="color:#a34b38">減少餐點</b><br>${format(removed)}</div>`:''}`;
-        }
-        function customerOrderItemQuantity(items){return (Array.isArray(items)?items:[]).reduce((sum,item)=>sum+Math.max(0,Number(item.quantity)||0),0);}
+            const rows=Array.isArray(items)?items:[];
             const order=['不辣','小辣','中辣','大辣','未指定辣度'];
-            const groups=new Map(),noSpice=[];
-            (Array.isArray(items)?items:[]).forEach(item=>{
+            const groups=new Map();
+            const noSpice=[];
+            rows.forEach(item=>{
                 const level=String(item.spice_level||'').trim();
                 if(!level){noSpice.push(item);return;}
                 if(!groups.has(level))groups.set(level,[]);
                 groups.get(level).push(item);
             });
-            const formatItems=list=>list.map(i=>`${customerEscape(i.name)} × ${Number(i.quantity)||0}${includeGift&&i.is_gift?'（贈品）':''}　${customerMoney(i.subtotal)}`).join('<br>');
+            const safe=value=>customerEscape(String(value??''));
+            const rowHtml=item=>`<tr><td>${safe(item.name||'商品')}${item.is_gift?'（贈品）':''}</td><td>${Math.max(0,Number(item.quantity)||0)}</td><td>${customerMoney(item.subtotal)}</td></tr>`;
             const spicyHtml=[...groups.keys()].sort((a,b)=>{
                 const ai=order.indexOf(a),bi=order.indexOf(b);
                 return (ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b,'zh-TW');
-            }).map(level=>`<div class="customer-order-spice-heading">🌶️ ${customerEscape(level)}</div>${formatItems(groups.get(level))}`).join('<br>');
-            const noSpiceHtml=noSpice.length?`<div class="customer-order-no-spice"><div class="customer-order-no-spice-title">其他品項・此品項沒有辣度選擇</div><div class="customer-order-no-spice-items">${formatItems(noSpice)}</div></div>`:'';
-            return [spicyHtml,noSpiceHtml].filter(Boolean).join('');
+            }).map(level=>`<tr class="customer-order-spice-heading"><td colspan="3">🌶️ ${safe(level)}</td></tr>${groups.get(level).map(rowHtml).join('')}`).join('');
+            const noSpiceHtml=noSpice.length?`<tr class="customer-order-no-spice-heading"><td colspan="3">🍢 無辣度選擇／免選辣度</td></tr>${noSpice.map(rowHtml).join('')}`:'';
+            const body=spicyHtml+noSpiceHtml;
+            return rows.length?`<table class="customer-order-detail-table"><thead><tr><th>商品</th><th>數量</th><th>金額</th></tr></thead><tbody>${body}</tbody></table>`:'<p class="customer-order-muted">（無餐點明細）</p>';
         }
+
         function renderCustomerAdminOrderCards(){
             const box=document.getElementById('customer-admin-order-list');if(!box)return;const read=customerReadOrderIds();
             const rows=customerAdminOrders.filter(o=>customerAdminStatusFilter==='all'||(customerAdminStatusFilter==='new'?o.status==='new':o.status===customerAdminStatusFilter)).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
             if(!rows.length){box.innerHTML='<p class="customer-order-muted" style="text-align:center;padding:22px;">目前沒有符合條件的訂單。</p>';return;}
             box.innerHTML=rows.map(o=>{
-                const items=Array.isArray(o.items)?o.items:[],itemText=customerFormatOrderDetailTable(items),itemQty=customerOrderItemQuantity(items);
+                const items=Array.isArray(o.items)?o.items:[],itemText=customerFormatOrderDetailTable(items),itemQty=items.reduce((sum,item)=>sum+Math.max(0,Number(item.quantity)||0),0);
                 const pickup=new Date(o.pickup_time).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
                 const created=new Date(o.created_at).toLocaleString('zh-TW');const unread=o.status==='new'&&!read.has(String(o.id));
                 const visibleNote=String(o.note||'無').replace(/\n\n\[\[MALINJI_ORDER_META:[\s\S]*?\]\]$/,'')||'無';
@@ -3876,7 +3881,7 @@
                 const cancelAction=cancelRequestedAt?`<div class="customer-admin-actions"><b style="color:#a33">客人申請取消・${customerEscape(new Date(cancelRequestedAt).toLocaleString('zh-TW'))}</b><button class="primary" onclick="customerReviewCancelRequest('${customerEscape(o.id)}',true)">同意取消</button><button onclick="customerReviewCancelRequest('${customerEscape(o.id)}',false)">不同意</button></div>`:(['new','confirmed'].includes(o.status)?`<button class="customer-time-action" onclick="updateCustomerOrderStatus('${customerEscape(o.id)}','cancelled')">取消訂單</button>`:'');
                 const readAction=o.status==='new'&&!read.has(String(o.id))?`<button onclick="markCustomerOrderRead('${customerEscape(o.id)}')">標記已讀</button>`:'';
                 const addonHtml=(o.addons||[]).map((a,i)=>`<div style="margin-top:8px;padding:10px;border:1px solid #ead8c5;border-radius:10px;background:#fffaf4"><b>過往餐點異動紀錄 ${i+1}・${customerEscape(new Date(a.created_at).toLocaleString('zh-TW'))}</b><div>${customerFormatOrderDetailTable(a.items)}</div><b>異動金額：${customerMoney(a.total_amount)}</b></div>`).join('');
-                const auditHtml=(o.change_audits||[]).map(h=>`<div style="margin-top:8px;padding:10px;border:1px solid #d8e4dc;border-radius:10px;background:#f7fbf8"><b>修改紀錄・${customerEscape(new Date(h.created_at).toLocaleString('zh-TW'))}</b><div style="margin-top:6px">${customerFormatOrderAuditDelta(h.old_items,h.new_items)}</div></div>`).join('');
+                const auditHtml=(o.change_audits||[]).map(h=>`<div style="margin-top:8px;padding:10px;border:1px solid #d8e4dc;border-radius:10px;background:#f7fbf8"><b>修改完成紀錄・${customerEscape(new Date(h.created_at).toLocaleString('zh-TW'))}</b><div style="margin-top:6px">修改前：${customerFormatOrderDetailTable(h.old_items)}<br>金額 ${customerMoney(h.old_total_amount)}</div><div style="margin-top:6px">修改後：${customerFormatOrderDetailTable(h.new_items)}<br>金額 ${customerMoney(h.new_total_amount)}</div></div>`).join('');
                 const lineProfile=customerAdminLineProfiles[String(o.line_user_id||'')]||{};const avatarMarkup=lineProfile.pictureUrl?`<img class="customer-admin-line-avatar" src="${customerEscape(lineProfile.pictureUrl)}" alt="LINE 頭像" referrerpolicy="no-referrer" loading="lazy">`:'<span class="customer-admin-line-avatar-fallback" aria-hidden="true">👤</span>';
                 return `<article class="customer-admin-card ${unread?'is-unread':''}"><h3 class="customer-admin-order-heading"><span class="customer-admin-order-title">${avatarMarkup}<span>${customerEscape(customerDisplayOrderLabel(o))}</span></span><span style="font-size:13px;">${customerEscape(({new:'待確認',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'})[o.status]||o.status)}</span>${unread?'<span class="customer-unread-badge">未讀</span>':''}</h3><div class="customer-admin-meta">客人：${customerEscape(o.customer_name)}<br>手機：<a href="tel:${customerEscape(o.customer_phone||'')}">${customerEscape(o.customer_phone||'未提供')}</a><br>取餐時間：${customerEscape(pickup)}${proposedTime?'<br><b>已提出待客人回覆：'+customerEscape(new Date(proposedTime).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))+'</b>':''}${customerResponse==='declined'?'<br><b style=\"color:#b45309\">客人表示新時間不方便，請重新安排</b>':''}<br>下單時間：${customerEscape(created)}</div><div class="customer-admin-items">${itemText}</div><div class="customer-order-detail-total"><span>共計：${itemQty} 樣</span><strong>總金額：${customerMoney(o.total_amount)}</strong></div>${addonHtml?`<div class="customer-admin-meta"><b>歷史異動紀錄</b>${addonHtml}</div>`:''}${auditHtml?`<div class="customer-admin-meta"><b>修改稽核紀錄</b>${auditHtml}</div>`:''}<div class="customer-admin-meta">備註：${customerEscape(visibleNote)}</div><div class="customer-admin-actions">${readAction}${actions}${cancelAction}</div></article>`;
             }).join('');customerUpdateUnreadBadge();
