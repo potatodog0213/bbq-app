@@ -3201,6 +3201,7 @@
             const selectedDate=new Date(y,m-1,day,12);if(selectedDate.getFullYear()!==y||selectedDate.getMonth()!==m-1||selectedDate.getDate()!==day)return;
             if(value<customerPickupPickerState.minDate||value>customerPickupPickerState.maxDate)return;
             if(customerPickupPickerState.mode!=='admin'&&selectedDate.getDay()===3)return;
+            // 點選日期後，以使用者剛選的日期作為唯一狀態來源，避免預覽仍顯示原本日期。
             customerPickupPickerState.date=value;customerPickupPickerState.month=new Date(y,m-1,1);
             renderCustomerPickupCalendar();populateCustomerPickupTimeOptions();updateCustomerPickupPreview();
         }
@@ -3219,6 +3220,8 @@
         function customerPickupHourChanged(){if(!customerPickupPickerState)return;customerPickupPickerState.hour=Number(document.getElementById('customer-pickup-hour').value);const mins=customerAllowedMinutes(customerPickupPickerState.hour).filter(m=>customerPickupIsSelectable(customerPickupPickerState.date,customerPickupPickerState.hour,m));customerPickupPickerState.minute=mins[0]||'00';populateCustomerPickupTimeOptions();updateCustomerPickupPreview();}
         function updateCustomerPickupPreview(){
             const state=customerPickupPickerState,preview=document.getElementById('customer-pickup-preview');if(!state||!preview)return;
+            const selectedDate=customerParseLocalDate(state.date);
+            if(!state.date||!Number.isFinite(selectedDate.getTime())){preview.textContent='請先選擇取餐日期';return;}
             const hourValue=document.getElementById('customer-pickup-hour')?.value,minuteValue=document.getElementById('customer-pickup-minute')?.value;
             if(hourValue===''||hourValue==null||minuteValue===''||minuteValue==null){preview.textContent='此日期目前無可選時段，請選擇其他日期';return;}
             const hour=Number(hourValue),minute=String(minuteValue),d=customerPickupDateTime(state.date,hour,minute);
@@ -3229,8 +3232,11 @@
         }
         function closeCustomerPickupPicker(){document.getElementById('customer-pickup-overlay')?.remove();customerPickupPickerState=null;}
         async function confirmCustomerPickupFromPicker(){
-            const state=customerPickupPickerState;if(!state)return;const date=state.date,hour=Number(document.getElementById('customer-pickup-hour')?.value),minute=Number(document.getElementById('customer-pickup-minute')?.value);if(!date){customerOrderAlert('請選擇取餐日期');return;}
-            const selected=customerPickupDateTime(date,hour,minute),now=Date.now();
+            const state=customerPickupPickerState;if(!state)return;const date=state.date,hourValue=document.getElementById('customer-pickup-hour')?.value,minuteValue=document.getElementById('customer-pickup-minute')?.value;
+            if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){customerOrderAlert('請選擇取餐日期');return;}
+            if(hourValue===''||hourValue==null||minuteValue===''||minuteValue==null){customerOrderAlert('此日期沒有可選時段，請改選其他日期。');return;}
+            const hour=Number(hourValue),minute=Number(minuteValue);if(!Number.isInteger(hour)||!Number.isInteger(minute)){customerOrderAlert('請重新選擇取餐時間');return;}
+            const selected=customerPickupDateTime(date,hour,minute),now=Date.now();if(!Number.isFinite(selected.getTime())||customerLocalDateValue(selected)!==date){customerOrderAlert('取餐日期無效，請重新選擇');return;}
             if(state.mode!=='admin'&&selected.getDay()===3){customerOrderAlert('每週三公休，請選擇其他取餐日期。');return;}if(!customerIsAllowedPickup(selected)){customerOrderAlert('請選擇 17:30 至 23:55 的營業時段（00:00 截止）。');return;}if(!customerPickupIsSelectable(date,hour,minute)){const lead=state.mode==='admin'?30:10;customerOrderAlert(`取餐時間必須在現在 ${lead} 分鐘之後，請重新選擇。`);populateCustomerPickupTimeOptions();updateCustomerPickupPreview();return;}if(selected.getTime()>now+14*86400000){customerOrderAlert('取餐時間最多只能預約未來 14 天。');return;}
             if(state.mode==='admin'){
                 const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'propose-time',order_id:state.orderId,proposed_pickup_time:selected.toISOString()}});
