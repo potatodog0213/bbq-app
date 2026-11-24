@@ -3239,6 +3239,7 @@ function customerPublicProductClick(id){if(customerPublicSoldOutIds.has(String(i
                 if(!visitorSeed){visitorSeed=(crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`);localStorage.setItem('malinji_order_visitor_seed_v1',visitorSeed);}
                 let sessionId=sessionStorage.getItem('malinji_order_visit_session_v1');
                 if(!sessionId){sessionId=crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`;sessionStorage.setItem('malinji_order_visit_session_v1',sessionId);}
+                if(sessionStorage.getItem('malinji_order_visit_recorded_v1')==='1')return;
                 const visitorKey=await customerAnalyticsSha256(customerLineUserId||`anonymous:${visitorSeed}`);
                 const {error}=await _supabase.from('customer_order_visits').insert({
                     visitor_key:visitorKey,visit_session_id:sessionId,
@@ -3246,7 +3247,8 @@ function customerPublicProductClick(id){if(customerPublicSoldOutIds.has(String(i
                     picture_url:String(customerLinePictureUrl||'').trim().slice(0,2048)||null,
                     source:'customer-order-page'
                 });
-                if(error&&error.code!=='23505')console.warn('[點餐訪客分析] 紀錄未成功，請確認已建立專用資料表。',error.message);
+                if(!error||error.code==='23505'||error.code==='409')sessionStorage.setItem('malinji_order_visit_recorded_v1','1');
+                else console.warn('[點餐訪客分析] 紀錄未成功，請確認已建立專用資料表。',error.message);
             }catch(error){console.warn('[點餐訪客分析] 紀錄略過',error);}
         }
         async function customerEnsureLineLogin(){
@@ -5809,5 +5811,14 @@ function customerPublicProductClick(id){if(customerPublicSoldOutIds.has(String(i
       });
     </script>
 
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script><script src="line-config.js"></script></body>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script><script src="line-config.js"></script>
+<script>
+window.toggleCustomerStoreAnnouncement = function(open){
+ const overlay=document.getElementById('customer-store-notice-overlay');if(!overlay)return;
+ const show=Boolean(open);overlay.classList.toggle('is-open',show);overlay.setAttribute('aria-hidden',show?'false':'true');
+ document.body.classList.toggle('customer-modal-open',show);
+ if(show){const close=overlay.querySelector('.customer-store-notice-close');if(close)close.focus();}
+};
+</script>
+</body>
 </html>
