@@ -61,6 +61,63 @@ function orderDisplayLabel(order: { created_at?: string; customer_name?: string;
 }
 
 
+function shortOrderNumber(order: any) {
+  const sequence = Number(order?.daily_sequence);
+  return Number.isInteger(sequence) && sequence > 0
+    ? `#${String(sequence).padStart(3, "0")}`
+    : `#${String(order?.id ?? "").slice(0, 8)}`;
+}
+
+function formatPickupTime(value: string | Date) {
+  return new Date(value).toLocaleString("zh-TW", {
+    timeZone: "Asia/Taipei",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function summarizeOrderItemChanges(oldItems: unknown, newItems: unknown) {
+  const toMap = (items: unknown) => {
+    const map = new Map<string, any>();
+    for (const item of Array.isArray(items) ? items : []) {
+      const productId = String(item?.product_id ?? "");
+      const isGift = item?.is_gift === true;
+      const spice = isGift ? "" : String(item?.spice_level ?? "");
+      const key = JSON.stringify([isGift, productId, spice]);
+      const previous = map.get(key);
+      map.set(key, {
+        name: String(item?.name ?? "商品"),
+        quantity: (previous?.quantity ?? 0) + (Number(item?.quantity) || 0),
+        isGift,
+        spice,
+      });
+    }
+    return map;
+  };
+
+  const before = toMap(oldItems);
+  const after = toMap(newItems);
+  const keys = new Set([...before.keys(), ...after.keys()]);
+  const changes: string[] = [];
+
+  for (const key of keys) {
+    const oldItem = before.get(key);
+    const newItem = after.get(key);
+    const difference = (newItem?.quantity ?? 0) - (oldItem?.quantity ?? 0);
+    if (!difference) continue;
+
+    const item = newItem ?? oldItem;
+    const spiceText = item.spice ? `（${item.spice}）` : "";
+    const giftText = item.isGift ? "（贈品）" : "";
+    const prefix = difference > 0 ? "＋ 增加：" : "－ 減少：";
+    changes.push(`${prefix}${item.name}${spiceText}${giftText} × ${Math.abs(difference)}`);
+  }
+  return changes;
+}
+
 function normalizePhone(value: unknown) {
   return String(value ?? "").replace(/\D/g, "").replace(/^886(?=9\d{8}$)/, "0");
 }
@@ -75,7 +132,7 @@ async function hashRateLimitIdentifier(value: string) {
   const pepper = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   return sha256Hex(`${pepper}:${value}`);
 }
-async function consumeOrderRateLimit(admin: ReturnType<typeof createClient>, key: string, limit: number, windowSeconds: number) {
+async function consumeOrderRateLimit(admin: any, key: string, limit: number, windowSeconds: number) {
   const { data, error } = await admin.rpc("consume_customer_order_rate_limit", {
     p_key: key, p_limit: limit, p_window_seconds: windowSeconds,
   });
@@ -86,7 +143,7 @@ async function consumeOrderRateLimit(admin: ReturnType<typeof createClient>, key
   const row = Array.isArray(data) ? data[0] : data;
   return row?.allowed === true;
 }
-async function enforcePublicOrderRateLimits(admin: ReturnType<typeof createClient>, req: Request, action: string, body: any) {
+async function enforcePublicOrderRateLimits(admin: any, req: Request, action: string, body: any) {
   // 優先使用由 Supabase/Cloudflare gateway 提供的來源 IP header，不採用可由客戶端自行偽造的 X-Forwarded-For。
   const sourceIp = req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || "unknown";
   const ipHash = await hashRateLimitIdentifier(sourceIp.slice(0, 128));
@@ -167,29 +224,48 @@ async function sendLineOrderLink(userId: string, displayName: string, orderLabel
   return true;
 }
 
-async function notifyOwner(admin: ReturnType<typeof createClient>, title: string, message: string) {
+async function notifyOwner(admin: any, title: string, message: string): Promise<boolean> {
   const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
   const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
   const vapidSubject = Deno.env.get("VAPID_SUBJECT") ?? "mailto:store@example.com";
-  if (!vapidPublic || !vapidPrivate) return;
+  if (!vapidPublic || !vapidPrivate) return false;
+
   try {
     webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
-    const { data: subs, error } = await admin.from("customer_push_subscriptions").select("id,endpoint,p256dh,auth");
+    const { data: subs, error } = await admin.from("customer_push_subscriptions")
+      .select("id,endpoint,p256dh,auth");
     if (error) throw error;
-    const payload = JSON.stringify({ title, body: message, url: "/bbq-app/?customer-order-admin=1" });
-    await Promise.allSettled((subs ?? []).map(async (sub: any) => {
+    if (!subs?.length) return false;
+
+    const payload = JSON.stringify({
+      title,
+      body: message,
+      url: "/bbq-app/?customer-order-admin=1"
+    });
+
+    const results = await Promise.allSettled((subs ?? []).map(async (sub: any) => {
       try {
-        await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payload
+        );
+        return true;
       } catch (e: any) {
-        if (e?.statusCode === 404 || e?.statusCode === 410) await admin.from("customer_push_subscriptions").delete().eq("id", sub.id);
+        if (e?.statusCode === 404 || e?.statusCode === 410) {
+          await admin.from("customer_push_subscriptions").delete().eq("id", sub.id);
+        }
         console.warn("[customer-orders][push] send failed", e?.statusCode ?? "unknown");
+        throw e;
       }
     }));
+
+    return results.some(result => result.status === "fulfilled");
   } catch (e) {
     console.warn("[customer-orders][push] delivery skipped", e);
+    return false;
   }
 }
-async function buildGiftDrinkSnapshot(admin: ReturnType<typeof createClient>, input: unknown, regularTotal: number) {
+async function buildGiftDrinkSnapshot(admin: any, input: unknown, regularTotal: number) {
   const rows = Array.isArray(input) ? input : [];
   if (rows.length > 20) throw new Error("贈品飲料選擇過多");
   const quantities = new Map<string, number>();
@@ -231,7 +307,7 @@ async function buildGiftDrinkSnapshot(admin: ReturnType<typeof createClient>, in
   return products.map((product: any) => ({ product_id: String(product.id), name: String(product.name ?? "贈品飲料").slice(0, 100), unit_price: 0, quantity: quantities.get(String(product.id)) ?? 0, subtotal: 0, is_gift: true }));
 }
 
-async function buildRegularItemSnapshot(admin: ReturnType<typeof createClient>, input: unknown) {
+async function buildRegularItemSnapshot(admin: any, input: unknown) {
   if (!Array.isArray(input) || input.length < 1 || input.length > 40) {
     throw new Error("餐點內容不正確");
   }
@@ -326,7 +402,7 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   if (!url || !serviceKey) return reply({ ok: false, error: "Server configuration error" }, 500);
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } }) as any;
 
   try {
     const body = await req.json();
@@ -341,34 +417,161 @@ Deno.serve(async (req) => {
     if (action === "send-pickup-reminders") {
       const expected = Deno.env.get("CUSTOMER_ORDER_REMINDER_SECRET");
       const supplied = req.headers.get("x-cron-secret") ?? "";
-      if (!expected || supplied !== expected) return reply({ ok: false, error: "Unauthorized reminder job" }, 403);
-      if (!Deno.env.get("VAPID_PUBLIC_KEY") || !Deno.env.get("VAPID_PRIVATE_KEY")) return reply({ ok: false, error: "尚未設定 Web Push VAPID 金鑰" }, 503);
-      const { count: subscriptionCount, error: subscriptionError } = await admin.from("customer_push_subscriptions").select("id", { count: "exact", head: true });
-      if (subscriptionError) throw subscriptionError;
-      if (!subscriptionCount) return reply({ ok: false, error: "尚未有店家手機啟用訂單推播" }, 409);
-      const now = Date.now();
-      const from = new Date(now + 9 * 60_000).toISOString();
-      const to = new Date(now + 10 * 60_000).toISOString();
-      const { data: due, error: dueError } = await admin.from("customer_orders")
-        .select("id,customer_name,customer_phone,pickup_time,created_at,items,status,pickup_reminder_sent_at,daily_sequence")
-        .in("status", ["new", "confirmed", "preparing"]).gte("pickup_time", from).lte("pickup_time", to)
-        .is("pickup_reminder_sent_at", null).limit(100);
-      if (dueError) throw dueError;
-      let sent = 0;
-      for (const order of due ?? []) {
-        const { data: claimed, error: claimError } = await admin.from("customer_orders")
-          .update({ pickup_reminder_sent_at: new Date().toISOString() }).eq("id", order.id).is("pickup_reminder_sent_at", null).select("id").maybeSingle();
-        if (claimError) throw claimError;
-        if (!claimed) continue;
-        const pickupLabel = new Date(order.pickup_time).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
-        const orderLabel = orderDisplayLabel(order);
-        const count = (Array.isArray(order.items) ? order.items : []).reduce((n: number, item: any) => n + (Number(item.quantity) || 0), 0);
-        await notifyOwner(admin, "馬鈴吉碳烤｜取餐前 10 分鐘提醒", `${orderLabel}，取餐時間 ${pickupLabel}，共 ${count} 件餐點。請準備製作／出餐。`);
-        sent++;
+      if (!expected || supplied !== expected) {
+        return reply({ ok: false, error: "Unauthorized reminder job" }, 403);
       }
-      return reply({ ok: true, checked: due?.length ?? 0, sent });
-    }
+      if (!Deno.env.get("VAPID_PUBLIC_KEY") || !Deno.env.get("VAPID_PRIVATE_KEY")) {
+        return reply({ ok: false, error: "尚未設定 Web Push VAPID 金鑰" }, 503);
+      }
 
+      const { count: subscriptionCount, error: subscriptionError } = await admin
+        .from("customer_push_subscriptions")
+        .select("id", { count: "exact", head: true });
+      if (subscriptionError) throw subscriptionError;
+      if (!subscriptionCount) {
+        return reply({ ok: false, error: "尚未有店家手機啟用訂單推播" }, 409);
+      }
+
+      const now = Date.now();
+      const from = new Date(now).toISOString();
+      const to = new Date(now + 10 * 60_000).toISOString();
+
+      const { data: due, error: dueError } = await admin.from("customer_orders")
+        .select("id,customer_name,customer_phone,pickup_time,created_at,items,status,daily_sequence")
+        .in("status", ["new", "confirmed", "preparing"])
+        .gte("pickup_time", from)
+        .lte("pickup_time", to)
+        .limit(100);
+      if (dueError) throw dueError;
+
+      let sent = 0;
+      let failed = 0;
+
+      for (const order of due ?? []) {
+        const { data: existing, error: logReadError } = await admin
+          .from("customer_pickup_reminder_logs")
+          .select("status,attempts,updated_at")
+          .eq("order_id", order.id)
+          .maybeSingle();
+        if (logReadError) throw logReadError;
+
+        if (existing?.status === "sent") continue;
+
+        if (existing?.status === "sending" &&
+            new Date(existing.updated_at).getTime() > Date.now() - 5 * 60_000) {
+          continue;
+        }
+
+        const claimTime = new Date().toISOString();
+
+        if (existing) {
+          const { data: claimed, error: claimError } = await admin
+            .from("customer_pickup_reminder_logs")
+            .update({
+              status: "sending",
+              attempts: (existing.attempts || 0) + 1,
+              last_error: null,
+              updated_at: claimTime
+            })
+            .eq("order_id", order.id)
+            .eq("updated_at", existing.updated_at)
+            .select("order_id")
+            .maybeSingle();
+
+          if (claimError) throw claimError;
+          if (!claimed) continue;
+        } else {
+          const { error: insertError } = await admin
+            .from("customer_pickup_reminder_logs")
+            .insert({
+              order_id: order.id,
+              status: "sending",
+              attempts: 1,
+              updated_at: claimTime
+            });
+
+          if (insertError) {
+            if (insertError.code === "23505") continue;
+            throw insertError;
+          }
+        }
+
+        try {
+          const { data: current, error: currentError } = await admin
+            .from("customer_orders")
+            .select("status")
+            .eq("id", order.id)
+            .maybeSingle();
+          if (currentError) throw currentError;
+
+          if (!current || !["new", "confirmed", "preparing"].includes(current.status)) {
+            await admin.from("customer_pickup_reminder_logs")
+              .update({
+                status: "failed",
+                last_error: "Order is no longer active",
+                updated_at: new Date().toISOString()
+              })
+              .eq("order_id", order.id);
+            continue;
+          }
+
+          const pickupLabel = new Date(order.pickup_time).toLocaleString("zh-TW", {
+            timeZone: "Asia/Taipei",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+          });
+
+          const count = (Array.isArray(order.items) ? order.items : [])
+            .reduce((n: number, item: any) => n + (Number(item.quantity) || 0), 0);
+
+          const delivered = await notifyOwner(
+            admin,
+            "馬鈴吉碳烤｜取餐提醒",
+            `訂單：${shortOrderNumber(order)}\n客人：${order.customer_name ?? "顧客"}\n取餐：${pickupLabel}\n預計 10 分鐘內取餐，共 ${count} 件餐點。\n請準備餐點。`
+          );
+
+          if (delivered) {
+            const { error: sentError } = await admin
+              .from("customer_pickup_reminder_logs")
+              .update({
+                status: "sent",
+                last_error: null,
+                sent_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq("order_id", order.id);
+
+            if (sentError) throw sentError;
+            sent++;
+          } else {
+            await admin.from("customer_pickup_reminder_logs")
+              .update({
+                status: "failed",
+                last_error: "Web Push delivery failed",
+                updated_at: new Date().toISOString()
+              })
+              .eq("order_id", order.id);
+            failed++;
+          }
+        } catch (e: any) {
+          await admin.from("customer_pickup_reminder_logs")
+            .update({
+              status: "failed",
+              last_error: String(e?.message ?? e).slice(0, 500),
+              updated_at: new Date().toISOString()
+            })
+            .eq("order_id", order.id);
+
+          failed++;
+          console.warn("[customer-orders][pickup-reminder] failed", order.id);
+        }
+      }
+
+      return reply({ ok: true, checked: due?.length ?? 0, sent, failed });
+    }
     if (action === "health") return reply({ ok: true, function: "customer-orders", version: "customer-order-line-list-20261122" });
 
     if (action === "list-my-orders") {
@@ -445,27 +648,38 @@ Deno.serve(async (req) => {
         .eq("id", id).eq("line_user_id", line.userId).maybeSingle();
       if (readError) throw readError;
       if (!order) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的操作權限" }, 403);
+      if (order.status !== "new") {
+        return reply({ ok: false, error: "訂單狀態已變更，無法再回覆取餐時間" }, 409);
+      }
       const { customerNote, meta } = readNote(String(order.note ?? ""));
       const proposed = typeof meta.proposed_pickup_time === "string" ? meta.proposed_pickup_time : "";
       if (!proposed) return reply({ ok: false, error: "目前沒有待確認的取餐時間" }, 409);
       if (body.accepted) {
-        const { error } = await admin.from("customer_orders").update({
+        const { data: updated, error } = await admin.from("customer_orders").update({
           pickup_time: proposed, status: "confirmed", confirmed_at: new Date().toISOString(),
           note: writeNote(customerNote, { ...meta, proposed_pickup_time: null, customer_response: "accepted" }),
-        }).eq("id", id).eq("line_user_id", line.userId);
+        }).eq("id", id).eq("line_user_id", line.userId).eq("status", "new").select("id").maybeSingle();
         if (error) throw error;
-        const label = orderDisplayLabel(order);
-        const task = notifyOwner(admin, "馬鈴吉碳烤｜客人接受新取餐時間", `${label}（LINE：${line.displayName}）已接受店家提出的時間：${new Date(proposed).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false })}。訂單已確認。`);
+        if (!updated) return reply({ ok: false, error: "訂單狀態已變更，請重新整理訂單" }, 409);
+        const task = notifyOwner(
+          admin,
+          "馬鈴吉碳烤｜客人已回覆",
+          `訂單：${shortOrderNumber(order)}\n客人：${order.customer_name ?? line.displayName}\n已接受新的取餐時間：${formatPickupTime(proposed)}\n訂單已確認。`
+        );
         const runtime = (globalThis as any).EdgeRuntime;
         if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
         return reply({ ok: true, status: "confirmed", pickup_time: proposed });
       }
-      const { error } = await admin.from("customer_orders").update({
+      const { data: updated, error } = await admin.from("customer_orders").update({
         note: writeNote(customerNote, { ...meta, proposed_pickup_time: null, customer_response: "declined", needs_reschedule: true }),
-      }).eq("id", id).eq("line_user_id", line.userId);
+      }).eq("id", id).eq("line_user_id", line.userId).eq("status", "new").select("id").maybeSingle();
       if (error) throw error;
-      const label = orderDisplayLabel(order);
-      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人無法配合取餐時間", `${label}（LINE：${line.displayName}）表示店家提出的時間不方便，請重新安排取餐時間並再次通知客人。`);
+      if (!updated) return reply({ ok: false, error: "訂單狀態已變更，請重新整理訂單" }, 409);
+      const task = notifyOwner(
+        admin,
+        "馬鈴吉碳烤｜客人已回覆",
+        `訂單：${shortOrderNumber(order)}\n客人：${order.customer_name ?? line.displayName}\n無法配合新的取餐時間，請重新安排並通知客人。`
+      );
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
       return reply({ ok: true, status: order.status, customer_response: "declined", needs_reschedule: true });
@@ -479,18 +693,23 @@ Deno.serve(async (req) => {
       const { snapshot, total } = await buildRegularItemSnapshot(admin, body.items);
       const giftSnapshot = await buildGiftDrinkSnapshot(admin, body.free_drinks, total);
       const { data: currentOrder, error: currentError } = await admin.from("customer_orders")
-        .select("id,line_user_id,customer_name,status,pickup_time,created_at,daily_sequence")
+        .select("id,line_user_id,customer_name,status,pickup_time,created_at,daily_sequence,items")
         .eq("id", orderId).eq("line_user_id", line.userId).maybeSingle();
       if (currentError) throw currentError;
       if (!currentOrder) return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的修改權限" }, 403);
-      if (!["new", "confirmed"].includes(String(currentOrder.status))) {
+      if (!["new", "confirmed", "preparing"].includes(String(currentOrder.status))) {
         return reply({ ok: false, error: "訂單已開始製作或已結束，無法再修改餐點" }, 409);
       }
       if (new Date(currentOrder.pickup_time).getTime() <= Date.now() + 15 * 60_000) {
         return reply({ ok: false, error: "距離預定取餐時間不足 15 分鐘，已無法修改餐點" }, 409);
       }
+      const newItems = [...snapshot, ...giftSnapshot];
+      const itemChanges = summarizeOrderItemChanges(currentOrder.items, newItems);
+      if (!itemChanges.length) {
+        return reply({ ok: true, unchanged: true });
+      }
       const { data, error } = await admin.rpc("edit_customer_order_direct_atomic", {
-        p_order_id: orderId, p_customer_phone: line.userId, p_new_items: [...snapshot, ...giftSnapshot], p_new_base_total: total,
+        p_order_id: orderId, p_customer_phone: line.userId, p_new_items: newItems, p_new_base_total: total,
       });
       if (error) {
         if (error.code === "P0002") return reply({ ok: false, error: "此 LINE 帳號沒有這筆訂單的修改權限" }, 403);
@@ -498,9 +717,13 @@ Deno.serve(async (req) => {
         throw error;
       }
       const result = Array.isArray(data) ? data[0] : data;
-      const editedAt = new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false });
-      const orderLabel = orderDisplayLabel(currentOrder);
-      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人修改訂單", `${orderLabel}（LINE：${line.displayName}）於 ${editedAt} 修改餐點，請至訂單管理查看最新內容。`);
+      const orderNo = shortOrderNumber(currentOrder);
+      const changeText = itemChanges.join("\n");
+      const task = notifyOwner(
+        admin,
+        "馬鈴吉碳烤｜訂單異動",
+        `訂單：${orderNo}\n客人：${currentOrder.customer_name ?? line.displayName}\n${changeText}\n請前往訂單管理查看。`
+      );
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
       return reply({ ok: true, total_amount: result?.new_total });
@@ -527,8 +750,11 @@ Deno.serve(async (req) => {
         note: writeNote(customerNote, { ...meta, cancel_requested_at: requestedAt })
       }).eq("id", id).eq("line_user_id", line.userId);
       if (error) throw error;
-      const label = orderDisplayLabel(order);
-      const task = notifyOwner(admin, "馬鈴吉碳烤｜客人申請取消訂單", `${label}（LINE：${line.displayName}）提出取消申請，請至訂單管理處理。`);
+      const task = notifyOwner(
+        admin,
+        "馬鈴吉碳烤｜收到取消申請",
+        `訂單：${shortOrderNumber(order)}\n客人：${order.customer_name ?? line.displayName}\n客人提出取消申請。\n請前往訂單管理處理。`
+      );
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
       return reply({ ok: true });
@@ -574,7 +800,11 @@ Deno.serve(async (req) => {
       const { data: requestedOrder, error: requestedOrderError } = await admin.from("customer_orders").select("id,customer_name,created_at,daily_sequence").eq("id", orderId).eq("line_user_id", line.userId).maybeSingle();
       if (requestedOrderError) throw requestedOrderError;
       const label = requestedOrder ? orderDisplayLabel(requestedOrder) : `訂單 ${orderId.slice(0, 8)}`;
-      const task = notifyOwner(admin, "馬鈴吉碳烤｜訂單修改申請", `${label}（LINE：${line.displayName}）於 ${requestedAt} 提出修改申請：${proposal}；原因：${reason}。請至訂單管理審核。`);
+      const task = notifyOwner(
+        admin,
+        "馬鈴吉碳烤｜收到訂單修改申請",
+        `訂單：${shortOrderNumber(requestedOrder ?? { id: orderId })}\n客人：${requestedOrder?.customer_name ?? line.displayName}\n修改內容：${proposal}\n原因：${reason}\n請前往訂單管理審核。`
+      );
       const runtime = (globalThis as any).EdgeRuntime;
       if (runtime?.waitUntil) runtime.waitUntil(task); else await task;
       return reply({ ok: true, request_id: requestId });
@@ -838,14 +1068,18 @@ Deno.serve(async (req) => {
       line_user_id: lineProfile.userId, line_display_name: lineProfile.displayName, status_token_hash: statusTokenHash,
     }).eq("id", order.id);
     if (lineBindError) throw lineBindError;
-    const { data: numberedOrder, error: numberReadError } = await admin.from("customer_orders").select("daily_sequence").eq("id", order.id).maybeSingle();
+    const { data: numberedOrder, error: numberReadError } = await admin.from("customer_orders").select("daily_sequence,pickup_time").eq("id", order.id).maybeSingle();
     if (numberReadError) throw numberReadError;
     const dailySequence = Number(numberedOrder?.daily_sequence) || null;
     const orderLabel = orderDisplayLabel({ ...order, customer_name: name, daily_sequence: dailySequence });
     const liffId = Deno.env.get("LINE_LIFF_ID") ?? "";
     const statusUrl = liffId ? `https://liff.line.me/${liffId}?order_id=${encodeURIComponent(order.id)}&token=${encodeURIComponent(statusToken)}` : "";
     const linePushTask = statusUrl ? sendLineOrderLink(lineProfile.userId, lineProfile.displayName, orderLabel, statusUrl) : Promise.resolve(false);
-    const notificationTask = notifyOwner(admin, "馬鈴吉碳烤｜新訂單", `${orderLabel}（${phone}），LINE：${lineProfile.displayName}，金額 $${total.toLocaleString("zh-TW")}，請開啟訂單管理查看。`);
+    const notificationTask = notifyOwner(
+      admin,
+      "馬鈴吉碳烤｜收到新訂單",
+      `訂單：${shortOrderNumber({ id: order.id, daily_sequence: dailySequence })}\n客人：${name}\n取餐：${formatPickupTime(pickup)}\n金額：${total.toLocaleString("zh-TW")}\n請前往訂單管理確認。`
+    );
     const edgeRuntime = (globalThis as any).EdgeRuntime;
     if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(Promise.allSettled([notificationTask, linePushTask]));
     else await Promise.allSettled([notificationTask, linePushTask]);
