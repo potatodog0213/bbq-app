@@ -3146,10 +3146,10 @@
         function customerParseLocalDate(value){const [y,m,d]=String(value||'').split('-').map(Number);return new Date(y||2000,(m||1)-1,d||1,12,0,0,0);}
         function customerDateAddDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d;}
         function customerAllowedMinutes(hour){return Array.from({length:12},(_,i)=>String(i*5).padStart(2,'0'));}
-        function customerIsAllowedPickup(date){const h=date.getHours(),m=date.getMinutes();return (h===17&&m>=30&&m<=55&&m%5===0)||(h>=18&&h<=23&&m%5===0);}
+        function customerIsAllowedPickup(date){const h=date.getHours(),m=date.getMinutes();return (h===17&&m>=30&&m<=55&&m%5===0)||(h>=18&&h<=23&&m%5===0)||(h===0&&m===0);}
         function customerPickupDateTime(date,hour,minute){const pickupDate=new Date(`${date}T12:00:00`);pickupDate.setHours(Number(hour),Number(minute),0,0);return pickupDate;}
         function customerPickupIsSelectable(date,hour,minute){const selected=customerPickupDateTime(date,hour,minute);if(customerPickupPickerState?.mode!=='admin'&&selected.getDay()===3)return false;if(!customerIsAllowedPickup(selected))return false;const lead=customerPickupPickerState?.mode==='admin'?30:10;return selected.getTime()>Date.now()+lead*60000;}
-        function customerPickupValidHours(date){return [17,18,19,20,21,22,23].filter(hour=>customerAllowedMinutes(hour).some(minute=>customerPickupIsSelectable(date,hour,minute)));}
+        function customerPickupValidHours(date){return [17,18,19,20,21,22,23,0].filter(hour=>customerAllowedMinutes(hour).some(minute=>customerPickupIsSelectable(date,hour,minute)));}
         function customerNextValidPickupDateTime(leadMinutes=10,mode='public'){let candidate=new Date(Date.now()+leadMinutes*60000);candidate.setSeconds(0,0);candidate.setMinutes(Math.ceil(candidate.getMinutes()/5)*5);for(let i=0;i<14*24*12;i++,candidate=new Date(candidate.getTime()+5*60000)){if((mode==='admin'||candidate.getDay()!==3)&&customerIsAllowedPickup(candidate)&&candidate.getTime()>Date.now()+leadMinutes*60000)return candidate;}return new Date(Date.now()+24*60*60000);}
         function openCustomerPickupPicker(){openCustomerDateTimePicker({mode:'public'});}
         function openCustomerAdminProposeTimePicker(orderId,currentValue){openCustomerDateTimePicker({mode:'admin',orderId,currentValue});}
