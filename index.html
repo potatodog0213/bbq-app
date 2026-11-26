@@ -1745,7 +1745,7 @@
             document.getElementById('home-view').style.display = 'block';
             if (_supabase) refreshCustomerHomeUnread();
         }
-        async function initCustomerHomeOrderRealtime(){try{const {data:{session}}=await _supabase.auth.getSession();if(!session)return;const {data:{user}}=await _supabase.auth.getUser();if(!customerOwnerRole(user))return;await refreshCustomerHomeUnread();if(customerHomeRealtime)await _supabase.removeChannel(customerHomeRealtime);customerHomeRealtime=_supabase.channel('customer-orders-home-badge').on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},()=>{refreshCustomerHomeUnread();}).subscribe();}catch(e){console.warn('home order realtime init skipped',e);}}
+        async function initCustomerHomeOrderRealtime(){try{const {data:{session}}=await _supabase.auth.getSession();if(!session)return;const {data:{user}}=await _supabase.auth.getUser();if(!customerOwnerRole(user))return;await refreshCustomerHomeUnread();if(customerHomeRealtime)await _supabase.removeChannel(customerHomeRealtime);customerHomeRealtime=_supabase.channel('customer-orders-home-badge').on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},()=>{refreshCustomerHomeUnread();}).subscribe();}catch(e){console.warn('home order badge init skipped',e);}}
         async function refreshCustomerHomeUnread(){try{const {data:{session}}=await _supabase.auth.getSession();if(!session)return;const {data:{user}}=await _supabase.auth.getUser();if(!customerOwnerRole(user))return;const {data}=await _supabase.from('customer_orders').select('id,status').eq('status','new').order('created_at',{ascending:false}).limit(100);const read=customerReadOrderIds();const count=(data||[]).filter(o=>!read.has(String(o.id))).length;const badge=document.getElementById('customer-home-unread-badge');if(badge){badge.textContent=String(count);badge.style.display=count?'inline-flex':'none';}}catch(e){console.warn('unread badge update skipped',e);}}
 
         function showAppToast(title, detail = '', type = 'success') {
@@ -3214,7 +3214,6 @@
         let customerAdminRefreshTimer = null;
         let customerAdminCurrentView = 'orders';
         let customerAdminReminderPollTimer = null;
-        let customerAdminNotifiedPickupIds = new Set((()=>{try{return JSON.parse(localStorage.getItem('customerAdminNotifiedPickupIds')||'[]').filter(x=>typeof x==='string');}catch(e){return [];}})());
         let customerPublicSoldOutIds = new Set();
         let customerPublicGiftDrinkIds = [];
         let customerPublicGiftDrinkQty = {};
@@ -3687,8 +3686,7 @@
             const [{data:{session}},{data:{user},error}]=await Promise.all([_supabase.auth.getSession(),_supabase.auth.getUser()]);if(!session){renderCustomerAdminLogin();return;}
             if(error||!customerOwnerRole(user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}
             customerAdminQuery={type:'today'};
-            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><h3 style="margin:0">訂單工作台</h3></div>
-            <section class="customer-admin-search"><h4>查詢歷史訂單</h4><div class="customer-admin-search-grid"><label class="customer-admin-search-field">手機號碼<input id="customer-admin-search-phone" type="tel" inputmode="numeric" maxlength="10" placeholder="輸入手機號碼"></label><div class="customer-admin-search-field customer-date-field"><span>開始日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-start-button" onclick="openCustomerAdminDateRangePicker('start')"><span id="customer-admin-search-start-display">📅 選擇開始日期</span><span>⌄</span></button><input id="customer-admin-search-start" type="hidden" value=""></div><div class="customer-admin-search-field customer-date-field"><span>結束日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-end-button" onclick="openCustomerAdminDateRangePicker('end')"><span id="customer-admin-search-end-display">📅 選擇結束日期</span><span>⌄</span></button><input id="customer-admin-search-end" type="hidden" value=""></div></div><div id="customer-admin-search-message" class="customer-admin-search-message" role="alert" aria-live="polite" hidden></div><div class="customer-admin-toolbar"><button class="primary" onclick="searchCustomerAdminOrders()">查詢訂單</button><button onclick="showCustomerAdminToday()">回到今日訂單</button></div></section>
+            content.innerHTML=`<div class="customer-order-wrap">            <section class="customer-admin-search"><h4>查詢歷史訂單</h4><div class="customer-admin-search-grid"><label class="customer-admin-search-field">手機號碼<input id="customer-admin-search-phone" type="tel" inputmode="numeric" maxlength="10" placeholder="輸入手機號碼"></label><div class="customer-admin-search-field customer-date-field"><span>開始日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-start-button" onclick="openCustomerAdminDateRangePicker('start')"><span id="customer-admin-search-start-display">📅 選擇開始日期</span><span>⌄</span></button><input id="customer-admin-search-start" type="hidden" value=""></div><div class="customer-admin-search-field customer-date-field"><span>結束日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-end-button" onclick="openCustomerAdminDateRangePicker('end')"><span id="customer-admin-search-end-display">📅 選擇結束日期</span><span>⌄</span></button><input id="customer-admin-search-end" type="hidden" value=""></div></div><div id="customer-admin-search-message" class="customer-admin-search-message" role="alert" aria-live="polite" hidden></div><div class="customer-admin-toolbar"><button class="primary" onclick="searchCustomerAdminOrders()">查詢訂單</button><button onclick="showCustomerAdminToday()">回到今日訂單</button></div></section>
             <div class="customer-admin-toolbar" id="customer-admin-status-toolbar"><button type="button" data-customer-filter="all" onclick="setCustomerAdminFilter('all')">全部</button><button type="button" data-customer-filter="new" onclick="setCustomerAdminFilter('new')">待確認</button><button type="button" data-customer-filter="confirmed" onclick="setCustomerAdminFilter('confirmed')">已確認</button><button type="button" data-customer-filter="preparing" onclick="setCustomerAdminFilter('preparing')">製作中</button><button type="button" data-customer-filter="completed" onclick="setCustomerAdminFilter('completed')">已完成</button><button type="button" data-customer-filter="cancelled" onclick="setCustomerAdminFilter('cancelled')">已取消</button><button type="button" onclick="renderCustomerMenuManagement()">餐點管理</button></div><div id="customer-admin-order-list">載入今日訂單中…</div></div>`;
             const today=customerLocalDateValue(new Date());
             const startInput=document.getElementById('customer-admin-search-start'),endInput=document.getElementById('customer-admin-search-end');
@@ -3959,7 +3957,7 @@
                 function subscribeCustomerAdminRealtime(){
             if(customerOrderRealtime)_supabase.removeChannel(customerOrderRealtime);
             customerOrderRealtime=_supabase.channel('customer-orders-owner')
-                .on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},(payload)=>{if(customerAdminCurrentView!=='orders'){refreshCustomerHomeUnread();return;}if(customerAdminRefreshTimer)clearTimeout(customerAdminRefreshTimer);customerAdminRefreshTimer=setTimeout(()=>{if(customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);},350);})
+                .on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},()=>{if(customerAdminCurrentView!=='orders'){refreshCustomerHomeUnread();return;}if(customerAdminRefreshTimer)clearTimeout(customerAdminRefreshTimer);customerAdminRefreshTimer=setTimeout(()=>{if(customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);},350);})
                 .on('postgres_changes',{event:'*',schema:'public',table:'customer_order_addons'},()=>{if(customerAdminCurrentView!=='orders')return;if(customerAdminRefreshTimer)clearTimeout(customerAdminRefreshTimer);customerAdminRefreshTimer=setTimeout(()=>{if(customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);},350);})
                 .on('postgres_changes',{event:'*',schema:'public',table:'customer_order_change_requests'},()=>{if(customerAdminCurrentView!=='orders')return;if(customerAdminRefreshTimer)clearTimeout(customerAdminRefreshTimer);customerAdminRefreshTimer=setTimeout(()=>{if(customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);},350);})
                 .subscribe((status)=>{if(status==='SUBSCRIBED'&&customerAdminCurrentView==='orders')refreshCustomerAdminOrders(false);});
@@ -6149,14 +6147,7 @@ async function compressCustomerMenuImage(file){if(!file||!file.type.startsWith('
         }
     </script>
 
-    <!-- PWA Service Worker：只快取 App 外殼與圖示，不快取 Supabase/API 資料 -->
     <script>
-      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-        window.addEventListener('load', function () {
-          navigator.serviceWorker.register('./service-worker.js')
-            .catch(function (error) { console.warn('App 離線外殼註冊失敗：', error); });
-        });
-      }
       window.addEventListener('DOMContentLoaded', async function () {
         // 僅移除 ChatGPT 加上的來源追蹤參數，不影響點餐／歷史訂單等功能參數。
         const params = new URLSearchParams(location.search);
