@@ -1745,7 +1745,7 @@
             document.getElementById('home-view').style.display = 'block';
             if (_supabase) refreshCustomerHomeUnread();
         }
-        async function initCustomerHomeOrderRealtime(){try{const {data:{session}}=await _supabase.auth.getSession();if(!session)return;const {data:{user}}=await _supabase.auth.getUser();if(!customerOwnerRole(user))return;await refreshCustomerHomeUnread();if(customerHomeRealtime)await _supabase.removeChannel(customerHomeRealtime);customerHomeRealtime=_supabase.channel('customer-orders-home-badge').on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},()=>{refreshCustomerHomeUnread();}).subscribe();}catch(e){console.warn('home order notification init skipped',e);}}
+        async function initCustomerHomeOrderRealtime(){try{const {data:{session}}=await _supabase.auth.getSession();if(!session)return;const {data:{user}}=await _supabase.auth.getUser();if(!customerOwnerRole(user))return;await refreshCustomerHomeUnread();if(customerHomeRealtime)await _supabase.removeChannel(customerHomeRealtime);customerHomeRealtime=_supabase.channel('customer-orders-home-badge').on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},()=>{refreshCustomerHomeUnread();}).subscribe();}catch(e){console.warn('home order realtime init skipped',e);}}
         async function refreshCustomerHomeUnread(){try{const {data:{session}}=await _supabase.auth.getSession();if(!session)return;const {data:{user}}=await _supabase.auth.getUser();if(!customerOwnerRole(user))return;const {data}=await _supabase.from('customer_orders').select('id,status').eq('status','new').order('created_at',{ascending:false}).limit(100);const read=customerReadOrderIds();const count=(data||[]).filter(o=>!read.has(String(o.id))).length;const badge=document.getElementById('customer-home-unread-badge');if(badge){badge.textContent=String(count);badge.style.display=count?'inline-flex':'none';}}catch(e){console.warn('unread badge update skipped',e);}}
 
         function showAppToast(title, detail = '', type = 'success') {
@@ -3185,8 +3185,6 @@
 
 
         // ==================== 客人線上點餐 / 店家訂單管理 ====================
-        // 推播公開金鑰由店家部署時填入；私密 VAPID 金鑰只放在 Edge Function Secrets。
-        const CUSTOMER_PUSH_PUBLIC_KEY = 'BDk2KVu03H_HZi41S0DDGx9cLljPfpEfEp6FTvEuYr_KHElfvd1Oyz41sMak_blSSMhipiPlGaY83f7RGC10p_g';
         const CUSTOMER_ORDER_FUNCTION = 'customer-orders';
         let customerHistoryLookupToken = '';
         let customerHistoryLookupTokenPhone = '';
@@ -3689,7 +3687,7 @@
             const [{data:{session}},{data:{user},error}]=await Promise.all([_supabase.auth.getSession(),_supabase.auth.getUser()]);if(!session){renderCustomerAdminLogin();return;}
             if(error||!customerOwnerRole(user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}
             customerAdminQuery={type:'today'};
-            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="margin:0">訂單工作台</h3><div class="customer-admin-toolbar" style="margin:0"><button onclick="enableCustomerOrderPush()">啟用訂單通知</button></div></div><div id="customer-push-status" class="customer-order-muted" style="margin-top:8px"></div></div>
+            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><h3 style="margin:0">訂單工作台</h3></div>
             <section class="customer-admin-search"><h4>查詢歷史訂單</h4><div class="customer-admin-search-grid"><label class="customer-admin-search-field">手機號碼<input id="customer-admin-search-phone" type="tel" inputmode="numeric" maxlength="10" placeholder="輸入手機號碼"></label><div class="customer-admin-search-field customer-date-field"><span>開始日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-start-button" onclick="openCustomerAdminDateRangePicker('start')"><span id="customer-admin-search-start-display">📅 選擇開始日期</span><span>⌄</span></button><input id="customer-admin-search-start" type="hidden" value=""></div><div class="customer-admin-search-field customer-date-field"><span>結束日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-end-button" onclick="openCustomerAdminDateRangePicker('end')"><span id="customer-admin-search-end-display">📅 選擇結束日期</span><span>⌄</span></button><input id="customer-admin-search-end" type="hidden" value=""></div></div><div id="customer-admin-search-message" class="customer-admin-search-message" role="alert" aria-live="polite" hidden></div><div class="customer-admin-toolbar"><button class="primary" onclick="searchCustomerAdminOrders()">查詢訂單</button><button onclick="showCustomerAdminToday()">回到今日訂單</button></div></section>
             <div class="customer-admin-toolbar" id="customer-admin-status-toolbar"><button type="button" data-customer-filter="all" onclick="setCustomerAdminFilter('all')">全部</button><button type="button" data-customer-filter="new" onclick="setCustomerAdminFilter('new')">待確認</button><button type="button" data-customer-filter="confirmed" onclick="setCustomerAdminFilter('confirmed')">已確認</button><button type="button" data-customer-filter="preparing" onclick="setCustomerAdminFilter('preparing')">製作中</button><button type="button" data-customer-filter="completed" onclick="setCustomerAdminFilter('completed')">已完成</button><button type="button" data-customer-filter="cancelled" onclick="setCustomerAdminFilter('cancelled')">已取消</button><button type="button" onclick="renderCustomerMenuManagement()">餐點管理</button></div><div id="customer-admin-order-list">載入今日訂單中…</div></div>`;
             const today=customerLocalDateValue(new Date());
@@ -3698,7 +3696,6 @@
             const startDisplay=document.getElementById('customer-admin-search-start-display'),endDisplay=document.getElementById('customer-admin-search-end-display');
             if(startDisplay)startDisplay.textContent='📅 '+customerAdminFormatDateLabel(today);if(endDisplay)endDisplay.textContent='📅 '+customerAdminFormatDateLabel(today);
             await refreshCustomerAdminOrders(true);syncCustomerAdminFilterButtons();subscribeCustomerAdminRealtime();
-            const pushStatus=document.getElementById('customer-push-status');if(pushStatus){const enabled=('Notification'in window)&&Notification.permission==='granted';pushStatus.textContent=enabled?'✓ 此裝置已啟用訂單通知':'此裝置尚未啟用訂單通知';}
         }
         async function customerAnalyticsHashLineId(lineId){
             const bytes=new TextEncoder().encode(String(lineId||''));const digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -3860,31 +3857,13 @@
         }
         async function searchCustomerAdminOrders(){clearCustomerAdminSearchNotice();const phone=(document.getElementById('customer-admin-search-phone')?.value||'').replace(/\D/g,'');const start=document.getElementById('customer-admin-search-start')?.value||'',end=document.getElementById('customer-admin-search-end')?.value||'';if(phone&&!/^09\d{8}$/.test(phone)){customerAdminSearchNotice('手機號碼格式不正確，請確認為 09 開頭的 10 碼號碼。');return;}if(!phone&&!start&&!end){customerAdminSearchNotice('請輸入手機號碼，或選擇要查詢的日期。');return;}if(start&&end&&start>end){customerAdminSearchNotice('日期範圍有誤：開始日期不能晚於結束日期，請重新選擇。');return;}customerAdminQuery={type:'search',phone,start:start||end,end:end||start};await refreshCustomerAdminOrders(true);}
         async function showCustomerAdminToday(){clearCustomerAdminSearchNotice();customerAdminQuery={type:'today'};const today=customerLocalDateValue(new Date());const phone=document.getElementById('customer-admin-search-phone'),start=document.getElementById('customer-admin-search-start'),end=document.getElementById('customer-admin-search-end');if(phone)phone.value='';if(start)start.value=today;if(end)end.value=today;const startDisplay=document.getElementById('customer-admin-search-start-display'),endDisplay=document.getElementById('customer-admin-search-end-display');if(startDisplay)startDisplay.textContent='📅 '+customerAdminFormatDateLabel(today);if(endDisplay)endDisplay.textContent='📅 '+customerAdminFormatDateLabel(today);customerAdminStatusFilter='all';syncCustomerAdminFilterButtons();await refreshCustomerAdminOrders(true);}
-        function customerCheckPickupPrepReminders(orders){
-            if(!('Notification' in window)||Notification.permission!=='granted')return;
-            const now=Date.now();
-            for(const order of (orders||[])){
-                if(!order?.id||!order.pickup_time||['cancelled','completed'].includes(String(order.status||'').toLowerCase()))continue;
-                const pickup=new Date(order.pickup_time).getTime(),minutes=pickup-now;
-                if(!Number.isFinite(pickup)||minutes<0||minutes>10*60*1000)continue;
-                const key=String(order.id);if(customerAdminNotifiedPickupIds.has(key))continue;
-                customerAdminNotifiedPickupIds.add(key);try{localStorage.setItem('customerAdminNotifiedPickupIds',JSON.stringify([...customerAdminNotifiedPickupIds].slice(-500)));}catch(e){}
-                try{const notice=new Notification('馬鈴吉碳烤｜準備製作餐點',{body:`訂單 ${order.daily_sequence||order.order_number||''} 即將於 10 分鐘內取餐，請準備製作餐點。`,tag:'pickup-prep-'+key,renotify:false});notice.onclick=()=>{window.focus();notice.close();};}catch(e){console.warn('取餐提醒通知失敗',e);}
-            }
-        }
-        async function customerRefreshPickupReminderOrders(){
-            if(!('Notification' in window)||Notification.permission!=='granted')return;
-            const now=new Date(),until=new Date(Date.now()+10*60*1000);
-            const {data,error}=await _supabase.from('customer_orders').select('id,pickup_time,status,daily_sequence,order_number').gte('pickup_time',now.toISOString()).lte('pickup_time',until.toISOString()).limit(100);
-            if(error){console.warn('取餐前提醒查詢失敗',error);return;}customerCheckPickupPrepReminders(data||[]);
-        }
         async function refreshCustomerAdminOrders(initial=false){
             const box=document.getElementById('customer-admin-order-list');if(!box)return;if(initial)box.textContent='載入訂單中…';
             let query=_supabase.from('customer_orders').select('id,customer_name,customer_phone,line_user_id,line_display_name,pickup_time,items,total_amount,note,status,created_at,daily_sequence,confirmed_at,preparing_at,completed_at,cancelled_at').order('created_at',{ascending:false}).limit(500);
             if(customerAdminQuery.type==='today'){const today=customerLocalDateValue(new Date()),bounds=customerAdminLocalDateBounds(today);query=query.gte('created_at',bounds.start).lt('created_at',bounds.end);}
             else{if(customerAdminQuery.phone)query=query.eq('customer_phone',customerAdminQuery.phone);if(customerAdminQuery.start){const bounds=customerAdminLocalDateBounds(customerAdminQuery.start);query=query.gte('created_at',bounds.start);}if(customerAdminQuery.end){const bounds=customerAdminLocalDateBounds(customerAdminQuery.end);query=query.lt('created_at',bounds.end);}}
             const {data,error}=await query;if(error){if(initial)box.innerHTML='<p style="color:#b91c1c;">目前無法載入訂單。</p>';console.error(error);return;}
-            const orders=data||[],ids=orders.map(o=>o.id);customerCheckPickupPrepReminders(orders);
+            const orders=data||[],ids=orders.map(o=>o.id);
             const missingLineIds=[...new Set(orders.map(o=>String(o.line_user_id||'')).filter(id=>/^U[0-9a-fA-F]{32}$/.test(id)&&!Object.prototype.hasOwnProperty.call(customerAdminLineProfiles,id)))].slice(0,80);
             if(missingLineIds.length){
                 try{
@@ -3985,8 +3964,8 @@
                 .on('postgres_changes',{event:'*',schema:'public',table:'customer_order_change_requests'},()=>{if(customerAdminCurrentView!=='orders')return;if(customerAdminRefreshTimer)clearTimeout(customerAdminRefreshTimer);customerAdminRefreshTimer=setTimeout(()=>{if(customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);},350);})
                 .subscribe((status)=>{if(status==='SUBSCRIBED'&&customerAdminCurrentView==='orders')refreshCustomerAdminOrders(false);});
             if(customerAdminReminderPollTimer)clearInterval(customerAdminReminderPollTimer);
-            customerAdminReminderPollTimer=setInterval(()=>{if(customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);else if(customerAdminCurrentView==='menu')customerRefreshPickupReminderOrders();},25000);
-            if(!window._customerAdminVisibilityHandler){window._customerAdminVisibilityHandler=()=>{if(!document.hidden&&customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);else if(!document.hidden&&customerAdminCurrentView==='menu')customerRefreshPickupReminderOrders();};document.addEventListener('visibilitychange',window._customerAdminVisibilityHandler);window.addEventListener('focus',window._customerAdminVisibilityHandler);}
+            customerAdminReminderPollTimer=setInterval(()=>{if(customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);},25000);
+            if(!window._customerAdminVisibilityHandler){window._customerAdminVisibilityHandler=()=>{if(!document.hidden&&customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);};document.addEventListener('visibilitychange',window._customerAdminVisibilityHandler);window.addEventListener('focus',window._customerAdminVisibilityHandler);}
         }
 
                 async function renderCustomerMenuManagement(forceRefresh=false){
@@ -4045,8 +4024,6 @@ async function compressCustomerMenuImage(file){if(!file||!file.type.startsWith('
         }
         // 舊函式名稱保留相容，避免既有入口呼叫失效。
         async function renderCustomerSpicySettings(){return renderCustomerMenuManagement();}
-        function customerBase64ToUint8Array(base64){const padding='='.repeat((4-base64.length%4)%4);const raw=atob((base64+padding).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
-        async function enableCustomerOrderPush(){const status=document.getElementById('customer-push-status');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw new Error('此瀏覽器不支援 Web Push。');if(CUSTOMER_PUSH_PUBLIC_KEY.startsWith('REPLACE_'))throw new Error('尚未設定 VAPID 公開金鑰，請先完成部署設定。');const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error('你尚未允許此網站發送通知。');const registration=await navigator.serviceWorker.ready;const subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:customerBase64ToUint8Array(CUSTOMER_PUSH_PUBLIC_KEY)});const json=subscription.toJSON();const {data:{user}}=await _supabase.auth.getUser();const {error}=await _supabase.from('customer_push_subscriptions').upsert({owner_id:user.id,endpoint:json.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,updated_at:new Date().toISOString()},{onConflict:'endpoint'});if(error)throw error;if(status)status.textContent='✓ 訂單通知已啟用';}catch(e){if(status)status.textContent='無法啟用訂單通知，請確認裝置通知設定後再試。';}}
 
         // ==================== 快速點餐（僅前端暫存，不寫入資料庫） ====================
         const ORDER_MENU_CATEGORIES = ['碳烤伴餐類','雞肉類','牛肉類','豬肉類','羊肉類','海鮮類','蔬菜類','炸物類','飲品類'];
