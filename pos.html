@@ -152,6 +152,8 @@ main{min-width:0;padding:22px 24px 28px}.top{display:flex;align-items:center;jus
 </main></div>
 <div id="success-overlay" class="success-overlay" role="dialog" aria-modal="true" aria-labelledby="success-title" onclick="if(event.target===this)closeSuccess()"><div class="success-dialog"><div class="success-icon" aria-hidden="true">✓</div><h2 id="success-title">訂單送出成功！</h2><p>餐點已送至廚房，請繼續為下一位客人點餐。</p><button type="button" onclick="closeSuccess()">繼續點餐</button></div></div>
 <script>
+
+(function(){try{const u=new URL(location.href);let d=false;['utm_source','utm_medium','utm_campaign','_source'].forEach(function(key){if(u.searchParams.has(key)){u.searchParams.delete(key);d=true;}});if(d)history.replaceState(null,'',u.pathname+u.search+u.hash);}catch(e){}})();
 const SUPABASE_KEY='sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
 const sb=window.supabase.createClient('https://gyonwgjafukzlmnosykt.supabase.co',SUPABASE_KEY);
 const CHANNELS={onsite:{label:'現場',color:'#f8eddb'},ubereats:{label:'UberEats',color:'#09bf6a'},foodpanda:{label:'foodpanda',color:'#d60f63'}};

@@ -132,8 +132,43 @@ body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFo
   border-radius:14px;
   padding:14px;
   box-shadow:0 5px 16px #0003;
+  color:#f7f3ed;
 }
 .ticket.done{opacity:.48}
+.ticket.ch-onsite,.ticket.ch-customer{
+  background:linear-gradient(180deg,#f8eddb 0%,#f3e6d0 100%);
+  border-color:#e0c9a8;color:#392d23;
+}
+.ticket.ch-onsite .ticket-time,.ticket.ch-customer .ticket-time{color:#6b5644}
+.ticket.ch-onsite .tag,.ticket.ch-customer .tag{background:#e8d9c6;color:#493727}
+.ticket.ch-onsite .ticket-spice-title,.ticket.ch-customer .ticket-spice-title{background:#e0c9a8;color:#392d23}
+.ticket.ch-onsite .ticket-item,.ticket.ch-customer .ticket-item{border-bottom-color:#e5d4bc}
+.ticket.ch-onsite .ticket-item-options,.ticket.ch-customer .ticket-item-options{color:#6b5644}
+.ticket.ch-onsite .ticket-note,.ticket.ch-customer .ticket-note{background:#efe0cc;color:#5c432e}
+.ticket.ch-onsite .ticket-actions,.ticket.ch-customer .ticket-actions{border-top-color:#e0c9a8}
+.ticket.ch-ubereats{
+  background:linear-gradient(180deg,#0aad5f 0%,#088a4c 100%);
+  border-color:#067a43;color:#fff;
+}
+.ticket.ch-ubereats .ticket-time{color:#d4f5e4}
+.ticket.ch-ubereats .tag{background:rgba(0,0,0,.22);color:#fff}
+.ticket.ch-ubereats .ticket-spice-title{background:rgba(0,0,0,.2);color:#fff}
+.ticket.ch-ubereats .ticket-item{border-bottom-color:rgba(255,255,255,.2)}
+.ticket.ch-ubereats .ticket-item-options{color:#e0f7ea}
+.ticket.ch-ubereats .ticket-note{background:rgba(0,0,0,.2);color:#fff8e8}
+.ticket.ch-ubereats .ticket-actions{border-top-color:rgba(255,255,255,.25)}
+.ticket.ch-foodpanda{
+  background:linear-gradient(180deg,#e61b6e 0%,#c4125c 100%);
+  border-color:#a00e4c;color:#fff;
+}
+.ticket.ch-foodpanda .ticket-time{color:#ffe0ec}
+.ticket.ch-foodpanda .tag{background:rgba(0,0,0,.22);color:#fff}
+.ticket.ch-foodpanda .ticket-spice-title{background:rgba(0,0,0,.2);color:#fff}
+.ticket.ch-foodpanda .ticket-item{border-bottom-color:rgba(255,255,255,.2)}
+.ticket.ch-foodpanda .ticket-item-options{color:#ffe8f0}
+.ticket.ch-foodpanda .ticket-note{background:rgba(0,0,0,.2);color:#fff8e8}
+.ticket.ch-foodpanda .ticket-actions{border-top-color:rgba(255,255,255,.25)}
+
 
 .ticket-top{
   display:flex;justify-content:space-between;align-items:flex-start;
@@ -247,6 +282,18 @@ body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <script>
+
+(function(){
+  try{
+    const u=new URL(location.href);
+    let dirty=false;
+    ['utm_source','utm_medium','utm_campaign','_source'].forEach(k=>{
+      if(u.searchParams.has(k)){u.searchParams.delete(k);dirty=true;}
+    });
+    if(dirty) history.replaceState(null,'',u.pathname+u.search+u.hash);
+  }catch(e){}
+})();
+
 const SUPABASE_KEY='sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
 const sb=window.supabase.createClient('https://gyonwgjafukzlmnosykt.supabase.co',SUPABASE_KEY);
 const labels={onsite:'現場 POS',ubereats:'UberEats',foodpanda:'foodpanda',customer:'客人線上訂單'};
@@ -324,7 +371,8 @@ function ticket(o){
     if(!rows.length)return '';
     return '<section class="ticket-spice-group"><div class="ticket-spice-title">🌶️ '+(spice||'未選辣度')+'</div>'+rows.map(i=>(function(i){const opts=[];if(i.sauce_level)opts.push('醬料：'+esc(i.sauce_level));if(i.pepper_level)opts.push('胡椒：'+esc(i.pepper_level));return '<div class="ticket-item"><div class="ticket-item-name">'+esc(i.name||i.product_name||'餐點')+' × '+(Number(i.quantity)||0)+(i.is_gift?' <span style="background:#e4f1df;color:#2d6b3e;font-size:12px;padding:2px 6px;border-radius:5px;font-weight:900">贈品</span>':'')+'</div>'+(opts.length?'<div class="ticket-item-options">'+opts.join('<br>')+'</div>':'')+'</div>';})(i)).join('')+'</section>';
   }).join('');
-  return '<article class="ticket '+(state==='completed'?'done':'')+'">'+
+  const chClass='ch-'+(o._channel||(isCustomer?'customer':'onsite'));
+  return '<article class="ticket '+chClass+(state==='completed'?' done':'')+'">'+
     '<div class="ticket-top"><span>'+(isCustomer?'客人線上':'POS')+' #'+esc(number)+'</span><span class="tag">'+statusLabel+'</span></div>'+
     '<div class="ticket-body">'+
       '<div class="ticket-time">'+new Date(o.created_at).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+(isCustomer&&o.pickup_time?'　取餐 '+new Date(o.pickup_time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}):'')+'</div>'+
@@ -333,10 +381,8 @@ function ticket(o){
       (o.note?'<div class="ticket-note">備註：'+esc(o.note)+'</div>':'')+
     '</div>'+
     '<div class="ticket-actions">'+
-      (state==='new'?(isCustomer?'<button class="confirm" onclick="updateCustomer(\''+o.id+'\',\'confirmed\')">確認訂單</button>':'<button class="start" onclick="updatePos(\''+o.id+'\',\'preparing\')">開始製作</button>'):'')+
-      (state==='confirmed'?'<button class="start" onclick="updateCustomer(\''+o.id+'\',\'preparing\')">開始製作</button>':'')+
+      ((state==='new'||state==='confirmed')?(isCustomer?'<button class="start" onclick="updateCustomer(\''+o.id+'\',\'preparing\')">開始製作</button>':'<button class="start" onclick="updatePos(\''+o.id+'\',\'preparing\')">開始製作</button>'):'')+
       (state==='preparing'?'<button class="finish" onclick="'+(isCustomer?'updateCustomer(\''+o.id+'\',\'completed\')':'updatePos(\''+o.id+'\',\'completed\')')+'">完成餐點</button>':'')+
-      (!isCustomer&&state==='new'?'<button class="cancel" onclick="updatePos(\''+o.id+'\',\'cancelled\')">取消</button>':'')+
     '</div>'+
   '</article>';
 }
