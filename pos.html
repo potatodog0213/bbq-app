@@ -254,7 +254,105 @@ function giftLimit(){return Math.floor(paidTotal()/400)}
 function selectedGiftCount(){return Object.values(giftQty).reduce((sum,n)=>sum+(Number(n)||0),0)}
 function changeGiftQty(id,delta){const max=giftLimit(),current=Number(giftQty[id])||0;if(delta>0&&selectedGiftCount()>=max)return;const next=Math.max(0,Math.min(max,current+delta));if(next)giftQty[id]=next;else delete giftQty[id];renderCart()}
 function renderCart(){let excess=Math.max(0,selectedGiftCount()-giftLimit());for(const id of Object.keys(giftQty).reverse()){if(excess<=0)break;const take=Math.min(excess,Number(giftQty[id])||0);giftQty[id]-=take;excess-=take;if(giftQty[id]<=0)delete giftQty[id]}const entries=Object.entries(cart),total=paidTotal(),drinks=products.filter(p=>giftDrinkIds.includes(String(p.id))&&!soldOutDrinkIds.has(String(p.id)));const spiceOrder=['不辣','小辣','中辣','大辣'];const row=([id,i])=>`<div class="cart-row"><div class="cart-product-cell"><div class="cart-product-meta"><strong title="${esc(i.name)}">${esc(i.name)}</strong>${(i.sauce_level||i.pepper_level)?`<small class="cart-item-options">${[i.sauce_level&&esc(i.sauce_level),i.pepper_level&&esc(i.pepper_level)].filter(Boolean).join('・')}</small>`:''}</div><button class="cart-delete" title="刪除商品" onclick="removeItem('${esc(id)}')">×</button></div><div class="cart-unit-price">${money(i.unit_price)}</div><div class="cart-qty-cell"><div class="qty cart-qty-line"><button onclick="adjust('${esc(id)}',-1)">−</button><b>${i.quantity}</b><button onclick="adjust('${esc(id)}',1)">＋</button></div></div><div class="cart-line-subtotal">${money(i.quantity*i.unit_price)}</div></div>`;let html=entries.length?spiceOrder.map(spice=>{const group=entries.filter(([,i])=>(i.spice_level||'不辣')===spice);return group.length?`<section class="cart-spice-group"><div class="cart-spice-title">${spice}</div>${group.map(row).join('')}</section>`:''}).join(''):'<div class="cart-empty">尚未選擇餐點</div>';if(channel==='onsite'&&giftLimit()>0){html+=`<div class="gift-panel"><h3>🎁 滿額贈飲料｜可選 ${giftLimit()} 杯，已選 ${selectedGiftCount()} 杯</h3>${drinks.map(p=>{const id=String(p.id),qty=Number(giftQty[id])||0;return `<div class="gift-row"><strong>${esc(p.name)}</strong><div class="gift-controls"><button onclick="changeGiftQty('${esc(id)}',-1)">−</button><b>${qty}</b><button onclick="changeGiftQty('${esc(id)}',1)" ${selectedGiftCount()>=giftLimit()?'disabled':''}>＋</button></div></div>`}).join('')||'<small>目前沒有可供贈送的飲料（可能尚未設定或皆已售完）</small>'}</div>`}document.getElementById('cart').innerHTML=html;document.getElementById('total').textContent=money(total);document.getElementById('cart-quantity').textContent=Object.values(cart).reduce((n,i)=>n+i.quantity,0)+selectedGiftCount()}
-async function submitOrder(){if(submittingOrder)return;const entries=Object.values(cart);if(!entries.length){alert('請先選擇餐點');return}const total=paidTotal();const giftItems=(channel==='onsite'?Object.entries(giftQty).filter(([,quantity])=>Number(quantity)>0).map(([id,quantity])=>{const p=products.find(x=>String(x.id)===String(id));return {product_id:p?.id,name:p?.name||'贈品飲料',quantity:Number(quantity),unit_price:0,subtotal:0,is_gift:true,category:'飲品類'}}):[]);if(channel==='onsite'&&selectedGiftCount()>giftLimit()){alert('贈品飲料數量超過可贈送杯數');return}const payload={channel,items:[...entries.map(i=>({...i,subtotal:i.quantity*i.unit_price,is_gift:false})),...giftItems],total_amount:total,note:'',status:'new'};submittingOrder=true;const button=document.getElementById('submit');button.disabled=true;button.textContent='送單中…';try{const {data:createdOrder,error}=await sb.from('pos_orders').insert(payload).select('*').single();if(error){alert('送單失敗：'+error.message);return}try{const {data:pushResult,error:pushError}=await sb.functions.invoke('pos-order-push',{body:{record:createdOrder}});if(pushError)console.error('[POS推播] 呼叫失敗',pushError);else if(!pushResult?.ok)console.error('[POS推播] 發送未成功',pushResult)}catch(pushError){console.error('[POS推播] 呼叫例外',pushError)}cart={};giftQty={};quickOptions={spice_level:'不辣',sauce_level:null,pepper_level:null};renderQuickOptions();renderCart();openSuccess()}catch(e){console.error(e);alert('送單失敗：'+(e?.message||'請稍後再試'))}finally{submittingOrder=false;button.disabled=false;button.textContent='送出訂單'}}
+
+async function submitOrder(){
+  if(submittingOrder)return;
+
+  const entries=Object.values(cart);
+  if(!entries.length){
+    alert('請先選擇餐點');
+    return;
+  }
+
+  const total=paidTotal();
+  const giftItems=(channel==='onsite'
+    ?Object.entries(giftQty)
+      .filter(([,quantity])=>Number(quantity)>0)
+      .map(([id,quantity])=>{
+        const p=products.find(x=>String(x.id)===String(id));
+        return {
+          product_id:p?.id,
+          name:p?.name||'贈品飲料',
+          quantity:Number(quantity),
+          unit_price:0,
+          subtotal:0,
+          is_gift:true,
+          category:'飲品類'
+        };
+      })
+    :[]
+  );
+
+  if(channel==='onsite'&&selectedGiftCount()>giftLimit()){
+    alert('贈品飲料數量超過可贈送杯數');
+    return;
+  }
+
+  const payload={
+    channel,
+    items:[
+      ...entries.map(i=>({...i,subtotal:i.quantity*i.unit_price,is_gift:false})),
+      ...giftItems
+    ],
+    total_amount:total,
+    note:'',
+    status:'new'
+  };
+
+  submittingOrder=true;
+  const button=document.getElementById('submit');
+  button.disabled=true;
+  button.textContent='送單中…';
+
+  try{
+    const {data:createdOrder,error}=await sb
+      .from('pos_orders')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    if(error){
+      alert('送單失敗：'+error.message);
+      return;
+    }
+
+    // 訂單寫入成功，立即清空購物車並顯示成功畫面
+    cart={};
+    giftQty={};
+    quickOptions={
+      spice_level:'不辣',
+      sauce_level:null,
+      pepper_level:null
+    };
+    renderQuickOptions();
+    renderCart();
+    openSuccess();
+
+    // 推播在背景執行，不阻擋 POS
+    (async()=>{
+      try{
+        const {data:pushResult,error:pushError}=await sb.functions.invoke(
+          'pos-order-push',
+          {body:{record:createdOrder}}
+        );
+
+        if(pushError)console.error('[POS推播] 呼叫失敗',pushError);
+        else if(!pushResult?.ok)console.error('[POS推播] 發送未成功',pushResult);
+      }catch(pushError){
+        console.error('[POS推播] 呼叫例外',pushError);
+      }
+    })();
+
+  }catch(e){
+    console.error(e);
+    alert('送單失敗：'+(e?.message||'請稍後再試'));
+  }finally{
+    submittingOrder=false;
+    button.disabled=false;
+    button.textContent='送出訂單';
+  }
+}
+
 function openSuccess(){document.getElementById('success-overlay').classList.add('show')}
 function closeSuccess(){document.getElementById('success-overlay').classList.remove('show')}
 function dateBounds(dateString){const [y,m,d]=dateString.split('-').map(Number);const start=new Date(y,m-1,d,0,0,0,0);const end=new Date(y,m-1,d+1,0,0,0,0);return {start,end}}

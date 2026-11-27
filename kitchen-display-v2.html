@@ -1,0 +1,623 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="撱?箏">
+<meta name="theme-color" content="#171b20">
+<title>擐祇?４?歹?撱?箏?Ｗ?</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--cream:#f8eddb;--green:#09bf6a;--pink:#d60f63;--ink:#392d23}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden}
+body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+
+.login{max-width:400px;margin:10vh auto;background:#252b32;padding:25px;border-radius:18px}
+.login input{width:100%;padding:12px;margin:8px 0;border-radius:9px;border:0}
+.login button{width:100%;padding:12px;border:0;border-radius:9px;font-weight:900;cursor:pointer}
+
+/* ?湧?嚗椰?港蜓?批捆 + ?喳蝔桅??詨 */
+.kitchen-layout{
+  height:100dvh;min-height:0;padding:0;
+  display:grid;
+  grid-template-columns:1fr 148px;
+  overflow:hidden;
+}
+
+/* ?喳 4 蝔桅??詨 */
+.channel-menu{
+  background:#1e242b;
+  border-left:1px solid #39434d;
+  display:flex;
+  flex-direction:column;
+  padding:10px 8px;
+  gap:8px;
+  min-height:0;
+  overflow:hidden;
+}
+.channel-btn{
+  flex:1 1 0;
+  min-height:0;
+  border:1px solid #3a4552;
+  border-radius:14px;
+  background:#252b32;
+  color:#c8d0d8;
+  font:inherit;
+  font-size:15px;
+  font-weight:950;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:10px 6px;
+  transition:background .15s,border-color .15s,color .15s,transform .12s;
+  text-align:center;
+  line-height:1.25;
+}
+.channel-btn:hover{background:#2e3640;border-color:#53606d}
+.channel-btn.active{
+  transform:scale(1.02);
+  box-shadow:0 4px 14px #0005;
+}
+.channel-btn[data-channel=onsite].active{background:#f8eddb;color:#493727;border-color:#e0c9a8}
+.channel-btn[data-channel=ubereats].active{background:#09bf6a;color:#fff;border-color:#09bf6a}
+.channel-btn[data-channel=foodpanda].active{background:#d60f63;color:#fff;border-color:#d60f63}
+.channel-btn[data-channel=customer].active{background:#e8d9c6;color:#493727;border-color:#d4c0a4}
+.channel-btn .ch-count{
+  font-size:22px;
+  font-weight:950;
+  line-height:1;
+}
+.channel-btn .ch-label{font-size:13px;opacity:.92}
+
+/* 撌血銝餃???瘞游像閮?” */
+.main-area{
+  min-width:0;min-height:0;height:100%;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  padding:12px;
+}
+.list-header{
+  flex:0 0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:10px;padding:0 4px;
+}
+.list-header h1{
+  margin:0;font-size:18px;font-weight:950;color:#e8eef3;
+}
+.list-header .live-tag{
+  font-size:12px;font-weight:800;color:#9da7b0;
+  background:#2a323b;padding:5px 10px;border-radius:8px;
+}
+.header-actions{display:flex;align-items:center;gap:10px}
+.fs-btn{
+  border:1px solid #53606d;background:#2a323b;color:#e8eef3;
+  border-radius:9px;padding:7px 12px;font:inherit;font-size:13px;font-weight:850;
+  cursor:pointer;transition:background .15s,border-color .15s;
+}
+.fs-btn:hover{background:#3a4552;border-color:#6a7888}
+.fs-btn.is-fs{background:#f8eddb;color:#493727;border-color:#e0c9a8}
+
+
+/* 瘞游像?∠?????啣??喲? */
+.ticket-rail{
+  flex:1 1 auto;
+  min-height:0;min-width:0;
+  display:flex;
+  flex-direction:row;
+  direction:rtl;
+  align-items:stretch;
+  gap:12px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  overscroll-behavior:contain;
+  scrollbar-color:#65717d #1a1f25;
+  scrollbar-width:thin;
+  padding-bottom:4px;
+}
+
+/* ?桐?閮?∠?嚗撘菔??Ｗ?銝璅?? */
+.ticket{
+  direction:ltr;
+  flex:0 0 clamp(300px, 28vw, 420px);
+  width:clamp(300px, 28vw, 420px);
+  height:100%;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#343c45;
+  border:1px solid #53606d;
+  border-radius:14px;
+  padding:14px;
+  box-shadow:0 5px 16px #0003;
+  color:#f7f3ed;
+}
+.ticket.done{opacity:.48}
+.ticket.ch-onsite,.ticket.ch-customer{
+  background:linear-gradient(180deg,#f8eddb 0%,#f3e6d0 100%);
+  border-color:#e0c9a8;color:#392d23;
+}
+.ticket.ch-onsite .ticket-time,.ticket.ch-customer .ticket-time{color:#6b5644}
+.ticket.ch-onsite .tag,.ticket.ch-customer .tag{background:#e8d9c6;color:#493727}
+.ticket.ch-onsite .ticket-spice-title,.ticket.ch-customer .ticket-spice-title{background:#e0c9a8;color:#392d23}
+.ticket.ch-onsite .ticket-item,.ticket.ch-customer .ticket-item{border-bottom-color:#e5d4bc}
+.ticket.ch-onsite .ticket-item-options,.ticket.ch-customer .ticket-item-options{color:#6b5644}
+.ticket.ch-onsite .ticket-note,.ticket.ch-customer .ticket-note{background:#efe0cc;color:#5c432e}
+.ticket.ch-onsite .ticket-actions,.ticket.ch-customer .ticket-actions{border-top-color:#e0c9a8}
+.ticket.ch-ubereats{
+  background:linear-gradient(180deg,#0aad5f 0%,#088a4c 100%);
+  border-color:#067a43;color:#fff;
+}
+.ticket.ch-ubereats .ticket-time{color:#d4f5e4}
+.ticket.ch-ubereats .tag{background:rgba(0,0,0,.22);color:#fff}
+.ticket.ch-ubereats .ticket-spice-title{background:rgba(0,0,0,.2);color:#fff}
+.ticket.ch-ubereats .ticket-item{border-bottom-color:rgba(255,255,255,.2)}
+.ticket.ch-ubereats .ticket-item-options{color:#e0f7ea}
+.ticket.ch-ubereats .ticket-note{background:rgba(0,0,0,.2);color:#fff8e8}
+.ticket.ch-ubereats .ticket-actions{border-top-color:rgba(255,255,255,.25)}
+.ticket.ch-foodpanda{
+  background:linear-gradient(180deg,#e61b6e 0%,#c4125c 100%);
+  border-color:#a00e4c;color:#fff;
+}
+.ticket.ch-foodpanda .ticket-time{color:#ffe0ec}
+.ticket.ch-foodpanda .tag{background:rgba(0,0,0,.22);color:#fff}
+.ticket.ch-foodpanda .ticket-spice-title{background:rgba(0,0,0,.2);color:#fff}
+.ticket.ch-foodpanda .ticket-item{border-bottom-color:rgba(255,255,255,.2)}
+.ticket.ch-foodpanda .ticket-item-options{color:#ffe8f0}
+.ticket.ch-foodpanda .ticket-note{background:rgba(0,0,0,.2);color:#fff8e8}
+.ticket.ch-foodpanda .ticket-actions{border-top-color:rgba(255,255,255,.25)}
+
+
+.ticket-top{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  gap:10px;flex:0 0 auto;font-weight:950;font-size:17px;
+}
+.ticket-time{font-size:12px;color:#c2cbd3;margin:7px 0;flex:0 0 auto}
+.ticket-body{
+  flex:1 1 auto;min-height:0;
+  overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-color:#7a8793 #343c45;scrollbar-width:thin;
+  padding-right:4px;
+}
+.ticket-items{font-size:16px;line-height:1.55;font-weight:800}
+.ticket-spice-group{margin:9px 0}
+.ticket-spice-title{
+  font-size:14px;font-weight:950;background:#4b5661;color:#fff;
+  padding:7px 9px;border-radius:7px;margin-bottom:6px;position:sticky;top:0;
+}
+.ticket-item{padding:7px 2px;border-bottom:1px solid #46515d}
+.ticket-item-name{font-weight:900}
+.ticket-item-options{font-size:13px;color:#d8e0e6;padding-left:13px;line-height:1.65}
+.ticket-note{background:#4a3c2d;padding:9px;border-radius:8px;margin-top:9px;color:#ffe2b8}
+
+.ticket-actions{
+  display:flex;flex-wrap:wrap;gap:8px;
+  margin-top:11px;padding-top:10px;
+  border-top:1px solid #53606d;
+  flex:0 0 auto;
+}
+.ticket-actions button{
+  min-height:45px;flex:1 1 auto;border:0;border-radius:10px;
+  padding:10px 13px;font-size:14px;font-weight:950;letter-spacing:.02em;
+  cursor:pointer;box-shadow:0 3px 8px #0003;
+  transition:transform .15s,filter .15s,box-shadow .15s;
+}
+.ticket-actions button:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 6px 12px #0004}
+.ticket-actions button:active{transform:translateY(0)}
+.start{background:#f2c879;color:#49351f}
+.finish{background:#83d6a6;color:#17452b}
+.cancel{background:#f39a9a;color:#632727}
+.confirm{background:#e8d9c6;color:#493727}
+.tag{font-size:11px;background:#4b5661;padding:5px 8px;border-radius:7px;white-space:nowrap}
+
+.empty{
+  color:#9da7b0;text-align:center;padding:40px 20px;
+  direction:ltr;align-self:center;min-width:100%;
+  font-size:16px;font-weight:700;
+}
+
+@media(max-width:900px){
+  .kitchen-layout{grid-template-columns:1fr 120px}
+  .channel-btn{font-size:13px;padding:8px 4px}
+  .channel-btn .ch-count{font-size:18px}
+  .channel-btn .ch-label{font-size:12px}
+  .ticket{flex-basis:280px;width:280px;padding:12px}
+}
+@media(max-width:600px){
+  .kitchen-layout{grid-template-columns:1fr 96px}
+  .channel-menu{padding:6px 4px;gap:6px}
+  .channel-btn{border-radius:10px}
+  .ticket{flex-basis:260px;width:260px}
+  .ticket-actions button{min-height:42px;font-size:13px}
+}
+</style>
+</head>
+<body>
+<div id="login" class="login" style="display:none">
+  <h2>摨振?餃</h2>
+  <input id="email" type="email" placeholder="Email">
+  <input id="password" type="password" placeholder="撖Ⅳ">
+  <button onclick="signIn()">?餃</button>
+  <p id="error"></p>
+</div>
+
+<div id="screen" style="display:none">
+  <main class="kitchen-layout">
+    <!-- 撌血嚗?銝剝楝???殷?瘞游像?勗敺撌佗? -->
+    <section class="main-area">
+      <div class="list-header">
+        <h1 id="active-title">?曉 POS</h1>
+        <div class="header-actions">
+          <span class="live-tag">?單??郊</span>
+          <button type="button" class="fs-btn" id="notify-btn" onclick="toggleOrderNotify()" title="閮?">?? ???/button>
+          <button type="button" class="fs-btn" id="fs-btn" onclick="toggleFullscreen()" title="?刻撟?>???刻撟?/button>
+        </div>
+      </div>
+      <div class="ticket-rail" id="ticket-rail">
+        <div class="empty">?桀?瘝?敺?????/div>
+      </div>
+    </section>
+
+    <!-- ??喳嚗? 蝔桅??詨 -->
+    <aside class="channel-menu" aria-label="閮蝔桅?">
+      <button type="button" class="channel-btn" data-channel="customer" onclick="setActiveChannel('customer')">
+        <span class="ch-count" id="count-customer">0</span>
+        <span class="ch-label">摰Ｖ犖蝺?</span>
+      </button>
+      <button type="button" class="channel-btn" data-channel="foodpanda" onclick="setActiveChannel('foodpanda')">
+        <span class="ch-count" id="count-foodpanda">0</span>
+        <span class="ch-label">foodpanda</span>
+      </button>
+      <button type="button" class="channel-btn" data-channel="ubereats" onclick="setActiveChannel('ubereats')">
+        <span class="ch-count" id="count-ubereats">0</span>
+        <span class="ch-label">UberEats</span>
+      </button>
+      <button type="button" class="channel-btn active" data-channel="onsite" onclick="setActiveChannel('onsite')">
+        <span class="ch-count" id="count-onsite">0</span>
+        <span class="ch-label">?曉 POS</span>
+      </button>
+    </aside>
+  </main>
+</div>
+
+<script>
+
+(function(){
+  try{
+    const u=new URL(location.href);
+    let dirty=false;
+    ['utm_source','utm_medium','utm_campaign','_source'].forEach(k=>{
+      if(u.searchParams.has(k)){u.searchParams.delete(k);dirty=true;}
+    });
+    if(dirty) history.replaceState(null,'',u.pathname+u.search+u.hash);
+  }catch(e){}
+})();
+
+const SUPABASE_KEY='sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
+const sb=window.supabase.createClient('https://gyonwgjafukzlmnosykt.supabase.co',SUPABASE_KEY);
+const labels={onsite:'?曉 POS',ubereats:'UberEats',foodpanda:'foodpanda',customer:'摰Ｖ犖蝺?閮'};
+let live=null,pos=[],customer=[],activeChannel='onsite';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$'+(Number(n)||0).toLocaleString('zh-TW');
+const META_RE=/\[\[MALINJI_ORDER_META:([\s\S]*?)\]\]/g;
+function parseOrderMeta(note){
+  const raw=String(note??'');
+  let meta=null;
+  const cleaned=raw.replace(META_RE,(_,json)=>{
+    try{meta=JSON.parse(json);}catch(e){}
+    return '';
+  }).replace(/\s+/g,' ').trim();
+  return {meta, cleaned};
+}
+function formatPickup(iso){
+  if(!iso)return '';
+  try{
+    const d=new Date(iso);
+    if(isNaN(d.getTime()))return '';
+    return d.toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+  }catch(e){return '';}
+}
+
+
+
+const NOTIFY_KEY='kitchen_order_notify_enabled';
+const KITCHEN_PUSH_PUBLIC_KEY='BDk2KVu03H_HZi41S0DDGx9cLljPfpEfEp6FTvEuYr_KHElfvd1Oyz41sMak_blSSMhipiPlGaY83f7RGC10p_g';
+function kitchenBase64ToUint8Array(base64){
+  const padding='='.repeat((4-base64.length%4)%4);
+  const raw=atob((base64+padding).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+async function ensureKitchenServiceWorker(){
+  if(!('serviceWorker'in navigator))throw new Error('甇斤汗?其??舀 Service Worker');
+  // ??customer-orders ?詨?嚗酉???唳?桅???service-worker.js
+  const reg=await navigator.serviceWorker.register('./service-worker.js');
+  await navigator.serviceWorker.ready;
+  return reg;
+}
+async function enableKitchenWebPush(){
+  if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){
+    throw new Error('甇斤汗?其??舀 Web Push');
+  }
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted')throw new Error('撠?迂?甈?');
+  const registration=await ensureKitchenServiceWorker();
+  const subscription=await registration.pushManager.subscribe({
+    userVisibleOnly:true,
+    applicationServerKey:kitchenBase64ToUint8Array(KITCHEN_PUSH_PUBLIC_KEY)
+  });
+  const json=subscription.toJSON();
+  const {data:{user},error:userErr}=await sb.auth.getUser();
+  if(userErr||!user)throw new Error('隢??餃摨振撣唾????冽??);
+  // ??customer-orders ?梁閮銵剁?敺垢?冽?舫甇方?蝵?  const {error}=await sb.from('customer_push_subscriptions').upsert({
+    owner_id:user.id,
+    endpoint:json.endpoint,
+    p256dh:json.keys.p256dh,
+    auth:json.keys.auth,
+    updated_at:new Date().toISOString()
+  },{onConflict:'endpoint'});
+  if(error)throw error;
+  return true;
+}
+
+let orderNotifyEnabled=localStorage.getItem(NOTIFY_KEY)!=='0';
+let knownOrderKeys=new Set();
+let notifyReady=false;
+
+function syncNotifyBtn(){
+  const btn=document.getElementById('notify-btn');
+  if(!btn)return;
+  btn.textContent=orderNotifyEnabled?'?? ???:'?? ???;
+  btn.classList.toggle('is-fs',orderNotifyEnabled);
+}
+function toggleOrderNotify(){
+  if(orderNotifyEnabled){
+    orderNotifyEnabled=false;
+    localStorage.setItem(NOTIFY_KEY,'0');
+    syncNotifyBtn();
+    return;
+  }
+  const btn=document.getElementById('notify-btn');
+  if(btn){btn.textContent='?銝凌?;btn.disabled=true;}
+  enableKitchenWebPush()
+    .then(function(){
+      orderNotifyEnabled=true;
+      localStorage.setItem(NOTIFY_KEY,'1');
+      playNotifyBeep();
+      try{new Notification('擐祇???選??冽撌脤???,{body:'?閮???冽?唳迨鋆蔭',tag:'kitchen-push-on'});}catch(e){}
+    })
+    .catch(function(e){
+      console.warn(e);
+      // 隞?閮望璈?蝷粹 + ? Notification嚗撌脫?甈?
+      orderNotifyEnabled=true;
+      localStorage.setItem(NOTIFY_KEY,'1');
+      alert('Web Push ?芸??典??剁?'+(e&&e.message?e.message:e)+'\n撌脫?箸璈?蝷綽??恍??????????);
+    })
+    .finally(function(){
+      if(btn)btn.disabled=false;
+      syncNotifyBtn();
+    });
+}
+function orderKey(o){
+  return (o._source||'')+':'+(o.id||'')+':'+(o.status||'');
+}
+function playNotifyBeep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator();
+    const g=ctx.createGain();
+    o.type='sine';o.frequency.value=880;
+    g.gain.value=0.08;
+    o.connect(g);g.connect(ctx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.6);
+    o.stop(ctx.currentTime+0.6);
+  }catch(e){}
+}
+function notifyNewOrders(list){
+  const activeIds=new Set();
+  const arrivals=[];
+  list.forEach(o=>{
+    if(['completed','cancelled'].includes(o.status))return;
+    const idKey=(o._source||'pos')+':'+String(o.id);
+    activeIds.add(idKey);
+    if(notifyReady&&!knownOrderKeys.has(idKey))arrivals.push(o);
+  });
+  const firstLoad=!notifyReady;
+  knownOrderKeys=activeIds;
+  if(firstLoad||!orderNotifyEnabled||!arrivals.length)return;
+  playNotifyBeep();
+  const first=arrivals[0];
+  const body=(labels[first._channel]||first._channel||'閮')+' #'+(first.order_no||first.daily_sequence||'')+(arrivals.length>1?' 蝑?'+arrivals.length+' 蝑?:'');
+  if('Notification'in window&&Notification.permission==='granted'){
+    try{
+      const notice=new Notification('擐祇???選??啗???,{body,tag:'kitchen-order',renotify:true,requireInteraction:false});
+      notice.onclick=function(){window.focus();notice.close();};
+    }catch(e){}
+  }
+}
+
+function showLogin(msg=''){document.getElementById('login').style.display='block';document.getElementById('error').textContent=msg}
+async function signIn(){const {error}=await sb.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});if(error){showLogin(error.message);return}boot()}
+async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){showLogin();return}const {data:{user}}=await sb.auth.getUser();if(user?.app_metadata?.role!=='store_owner'){await sb.auth.signOut();showLogin('甇文董???');return}document.getElementById('login').style.display='none';document.getElementById('screen').style.display='block';await refresh();subscribe();
+  syncNotifyBtn();
+  if(orderNotifyEnabled){
+    ensureKitchenServiceWorker().catch(function(e){console.warn('SW',e);});
+  }}
+
+async function refresh(){
+  const start=new Date();start.setHours(0,0,0,0);
+  const end=new Date(start);end.setDate(end.getDate()+1);
+  const [p,c]=await Promise.all([
+    sb.from('pos_orders').select('*').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true}),
+    sb.from('customer_orders').select('id,customer_name,customer_phone,line_display_name,pickup_time,items,total_amount,note,status,created_at,daily_sequence').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true})
+  ]);
+  if(p.error)console.error('POS 閮霈?仃??,p.error);
+  if(c.error)console.error('摰Ｖ犖蝺?閮霈?仃??,c.error);
+  pos=p.data||[];
+  customer=c.data||[];
+  render();
+}
+
+function setActiveChannel(ch){
+  activeChannel=ch;
+  document.querySelectorAll('.channel-btn').forEach(b=>b.classList.toggle('active',b.dataset.channel===ch));
+  document.getElementById('active-title').textContent=labels[ch]||ch;
+  renderTickets();
+}
+
+function render(){
+  const all=[
+    ...pos.map(o=>({...o,_source:'pos',_channel:o.channel})),
+    ...customer.filter(o=>!['completed','cancelled'].includes(o.status)).map(o=>({...o,_source:'customer',_channel:'customer'}))
+  ];
+  const active=all.filter(o=>!['completed','cancelled'].includes(o.status));
+  const counts={onsite:0,ubereats:0,foodpanda:0,customer:0};
+  active.forEach(o=>{if(counts[o._channel]!==undefined)counts[o._channel]++});
+  Object.keys(counts).forEach(ch=>{
+    const el=document.getElementById('count-'+ch);
+    if(el)el.textContent=counts[ch];
+  });
+  notifyNewOrders(active);
+  if(!notifyReady){notifyReady=true;syncNotifyBtn();}
+  renderTickets();
+}
+
+function renderTickets(){
+  const all=[
+    ...pos.map(o=>({...o,_source:'pos',_channel:o.channel})),
+    ...customer.filter(o=>!['completed','cancelled'].includes(o.status)).map(o=>({...o,_source:'customer',_channel:'customer'}))
+  ];
+  const active=all.filter(o=>!['completed','cancelled'].includes(o.status) && o._channel===activeChannel);
+  // ??啣?????剝? direction:rtl 敺＊蝷箏??喲?
+  active.sort((a,b)=>{
+    const na=Number(a.order_no||a.daily_sequence)||0;
+    const nb=Number(b.order_no||b.daily_sequence)||0;
+    if(na&&nb&&na!==nb)return na-nb;
+    return new Date(a.created_at)-new Date(b.created_at);
+  });
+  const rail=document.getElementById('ticket-rail');
+  rail.innerHTML=active.length
+    ? active.map(o=>ticket(o)).join('')
+    : '<div class="empty">?桀?瘝?敺?????/div>';
+}
+
+function ticket(o){
+  const isCustomer=o._source==='customer',state=o.status;
+  const number=isCustomer?(o.daily_sequence||String(o.id).slice(0,6)):o.order_no;
+  const items=Array.isArray(o.items)?o.items:[];
+  const statusLabel=isCustomer&&state==='new'?'撠蝣箄?閮':({new:'敺???,confirmed:'撌脩Ⅱ隤?,preparing:'鋆賭?銝?,completed:'撌脣???,cancelled:'撌脣?瘨?}[state]||state);
+  function ticketItemRow(i){
+    const opts=[];
+    if(!i.is_gift){
+      if(i.sauce_level)opts.push('?祆?嚗?+esc(i.sauce_level));
+      if(i.pepper_level)opts.push('?⊥?嚗?+esc(i.pepper_level));
+    }
+    return '<div class="ticket-item"><div class="ticket-item-name">'+esc(i.name||i.product_name||'擗?')+' ? '+(Number(i.quantity)||0)+(i.is_gift?' <span style="background:#e4f1df;color:#2d6b3e;font-size:12px;padding:2px 6px;border-radius:5px;font-weight:900">韐?</span>':'')+'</div>'+(opts.length?'<div class="ticket-item-options">'+opts.join('<br>')+'</div>':'')+'</div>';
+  }
+  const gifts=items.filter(i=>!!i.is_gift);
+  const nonGifts=items.filter(i=>!i.is_gift);
+  const spiceOrder=['銝麾','撠麾','銝剛麾','憭扯麾',null];
+  let itemHtml='';
+  if(gifts.length){
+    itemHtml+='<section class="ticket-spice-group"><div class="ticket-spice-title">?? 韐?</div>'+gifts.map(ticketItemRow).join('')+'</section>';
+  }
+  itemHtml+=spiceOrder.map(spice=>{
+    const rows=nonGifts.filter(i=>(['銝麾','撠麾','銝剛麾','憭扯麾'].includes(i.spice_level)?i.spice_level:null)===spice);
+    if(!rows.length)return '';
+    return '<section class="ticket-spice-group"><div class="ticket-spice-title">?儭?'+(spice||'?嗡?')+'</div>'+rows.map(ticketItemRow).join('')+'</section>';
+  }).join('');
+  const chClass='ch-'+(o._channel||(isCustomer?'customer':'onsite'));
+  return '<article class="ticket '+chClass+(state==='completed'?' done':'')+'">'+
+    '<div class="ticket-top"><span>'+(isCustomer?'摰Ｖ犖蝺?':'POS')+' #'+esc(number)+'</span><span class="tag">'+statusLabel+'</span></div>'+
+    '<div class="ticket-body">'+
+      '<div class="ticket-time">'+new Date(o.created_at).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+(isCustomer&&o.pickup_time?'??? '+new Date(o.pickup_time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}):'')+'</div>'+
+      '<div class="ticket-items">'+(itemHtml||'嚗擗??敦嚗?)+'</div>'+
+      (isCustomer?'<div class="ticket-time">摰Ｖ犖嚗?+esc(o.customer_name||o.line_display_name||'?芣?靘?)+(o.customer_phone?'?'+esc(o.customer_phone):'')+'</div>':'')+
+      ''+
+    '</div>'+
+    '<div class="ticket-actions">'+
+      ((isCustomer?state==='confirmed':(state==='new'||state==='confirmed'))?(isCustomer?'<button class="start" onclick="updateCustomer(\''+o.id+'\',\'preparing\')">??鋆賭?</button>':'<button class="start" onclick="updatePos(\''+o.id+'\',\'preparing\')">??鋆賭?</button>'):'')+
+      (state==='preparing'?'<button class="finish" onclick="'+(isCustomer?'updateCustomer(\''+o.id+'\',\'completed\')':'updatePos(\''+o.id+'\',\'completed\')')+'">摰?擗?</button>':'')+
+    '</div>'+
+  '</article>';
+}
+
+async function updatePos(id,status){
+  const {error}=await sb.from('pos_orders').update({status,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){alert('?湔憭望?嚗?+error.message);return}
+  await refresh();
+}
+async function updateCustomer(id,status){
+  const {data,error}=await sb.functions.invoke('customer-orders',{body:{action:'owner-update-status',order_id:id,status}});
+  if(error||!data?.ok){alert(data?.error||'摰Ｖ犖閮???啣仃??);return}
+  await refresh();
+}
+function subscribe(){
+  if(live)sb.removeChannel(live);
+  live=sb.channel('malinji-kitchen-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'pos_orders'},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'customer_order_addons'},refresh)
+    .subscribe();
+}
+
+function isStandaloneApp(){
+  return (window.navigator.standalone===true) || window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches;
+}
+function canUseFullscreenApi(){
+  const el=document.documentElement;
+  return !!(el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen);
+}
+function toggleFullscreen(){
+  if(isStandaloneApp()){
+    // Safari???乩蜓?恍??撌脫?函??函?ｇ?蝟餌絞銝?靘?Fullscreen API
+    const btn=document.getElementById('fs-btn');
+    if(btn){btn.textContent='撌脫銝餌?Ｗ?Ｗ?';btn.disabled=true;}
+    return;
+  }
+  const el=document.documentElement;
+  const req=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+  const exit=document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen;
+  if(!req){
+    alert('甇斤汗?其??舀?刻撟???Safari??鈭????銝餌?Ｕ?敺蜓?恍?內???喳?亥??刻撟?);
+    return;
+  }
+  if(document.fullscreenElement||document.webkitFullscreenElement){
+    if(exit)exit.call(document);
+  }else{
+    const p=req.call(el);
+    if(p&&p.catch)p.catch(function(){
+      alert('?⊥??脣?刻撟Phone/iPad 隢?具??乩蜓?恍????);
+    });
+  }
+}
+function syncFsBtn(){
+  const btn=document.getElementById('fs-btn');
+  if(!btn)return;
+  if(isStandaloneApp()){
+    btn.textContent='銝餌?Ｘ芋撘?;
+    btn.classList.add('is-fs');
+    btn.title='撌脣?銝餌?ａ????祈澈?喟?刻撟＊蝷?;
+    return;
+  }
+  const on=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  btn.classList.toggle('is-fs',on);
+  btn.textContent=on?'????箏?Ｗ?':'???刻撟?;
+}
+document.addEventListener('fullscreenchange',syncFsBtn);
+document.addEventListener('webkitfullscreenchange',syncFsBtn);
+document.addEventListener('DOMContentLoaded',syncFsBtn);
+setTimeout(syncFsBtn,300);
+
+boot().catch(e=>{console.error(e);showLogin('頛憭望?嚗?+e.message)});
+
+</script>
+</body>
+</html>
