@@ -369,7 +369,7 @@ function ticket(o){
   const isCustomer=o._source==='customer',state=o.status;
   const number=isCustomer?(o.daily_sequence||String(o.id).slice(0,6)):o.order_no;
   const items=Array.isArray(o.items)?o.items:[];
-  const statusLabel={new:'待處理',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'}[state]||state;
+  const statusLabel=isCustomer&&state==='new'?'尚未確認訂單':({new:'待處理',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'}[state]||state);
   const spiceOrder=['不辣','小辣','中辣','大辣',null];
   const itemHtml=spiceOrder.map(spice=>{
     const rows=items.filter(i=>(['不辣','小辣','中辣','大辣'].includes(i.spice_level)?i.spice_level:null)===spice);
@@ -386,7 +386,7 @@ function ticket(o){
       (o.note?'<div class="ticket-note">備註：'+esc(o.note)+'</div>':'')+
     '</div>'+
     '<div class="ticket-actions">'+
-      ((state==='new'||state==='confirmed')?(isCustomer?'<button class="start" onclick="updateCustomer(\''+o.id+'\',\'preparing\')">開始製作</button>':'<button class="start" onclick="updatePos(\''+o.id+'\',\'preparing\')">開始製作</button>'):'')+
+      ((isCustomer?state==='confirmed':(state==='new'||state==='confirmed'))?(isCustomer?'<button class="start" onclick="updateCustomer(\''+o.id+'\',\'preparing\')">開始製作</button>':'<button class="start" onclick="updatePos(\''+o.id+'\',\'preparing\')">開始製作</button>'):'')+
       (state==='preparing'?'<button class="finish" onclick="'+(isCustomer?'updateCustomer(\''+o.id+'\',\'completed\')':'updatePos(\''+o.id+'\',\'completed\')')+'">完成餐點</button>':'')+
     '</div>'+
   '</article>';
