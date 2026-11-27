@@ -4053,8 +4053,7 @@ async function compressCustomerMenuImage(file){if(!file||!file.type.startsWith('
         // 舊函式名稱保留相容，避免既有入口呼叫失效。
         async function renderCustomerSpicySettings(){return renderCustomerMenuManagement();}
         function customerBase64ToUint8Array(base64){const padding='='.repeat((4-base64.length%4)%4);const raw=atob((base64+padding).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
-        async 
-const CUSTOMER_NOTIFY_PREF_KEY='customer_admin_order_notify_enabled';
+        const CUSTOMER_NOTIFY_PREF_KEY='customer_admin_order_notify_enabled';
 function isCustomerOrderNotifyEnabled(){
   return localStorage.getItem(CUSTOMER_NOTIFY_PREF_KEY)!=='0';
 }
@@ -4079,7 +4078,7 @@ function customerOrderNotifyAllowed(){
   return isCustomerOrderNotifyEnabled() && ('Notification'in window) && Notification.permission==='granted';
 }
 
-function enableCustomerOrderPush(){const status=document.getElementById('customer-push-status');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw new Error('此瀏覽器不支援 Web Push。');if(CUSTOMER_PUSH_PUBLIC_KEY.startsWith('REPLACE_'))throw new Error('尚未設定 VAPID 公開金鑰，請先完成部署設定。');const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error('你尚未允許此網站發送通知。');const registration=await navigator.serviceWorker.ready;const subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:customerBase64ToUint8Array(CUSTOMER_PUSH_PUBLIC_KEY)});const json=subscription.toJSON();const {data:{user}}=await _supabase.auth.getUser();const {error}=await _supabase.from('customer_push_subscriptions').upsert({owner_id:user.id,endpoint:json.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,updated_at:new Date().toISOString()},{onConflict:'endpoint'});if(error)throw error;if(status)status.textContent='✓ 訂單通知已啟用';}catch(e){if(status)status.textContent='無法啟用訂單通知，請確認裝置通知設定後再試。';}}
+async function enableCustomerOrderPush(){const status=document.getElementById('customer-push-status');try{if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw new Error('此瀏覽器不支援 Web Push。');if(CUSTOMER_PUSH_PUBLIC_KEY.startsWith('REPLACE_'))throw new Error('尚未設定 VAPID 公開金鑰，請先完成部署設定。');const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error('你尚未允許此網站發送通知。');const registration=await navigator.serviceWorker.ready;const subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:customerBase64ToUint8Array(CUSTOMER_PUSH_PUBLIC_KEY)});const json=subscription.toJSON();const {data:{user}}=await _supabase.auth.getUser();const {error}=await _supabase.from('customer_push_subscriptions').upsert({owner_id:user.id,endpoint:json.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,updated_at:new Date().toISOString()},{onConflict:'endpoint'});if(error)throw error;if(status)status.textContent='✓ 訂單通知已啟用';}catch(e){if(status)status.textContent='無法啟用訂單通知，請確認裝置通知設定後再試。';}}
 
         // ==================== 快速點餐（僅前端暫存，不寫入資料庫） ====================
         const ORDER_MENU_CATEGORIES = ['碳烤伴餐類','雞肉類','牛肉類','豬肉類','羊肉類','海鮮類','蔬菜類','炸物類','飲品類'];

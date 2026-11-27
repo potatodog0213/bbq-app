@@ -156,6 +156,18 @@ main{min-width:0;padding:22px 24px 28px}.top{display:flex;align-items:center;jus
 .edit-save{background:#5c432e;color:#fff}
 .edit-cancel{background:#f1e4d2;color:#5c432e}
 .order-edit-btn{border:0;border-radius:9px;padding:9px 14px;font-weight:850;cursor:pointer;font:inherit;font-size:13px;background:#5c432e;color:#fff}
+.edit-add-panel{margin-top:14px;padding:12px;border:1px solid #e2ceb4;border-radius:12px;background:#fff}
+.edit-add-panel h4{margin:0 0 8px;font-size:14px}
+.edit-add-cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.edit-add-cats button{border:1px solid #e2ceb4;background:#fffaf2;border-radius:8px;padding:6px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;color:#5c432e}
+.edit-add-cats button.active{background:#5c432e;color:#fff;border-color:#5c432e}
+.edit-add-products{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;max-height:160px;overflow-y:auto}
+.edit-add-products button{border:1px solid #e8d8c4;background:#fff;border-radius:9px;padding:8px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;text-align:left;color:#392d23}
+.edit-add-products button:hover{background:#f8eddb}
+.edit-add-opts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.edit-add-opts select{border:1px solid #d9c6ae;border-radius:8px;padding:7px 8px;font:inherit;font-size:12px;background:#fff}
+.edit-dialog{width:min(560px,100%);max-height:min(92vh,780px);overflow:auto;background:#fffaf2;border:1px solid #e7d5bd;border-radius:18px;padding:20px;box-shadow:0 20px 60px #160e0870}
+
 </style></head><body>
 <div id="login" class="login" style="display:none"><h2>店家登入</h2><label>Email</label><input id="email" type="email"><label>密碼</label><input id="password" type="password"><button onclick="signIn()">登入</button><p id="login-error"></p></div>
 <div id="app" class="app" style="display:none">
@@ -310,7 +322,7 @@ function filterOrders(f){orderFilter=f;renderOrders()}
 async function setOrderStatus(id,status){const {error}=await sb.from('pos_orders').update({status,updated_at:new Date().toISOString()}).eq('id',id);if(error){alert('更新失敗：'+error.message);return}await loadOrders()}
 function showView(view,button){document.getElementById('cashier').style.display=view==='cashier'?'block':'none';document.getElementById('orders').style.display=view==='orders'?'block':'none';document.getElementById('page-title').textContent=view==='cashier'?'收銀台':'今日訂單';document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b===button));if(view==='orders')loadOrders()}
 
-let editingOrderId=null,editingItems=[];
+let editingOrderId=null,editingItems=[],editAddCategory='',editAddSpice='不辣',editAddSauce='',editAddPepper='';
 function openEditOrder(id){
   const o=orders.find(x=>String(x.id)===String(id));
   if(!o){alert('找不到訂單');return;}
@@ -327,6 +339,9 @@ function openEditOrder(id){
     pepper_level:i.pepper_level||null,
     category:i.category||''
   }));
+  const cats=CATEGORY_ORDER.filter(c=>products.some(pr=>productCategory(pr)===c));
+  editAddCategory=cats[0]||'碳烤伴餐類';
+  editAddSpice='不辣';editAddSauce='';editAddPepper='';
   document.getElementById('edit-title').textContent='修改訂單 #'+(o.order_no||'');
   renderEditBody();
   document.getElementById('edit-overlay').classList.add('show');
@@ -338,34 +353,98 @@ function closeEditOrder(){
 function renderEditBody(){
   const spice=['不辣','小辣','中辣','大辣'];
   const body=document.getElementById('edit-body');
-  if(!editingItems.length){body.innerHTML='<p style="color:#897866">沒有品項</p>';return;}
-  body.innerHTML=editingItems.map((i,idx)=>{
+  const rows=editingItems.length?editingItems.map((i,idx)=>{
     const spiceOpts=spice.map(s=>`<option value="${s}" ${i.spice_level===s?'selected':''}>${s}</option>`).join('');
+    const optBits=[i.sauce_level,i.pepper_level].filter(Boolean).map(esc).join('・');
     return `<div class="edit-row">
-      <div><strong>${esc(i.name)}</strong>${i.is_gift?' <span class="gift-badge">贈品</span>':''}</div>
+      <div><strong>${esc(i.name)}</strong>${i.is_gift?' <span class="gift-badge">贈品</span>':''}${optBits?`<small class="order-item-opts">${optBits}</small>`:''}<div style="font-size:12px;color:#897866;margin-top:2px">${money(i.unit_price)}</div></div>
       <select onchange="editingItems[${idx}].spice_level=this.value">${spiceOpts}</select>
       <input type="number" min="1" max="99" value="${i.quantity}" onchange="editQty(${idx},this.value)">
       <button type="button" class="cart-delete" onclick="editRemove(${idx})" title="移除">×</button>
     </div>`;
-  }).join('')+'<p style="font-size:12px;color:#897866;margin:10px 0 0">可調整辣度與數量；儲存後會同步到廚房。</p>';
+  }).join(''):'<p style="color:#897866">尚未有品項，請下方加點</p>';
+
+  const cats=CATEGORY_ORDER.filter(c=>products.some(pr=>productCategory(pr)===c));
+  const catBtns=cats.map(c=>`<button type="button" class="${editAddCategory===c?'active':''}" onclick="editAddCategory='${c}';renderEditBody()">${c}</button>`).join('');
+  const list=products.filter(pr=>productCategory(pr)===editAddCategory);
+  const prodBtns=list.map(pr=>{
+    const price=Number(pr.price)||0;
+    const name=productDisplayName(pr);
+    return `<button type="button" onclick="editAddProduct('${esc(String(pr.id))}')">${esc(name)}<br><small>${money(price)}</small></button>`;
+  }).join('')||'<span style="color:#897866;font-size:12px">此分類無品項</span>';
+
+  const spiceOpts=spice.map(s=>`<option value="${s}" ${editAddSpice===s?'selected':''}>${s}</option>`).join('');
+  const sauceOpts=['','醬多','醬少','不醬'].map(s=>`<option value="${s}" ${editAddSauce===s?'selected':''}>${s||'醬料'}</option>`).join('');
+  const pepperOpts=['','胡椒多','胡椒少','不胡椒'].map(s=>`<option value="${s}" ${editAddPepper===s?'selected':''}>${s||'胡椒'}</option>`).join('');
+
+  body.innerHTML=`
+    <div style="font-weight:900;margin-bottom:6px">目前品項</div>
+    ${rows}
+    <div class="edit-add-panel">
+      <h4>➕ 加點品項</h4>
+      <div class="edit-add-opts">
+        <select onchange="editAddSpice=this.value">${spiceOpts}</select>
+        <select onchange="editAddSauce=this.value">${sauceOpts}</select>
+        <select onchange="editAddPepper=this.value">${pepperOpts}</select>
+      </div>
+      <div class="edit-add-cats">${catBtns}</div>
+      <div class="edit-add-products">${prodBtns}</div>
+    </div>
+    <p style="font-size:12px;color:#897866;margin:10px 0 0">可加點、改辣度／數量或移除；儲存後會同步到廚房。</p>`;
 }
 function editQty(idx,val){
   const n=Math.max(1,Math.min(99,Number(val)||1));
   editingItems[idx].quantity=n;
-  editingItems[idx].subtotal=(Number(editingItems[idx].unit_price)||0)*n;
+  if(!editingItems[idx].is_gift)editingItems[idx].subtotal=(Number(editingItems[idx].unit_price)||0)*n;
 }
 function editRemove(idx){
   editingItems.splice(idx,1);
+  renderEditBody();
+}
+function editAddProduct(id){
+  const pr=products.find(x=>String(x.id)===String(id));
+  if(!pr)return;
+  const price=Number(pr.price)||0;
+  const name=productDisplayName(pr);
+  const spice=editAddSpice||'不辣';
+  const sauce=editAddSauce||null;
+  const pepper=editAddPepper||null;
+  // merge same product+options
+  const key=[String(pr.id),spice,sauce||'',pepper||''].join('|');
+  const existing=editingItems.find(i=>!i.is_gift&&[String(i.product_id),i.spice_level||'',i.sauce_level||'',i.pepper_level||''].join('|')===key);
+  if(existing){
+    existing.quantity+=1;
+    existing.subtotal=(Number(existing.unit_price)||0)*existing.quantity;
+  }else{
+    editingItems.push({
+      product_id:pr.id,
+      name,
+      quantity:1,
+      unit_price:price,
+      subtotal:price,
+      is_gift:false,
+      spice_level:spice,
+      sauce_level:sauce,
+      pepper_level:pepper,
+      category:productCategory(pr)
+    });
+  }
   renderEditBody();
 }
 async function saveEditOrder(){
   if(!editingOrderId)return;
   if(!editingItems.length){alert('至少保留一個品項');return;}
   const items=editingItems.map(i=>({
-    ...i,
+    product_id:i.product_id,
+    name:i.name,
     quantity:Number(i.quantity)||1,
     unit_price:Number(i.unit_price)||0,
-    subtotal:i.is_gift?0:(Number(i.unit_price)||0)*(Number(i.quantity)||1)
+    subtotal:i.is_gift?0:(Number(i.unit_price)||0)*(Number(i.quantity)||1),
+    is_gift:!!i.is_gift,
+    spice_level:i.spice_level||'不辣',
+    sauce_level:i.sauce_level||null,
+    pepper_level:i.pepper_level||null,
+    category:i.category||''
   }));
   const total=items.reduce((s,i)=>s+(i.is_gift?0:Number(i.subtotal)||0),0);
   const {error}=await sb.from('pos_orders').update({
