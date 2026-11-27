@@ -144,6 +144,18 @@ main{min-width:0;padding:22px 24px 28px}.top{display:flex;align-items:center;jus
   }
 }
 
+
+.edit-overlay{position:fixed;inset:0;z-index:1100;display:none;align-items:center;justify-content:center;padding:16px;background:#241b14a6;backdrop-filter:blur(4px)}
+.edit-overlay.show{display:flex}
+.edit-dialog{width:min(520px,100%);max-height:min(90vh,720px);overflow:auto;background:#fffaf2;border:1px solid #e7d5bd;border-radius:18px;padding:20px;box-shadow:0 20px 60px #160e0870}
+.edit-dialog h3{margin:0 0 12px;font-size:18px}
+.edit-row{display:grid;grid-template-columns:1fr 90px 70px 36px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #eee2d3}
+.edit-row select,.edit-row input{width:100%;border:1px solid #d9c6ae;border-radius:8px;padding:8px;font:inherit;background:#fff}
+.edit-actions{display:flex;gap:10px;margin-top:16px}
+.edit-actions button{flex:1;border:0;border-radius:11px;padding:12px;font:inherit;font-weight:900;cursor:pointer}
+.edit-save{background:#5c432e;color:#fff}
+.edit-cancel{background:#f1e4d2;color:#5c432e}
+.order-edit-btn{border:0;border-radius:9px;padding:9px 14px;font-weight:850;cursor:pointer;font:inherit;font-size:13px;background:#5c432e;color:#fff}
 </style></head><body>
 <div id="login" class="login" style="display:none"><h2>店家登入</h2><label>Email</label><input id="email" type="email"><label>密碼</label><input id="password" type="password"><button onclick="signIn()">登入</button><p id="login-error"></p></div>
 <div id="app" class="app" style="display:none">
@@ -155,6 +167,7 @@ main{min-width:0;padding:22px 24px 28px}.top{display:flex;align-items:center;jus
 </section>
 <section id="orders" class="orders"><div class="order-summary" id="summary"></div><div class="order-tabs"><button onclick="filterOrders('all')">全部</button><button onclick="filterOrders('onsite')">現場</button><button onclick="filterOrders('ubereats')">UberEats</button><button onclick="filterOrders('foodpanda')">foodpanda</button></div><div class="order-query"><label>查詢日期</label><button type="button" class="date-trigger" id="date-trigger" onclick="toggleDatePicker(event)" aria-haspopup="dialog" aria-expanded="false"><span class="date-icon">▦</span><span class="date-text" id="date-trigger-text"></span></button><button class="query-btn" type="button" onclick="applyOrderDate()">查詢訂單</button><button class="today-btn" type="button" onclick="backToToday()">回到今天</button><span class="query-date-label" id="query-date-label"></span><div class="date-picker" id="date-picker" role="dialog" aria-label="選擇日期" onclick="event.stopPropagation()"><div class="dp-header"><button type="button" class="dp-nav" onclick="changePickerMonth(-1)" aria-label="上個月">‹</button><div class="dp-title" id="dp-title"></div><button type="button" class="dp-nav" onclick="changePickerMonth(1)" aria-label="下個月">›</button></div><div class="dp-weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div><div class="dp-days" id="dp-days"></div><div class="dp-footer"><button type="button" class="dp-today-btn" onclick="pickToday()">今天</button><button type="button" class="dp-confirm-btn" onclick="confirmPickerDate()">確認查詢</button></div></div></div><div id="today-orders" class="order-list"></div></section>
 </main></div>
+<div id="edit-overlay" class="edit-overlay" onclick="if(event.target===this)closeEditOrder()"><div class="edit-dialog"><h3 id="edit-title">修改訂單</h3><div id="edit-body"></div><div class="edit-actions"><button type="button" class="edit-cancel" onclick="closeEditOrder()">取消</button><button type="button" class="edit-save" onclick="saveEditOrder()">儲存修改</button></div></div></div>
 <div id="success-overlay" class="success-overlay" role="dialog" aria-modal="true" aria-labelledby="success-title" onclick="if(event.target===this)closeSuccess()"><div class="success-dialog"><div class="success-icon" aria-hidden="true">✓</div><h2 id="success-title">訂單送出成功！</h2><p>餐點已送至廚房，請繼續為下一位客人點餐。</p><button type="button" onclick="closeSuccess()">繼續點餐</button></div></div>
 <script>
 
@@ -278,7 +291,7 @@ function renderOrders(){
       return `<div class="oi-spice-group"><div class="oi-spice-title">${esc(sp)}</div><div class="oi-head"><span>商品名稱</span><span>單價</span><span>數量</span><span>小計</span></div>${rows}</div>`;
     }).join('')||'<div style="color:#897866;padding:8px 0">（無品項）</div>';
     const st=o.status||'new';
-    const actions=(st==='new'?`<button class="start-btn" onclick="setOrderStatus('${o.id}','preparing')">開始製作</button>`:'')+(st==='preparing'?`<button class="done-btn" onclick="setOrderStatus('${o.id}','completed')">完成</button>`:'');
+    const actions=`<button class="order-edit-btn" onclick="openEditOrder('${o.id}')">修改訂單</button>`+(st==='new'?`<button class="start-btn" onclick="setOrderStatus('${o.id}','preparing')">開始製作</button>`:'')+(st==='preparing'?`<button class="done-btn" onclick="setOrderStatus('${o.id}','completed')">完成</button>`:'');
     return `<article class="order-card ${chClass}">
       <div class="order-card-head"><span>#${esc(o.order_no)}・${esc(CHANNELS[ch]?.label||ch)}</span><span class="status-pill ${st}">${statusMap[st]||st}</span></div>
       <div class="order-card-body">
@@ -296,6 +309,75 @@ function renderOrders(){
 function filterOrders(f){orderFilter=f;renderOrders()}
 async function setOrderStatus(id,status){const {error}=await sb.from('pos_orders').update({status,updated_at:new Date().toISOString()}).eq('id',id);if(error){alert('更新失敗：'+error.message);return}await loadOrders()}
 function showView(view,button){document.getElementById('cashier').style.display=view==='cashier'?'block':'none';document.getElementById('orders').style.display=view==='orders'?'block':'none';document.getElementById('page-title').textContent=view==='cashier'?'收銀台':'今日訂單';document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b===button));if(view==='orders')loadOrders()}
+
+let editingOrderId=null,editingItems=[];
+function openEditOrder(id){
+  const o=orders.find(x=>String(x.id)===String(id));
+  if(!o){alert('找不到訂單');return;}
+  editingOrderId=id;
+  editingItems=(Array.isArray(o.items)?o.items:[]).map(i=>({
+    product_id:i.product_id,
+    name:i.name||i.product_name||'餐點',
+    quantity:Number(i.quantity)||1,
+    unit_price:Number(i.unit_price)||0,
+    subtotal:Number(i.subtotal)!=null?Number(i.subtotal):(Number(i.unit_price)||0)*(Number(i.quantity)||0),
+    is_gift:!!i.is_gift,
+    spice_level:i.spice_level||'不辣',
+    sauce_level:i.sauce_level||null,
+    pepper_level:i.pepper_level||null,
+    category:i.category||''
+  }));
+  document.getElementById('edit-title').textContent='修改訂單 #'+(o.order_no||'');
+  renderEditBody();
+  document.getElementById('edit-overlay').classList.add('show');
+}
+function closeEditOrder(){
+  document.getElementById('edit-overlay').classList.remove('show');
+  editingOrderId=null;editingItems=[];
+}
+function renderEditBody(){
+  const spice=['不辣','小辣','中辣','大辣'];
+  const body=document.getElementById('edit-body');
+  if(!editingItems.length){body.innerHTML='<p style="color:#897866">沒有品項</p>';return;}
+  body.innerHTML=editingItems.map((i,idx)=>{
+    const spiceOpts=spice.map(s=>`<option value="${s}" ${i.spice_level===s?'selected':''}>${s}</option>`).join('');
+    return `<div class="edit-row">
+      <div><strong>${esc(i.name)}</strong>${i.is_gift?' <span class="gift-badge">贈品</span>':''}</div>
+      <select onchange="editingItems[${idx}].spice_level=this.value">${spiceOpts}</select>
+      <input type="number" min="1" max="99" value="${i.quantity}" onchange="editQty(${idx},this.value)">
+      <button type="button" class="cart-delete" onclick="editRemove(${idx})" title="移除">×</button>
+    </div>`;
+  }).join('')+'<p style="font-size:12px;color:#897866;margin:10px 0 0">可調整辣度與數量；儲存後會同步到廚房。</p>';
+}
+function editQty(idx,val){
+  const n=Math.max(1,Math.min(99,Number(val)||1));
+  editingItems[idx].quantity=n;
+  editingItems[idx].subtotal=(Number(editingItems[idx].unit_price)||0)*n;
+}
+function editRemove(idx){
+  editingItems.splice(idx,1);
+  renderEditBody();
+}
+async function saveEditOrder(){
+  if(!editingOrderId)return;
+  if(!editingItems.length){alert('至少保留一個品項');return;}
+  const items=editingItems.map(i=>({
+    ...i,
+    quantity:Number(i.quantity)||1,
+    unit_price:Number(i.unit_price)||0,
+    subtotal:i.is_gift?0:(Number(i.unit_price)||0)*(Number(i.quantity)||1)
+  }));
+  const total=items.reduce((s,i)=>s+(i.is_gift?0:Number(i.subtotal)||0),0);
+  const {error}=await sb.from('pos_orders').update({
+    items,
+    total_amount:total,
+    updated_at:new Date().toISOString()
+  }).eq('id',editingOrderId);
+  if(error){alert('儲存失敗：'+error.message);return;}
+  closeEditOrder();
+  await loadOrders();
+}
+
 function subscribe(){if(realtime)sb.removeChannel(realtime);realtime=sb.channel('pos-orders-live').on('postgres_changes',{event:'*',schema:'public',table:'pos_orders'},()=>loadOrders()).subscribe()}
 boot().catch(e=>{console.error(e);showLogin('載入失敗：'+e.message)});
 </script></body></html>

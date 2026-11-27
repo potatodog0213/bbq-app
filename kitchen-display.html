@@ -256,6 +256,7 @@ body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFo
         <h1 id="active-title">現場 POS</h1>
         <div class="header-actions">
           <span class="live-tag">即時同步</span>
+          <button type="button" class="fs-btn" id="notify-btn" onclick="toggleOrderNotify()" title="訂單通知">🔔 通知開</button>
           <button type="button" class="fs-btn" id="fs-btn" onclick="toggleFullscreen()" title="全螢幕">⛶ 全螢幕</button>
         </div>
       </div>
@@ -325,6 +326,64 @@ function formatPickup(iso){
 }
 
 
+
+const NOTIFY_KEY='kitchen_order_notify_enabled';
+let orderNotifyEnabled=localStorage.getItem(NOTIFY_KEY)!=='0';
+let knownOrderKeys=new Set();
+let notifyReady=false;
+
+function syncNotifyBtn(){
+  const btn=document.getElementById('notify-btn');
+  if(!btn)return;
+  btn.textContent=orderNotifyEnabled?'🔔 通知開':'🔕 通知關';
+  btn.classList.toggle('is-fs',orderNotifyEnabled);
+}
+function toggleOrderNotify(){
+  orderNotifyEnabled=!orderNotifyEnabled;
+  localStorage.setItem(NOTIFY_KEY,orderNotifyEnabled?'1':'0');
+  syncNotifyBtn();
+  if(orderNotifyEnabled&&'Notification'in window&&Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+}
+function orderKey(o){
+  return (o._source||'')+':'+(o.id||'')+':'+(o.status||'');
+}
+function playNotifyBeep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator();
+    const g=ctx.createGain();
+    o.type='sine';o.frequency.value=880;
+    g.gain.value=0.08;
+    o.connect(g);g.connect(ctx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.6);
+    o.stop(ctx.currentTime+0.6);
+  }catch(e){}
+}
+function notifyNewOrders(list){
+  const activeIds=new Set();
+  const arrivals=[];
+  list.forEach(o=>{
+    if(['completed','cancelled'].includes(o.status))return;
+    const idKey=(o._source||'pos')+':'+String(o.id);
+    activeIds.add(idKey);
+    if(notifyReady&&!knownOrderKeys.has(idKey))arrivals.push(o);
+  });
+  const firstLoad=!notifyReady;
+  knownOrderKeys=activeIds;
+  if(firstLoad||!orderNotifyEnabled||!arrivals.length)return;
+  playNotifyBeep();
+  const first=arrivals[0];
+  const body=(labels[first._channel]||first._channel||'訂單')+' #'+(first.order_no||first.daily_sequence||'')+(arrivals.length>1?' 等 '+arrivals.length+' 筆':'');
+  if('Notification'in window&&Notification.permission==='granted'){
+    try{new Notification('馬鈴吉廚房｜新訂單',{body,tag:'kitchen-order-'+Date.now()});}catch(e){}
+  }else if('Notification'in window&&Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+}
+
 function showLogin(msg=''){document.getElementById('login').style.display='block';document.getElementById('error').textContent=msg}
 async function signIn(){const {error}=await sb.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});if(error){showLogin(error.message);return}boot()}
 async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){showLogin();return}const {data:{user}}=await sb.auth.getUser();if(user?.app_metadata?.role!=='store_owner'){await sb.auth.signOut();showLogin('此帳號未授權');return}document.getElementById('login').style.display='none';document.getElementById('screen').style.display='block';await refresh();subscribe()}
@@ -362,6 +421,8 @@ function render(){
     const el=document.getElementById('count-'+ch);
     if(el)el.textContent=counts[ch];
   });
+  notifyNewOrders(active);
+  if(!notifyReady){notifyReady=true;syncNotifyBtn();}
   renderTickets();
 }
 
@@ -402,20 +463,7 @@ function ticket(o){
       '<div class="ticket-time">'+new Date(o.created_at).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+(isCustomer&&o.pickup_time?'　取餐 '+new Date(o.pickup_time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}):'')+'</div>'+
       '<div class="ticket-items">'+(itemHtml||'（無餐點明細）')+'</div>'+
       (isCustomer?'<div class="ticket-time">客人：'+esc(o.customer_name||o.line_display_name||'未提供')+(o.customer_phone?'　'+esc(o.customer_phone):'')+'</div>':'')+
-      (function(){
-      const {meta,cleaned}=parseOrderMeta(o.note);
-      const bits=[];
-      if(meta&&meta.proposed_pickup_time){
-        bits.push('店家提議取餐 '+formatPickup(meta.proposed_pickup_time));
-        if(meta.customer_response===null||meta.customer_response===undefined)bits.push('等待客人回覆');
-        else if(meta.customer_response===true||meta.customer_response==='accepted')bits.push('客人已接受新時間');
-        else if(meta.customer_response===false||meta.customer_response==='rejected')bits.push('客人未接受新時間');
-      }
-      if(meta&&meta.needs_reschedule)bits.push('需重新協調時間');
-      if(cleaned)bits.push(cleaned);
-      if(!bits.length)return '';
-      return '<div class="ticket-note">'+bits.map(b=>'備註：'+esc(b)).join('<br>')+'</div>';
-    })()+
+      ''+
     '</div>'+
     '<div class="ticket-actions">'+
       ((isCustomer?state==='confirmed':(state==='new'||state==='confirmed'))?(isCustomer?'<button class="start" onclick="updateCustomer(\''+o.id+'\',\'preparing\')">開始製作</button>':'<button class="start" onclick="updatePos(\''+o.id+'\',\'preparing\')">開始製作</button>'):'')+
