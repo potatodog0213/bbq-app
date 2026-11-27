@@ -11,7 +11,7 @@
 <section class="col" data-channel="customer"><div class="colhead" style="background:#e8d9c6;color:#493727">客人線上訂單 <span id="count-customer">0</span></div><div class="list" id="list-customer"></div></section>
 </main></div>
 <script>
-const URL='https://gyonwgjafukzlmnosykt.supabase.co',KEY='sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP',sb=supabase.createClient(URL,KEY);
+const SUPABASE_URL='https://gyonwgjafukzlmnosykt.supabase.co',KEY='sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP',sb=supabase.createClient(SUPABASE_URL,KEY);
 const labels={onsite:'現場',ubereats:'UberEats',foodpanda:'foodpanda',customer:'線上訂單'};
 let live=null,pos=[],customer=[];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
