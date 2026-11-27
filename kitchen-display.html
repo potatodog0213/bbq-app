@@ -2,7 +2,12 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="廚房出單">
+<meta name="theme-color" content="#171b20">
 <title>馬鈴吉碳烤｜廚房出單螢幕</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -406,23 +411,53 @@ function subscribe(){
     .subscribe();
 }
 
-function toggleFullscreen(){
+function isStandaloneApp(){
+  return (window.navigator.standalone===true) || window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches;
+}
+function canUseFullscreenApi(){
   const el=document.documentElement;
-  if(!document.fullscreenElement){
-    (el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen).call(el).catch(()=>{});
+  return !!(el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen);
+}
+function toggleFullscreen(){
+  if(isStandaloneApp()){
+    // Safari「加入主畫面」後已是獨立全畫面，系統不提供 Fullscreen API
+    const btn=document.getElementById('fs-btn');
+    if(btn){btn.textContent='已是主畫面全螢幕';btn.disabled=true;}
+    return;
+  }
+  const el=document.documentElement;
+  const req=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+  const exit=document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen;
+  if(!req){
+    alert('此瀏覽器不支援全螢幕。請用 Safari「分享 → 加入主畫面」，從主畫面圖示開啟即可接近全螢幕。');
+    return;
+  }
+  if(document.fullscreenElement||document.webkitFullscreenElement){
+    if(exit)exit.call(document);
   }else{
-    (document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen).call(document);
+    const p=req.call(el);
+    if(p&&p.catch)p.catch(function(){
+      alert('無法進入全螢幕。iPhone/iPad 請改用「加入主畫面」開啟。');
+    });
   }
 }
 function syncFsBtn(){
   const btn=document.getElementById('fs-btn');
   if(!btn)return;
-  const on=!!document.fullscreenElement;
+  if(isStandaloneApp()){
+    btn.textContent='主畫面模式';
+    btn.classList.add('is-fs');
+    btn.title='已從主畫面開啟，本身即為全螢幕顯示';
+    return;
+  }
+  const on=!!(document.fullscreenElement||document.webkitFullscreenElement);
   btn.classList.toggle('is-fs',on);
   btn.textContent=on?'⛶ 退出全螢幕':'⛶ 全螢幕';
 }
 document.addEventListener('fullscreenchange',syncFsBtn);
 document.addEventListener('webkitfullscreenchange',syncFsBtn);
+document.addEventListener('DOMContentLoaded',syncFsBtn);
+setTimeout(syncFsBtn,300);
 
 boot().catch(e=>{console.error(e);showLogin('載入失敗：'+e.message)});
 
