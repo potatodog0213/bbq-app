@@ -514,11 +514,25 @@ function ticket(o){
   const number=isCustomer?(o.daily_sequence||String(o.id).slice(0,6)):o.order_no;
   const items=Array.isArray(o.items)?o.items:[];
   const statusLabel=isCustomer&&state==='new'?'尚未確認訂單':({new:'待處理',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'}[state]||state);
+  function ticketItemRow(i){
+    const opts=[];
+    if(!i.is_gift){
+      if(i.sauce_level)opts.push('醬料：'+esc(i.sauce_level));
+      if(i.pepper_level)opts.push('胡椒：'+esc(i.pepper_level));
+    }
+    return '<div class="ticket-item"><div class="ticket-item-name">'+esc(i.name||i.product_name||'餐點')+' × '+(Number(i.quantity)||0)+(i.is_gift?' <span style="background:#e4f1df;color:#2d6b3e;font-size:12px;padding:2px 6px;border-radius:5px;font-weight:900">贈品</span>':'')+'</div>'+(opts.length?'<div class="ticket-item-options">'+opts.join('<br>')+'</div>':'')+'</div>';
+  }
+  const gifts=items.filter(i=>!!i.is_gift);
+  const nonGifts=items.filter(i=>!i.is_gift);
   const spiceOrder=['不辣','小辣','中辣','大辣',null];
-  const itemHtml=spiceOrder.map(spice=>{
-    const rows=items.filter(i=>(['不辣','小辣','中辣','大辣'].includes(i.spice_level)?i.spice_level:null)===spice);
+  let itemHtml='';
+  if(gifts.length){
+    itemHtml+='<section class="ticket-spice-group"><div class="ticket-spice-title">🎁 贈品</div>'+gifts.map(ticketItemRow).join('')+'</section>';
+  }
+  itemHtml+=spiceOrder.map(spice=>{
+    const rows=nonGifts.filter(i=>(['不辣','小辣','中辣','大辣'].includes(i.spice_level)?i.spice_level:null)===spice);
     if(!rows.length)return '';
-    return '<section class="ticket-spice-group"><div class="ticket-spice-title">🌶️ '+(spice||'未選辣度')+'</div>'+rows.map(i=>(function(i){const opts=[];if(i.sauce_level)opts.push('醬料：'+esc(i.sauce_level));if(i.pepper_level)opts.push('胡椒：'+esc(i.pepper_level));return '<div class="ticket-item"><div class="ticket-item-name">'+esc(i.name||i.product_name||'餐點')+' × '+(Number(i.quantity)||0)+(i.is_gift?' <span style="background:#e4f1df;color:#2d6b3e;font-size:12px;padding:2px 6px;border-radius:5px;font-weight:900">贈品</span>':'')+'</div>'+(opts.length?'<div class="ticket-item-options">'+opts.join('<br>')+'</div>':'')+'</div>';})(i)).join('')+'</section>';
+    return '<section class="ticket-spice-group"><div class="ticket-spice-title">🌶️ '+(spice||'其他')+'</div>'+rows.map(ticketItemRow).join('')+'</section>';
   }).join('');
   const chClass='ch-'+(o._channel||(isCustomer?'customer':'onsite'));
   return '<article class="ticket '+chClass+(state==='completed'?' done':'')+'">'+

@@ -3584,9 +3584,19 @@
                 </div>`;
             if(!await customerEnsureLineLogin())return;
             await lookupCustomerOrders(false);
+            // 歷史訂單改以較長間隔備援；有 Realtime 時主要靠資料庫推播
+            if(customerHistoryRefreshTimer)clearInterval(customerHistoryRefreshTimer);
             customerHistoryRefreshTimer=setInterval(()=>{
                 if(document.visibilityState==='visible'&&customerLineAccessToken)lookupCustomerOrders(true);
-            },12000);
+            },60000);
+            try{
+              if(window._customerHistoryRealtime){_supabase.removeChannel(window._customerHistoryRealtime);}
+              window._customerHistoryRealtime=_supabase.channel('customer-history-live')
+                .on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},()=>{
+                  if(document.visibilityState==='visible'&&customerLineAccessToken)lookupCustomerOrders(true);
+                })
+                .subscribe();
+            }catch(e){console.warn('history realtime',e);}
         }
         async function lookupCustomerOrders(silent=false){
             if(customerHistoryLookupInFlight||!customerLineAccessToken)return;

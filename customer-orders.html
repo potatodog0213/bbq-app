@@ -3522,7 +3522,16 @@ html.customer-orders-standalone #sub-view{display:block!important}
             if(customerHistoryLookupInFlight)return;customerHistoryLookupInFlight=true;
             const input=document.getElementById('customer-history-phone'),box=document.getElementById('customer-history-results');if(!input||!box){customerHistoryLookupInFlight=false;return;}
             const phone=input.value.replace(/\D/g,'');if(!/^09\d{8}$/.test(phone)){customerHistoryLookupInFlight=false;if(!silent)customerOrderAlert('請輸入正確的 10 碼手機號碼（09 開頭）。',{title:'手機號碼格式不正確',icon:'!'});return;}
-            if(!silent){customerHistoryLastPhone=phone;box.innerHTML='<p class="customer-order-muted">正在查詢訂單…</p>';if(customerHistoryRefreshTimer)clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=setInterval(()=>{const current=document.getElementById('customer-history-phone');if(document.visibilityState==='visible'&&current&&current.value.replace(/\D/g,'')===customerHistoryLastPhone)lookupCustomerOrders(true);},5000);}
+            if(!silent){customerHistoryLastPhone=phone;box.innerHTML='<p class="customer-order-muted">正在查詢訂單…</p>';if(customerHistoryRefreshTimer)clearInterval(customerHistoryRefreshTimer);customerHistoryRefreshTimer=setInterval(()=>{const current=document.getElementById('customer-history-phone');if(document.visibilityState==='visible'&&current&&current.value.replace(/\D/g,'')===customerHistoryLastPhone)lookupCustomerOrders(true);},60000);}
+            try{
+              if(window._customerHistoryRealtime){_supabase.removeChannel(window._customerHistoryRealtime);}
+              window._customerHistoryRealtime=_supabase.channel('customer-history-live')
+                .on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},()=>{
+                  const current=document.getElementById('customer-history-phone');
+                  if(document.visibilityState==='visible'&&current&&current.value.replace(/\D/g,'')===customerHistoryLastPhone)lookupCustomerOrders(true);
+                }).subscribe();
+            }catch(e){console.warn('history realtime',e);}
+
             try{
                 const {data,error}=await _supabase.functions.invoke(CUSTOMER_ORDER_FUNCTION,{body:{action:'lookup-orders',customer_phone:phone,lookup_token:customerHistoryLookupTokenPhone===phone?customerHistoryLookupToken:''}});if(error)throw error;if(!data?.ok)throw new Error(data?.error||'查詢失敗');
                 if(data.lookup_token){customerHistoryLookupToken=data.lookup_token;customerHistoryLookupTokenPhone=phone;}
@@ -3991,7 +4000,7 @@ html.customer-orders-standalone #sub-view{display:block!important}
                 .on('postgres_changes',{event:'*',schema:'public',table:'customer_order_change_requests'},()=>{if(customerAdminCurrentView!=='orders')return;if(customerAdminRefreshTimer)clearTimeout(customerAdminRefreshTimer);customerAdminRefreshTimer=setTimeout(()=>{if(customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);},350);})
                 .subscribe((status)=>{if(status==='SUBSCRIBED'&&customerAdminCurrentView==='orders')refreshCustomerAdminOrders(false);});
             if(customerAdminReminderPollTimer)clearInterval(customerAdminReminderPollTimer);
-            customerAdminReminderPollTimer=setInterval(()=>{if(customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);else if(customerAdminCurrentView==='menu')customerRefreshPickupReminderOrders();},25000);
+            customerAdminReminderPollTimer=setInterval(()=>{/* 訂單列表改走 Realtime；此處只做取餐提醒輪詢 */if(customerAdminCurrentView==='menu'||customerAdminCurrentView==='orders')customerRefreshPickupReminderOrders();},60000);
             if(!window._customerAdminVisibilityHandler){window._customerAdminVisibilityHandler=()=>{if(!document.hidden&&customerAdminCurrentView==='orders'&&document.getElementById('customer-admin-order-list'))refreshCustomerAdminOrders(false);else if(!document.hidden&&customerAdminCurrentView==='menu')customerRefreshPickupReminderOrders();};document.addEventListener('visibilitychange',window._customerAdminVisibilityHandler);window.addEventListener('focus',window._customerAdminVisibilityHandler);}
         }
 
