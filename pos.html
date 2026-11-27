@@ -161,9 +161,13 @@ main{min-width:0;padding:22px 24px 28px}.top{display:flex;align-items:center;jus
 .edit-add-cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .edit-add-cats button{border:1px solid #e2ceb4;background:#fffaf2;border-radius:8px;padding:6px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;color:#5c432e}
 .edit-add-cats button.active{background:#5c432e;color:#fff;border-color:#5c432e}
-.edit-add-products{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;max-height:160px;overflow-y:auto}
-.edit-add-products button{border:1px solid #e8d8c4;background:#fff;border-radius:9px;padding:8px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;text-align:left;color:#392d23}
-.edit-add-products button:hover{background:#f8eddb}
+.edit-add-products{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.edit-add-products button,.edit-prod-btn{border:1px solid #e8d8c4;background:#fff;border-radius:9px;padding:10px 8px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;text-align:left;color:#392d23;min-height:52px;display:flex;flex-direction:column;gap:4px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.edit-add-products button:hover,.edit-prod-btn:hover{background:#f8eddb}
+.edit-add-products button small,.edit-prod-btn small{font-weight:700;color:#897866}
+.edit-overlay{z-index:1200}
+.edit-dialog{pointer-events:auto}
+
 .edit-add-opts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .edit-add-opts select{border:1px solid #d9c6ae;border-radius:8px;padding:7px 8px;font:inherit;font-size:12px;background:#fff}
 .edit-dialog{width:min(560px,100%);max-height:min(92vh,780px);overflow:auto;background:#fffaf2;border:1px solid #e7d5bd;border-radius:18px;padding:20px;box-shadow:0 20px 60px #160e0870}
@@ -353,29 +357,31 @@ function closeEditOrder(){
 function renderEditBody(){
   const spice=['不辣','小辣','中辣','大辣'];
   const body=document.getElementById('edit-body');
+  if(!body)return;
   const rows=editingItems.length?editingItems.map((i,idx)=>{
     const spiceOpts=spice.map(s=>`<option value="${s}" ${i.spice_level===s?'selected':''}>${s}</option>`).join('');
     const optBits=[i.sauce_level,i.pepper_level].filter(Boolean).map(esc).join('・');
     return `<div class="edit-row">
       <div><strong>${esc(i.name)}</strong>${i.is_gift?' <span class="gift-badge">贈品</span>':''}${optBits?`<small class="order-item-opts">${optBits}</small>`:''}<div style="font-size:12px;color:#897866;margin-top:2px">${money(i.unit_price)}</div></div>
-      <select onchange="editingItems[${idx}].spice_level=this.value">${spiceOpts}</select>
-      <input type="number" min="1" max="99" value="${i.quantity}" onchange="editQty(${idx},this.value)">
-      <button type="button" class="cart-delete" onclick="editRemove(${idx})" title="移除">×</button>
+      <select data-edit-spice="${idx}">${spiceOpts}</select>
+      <input type="number" min="1" max="99" value="${i.quantity}" data-edit-qty="${idx}">
+      <button type="button" class="cart-delete" data-edit-remove="${idx}" title="移除">×</button>
     </div>`;
   }).join(''):'<p style="color:#897866">尚未有品項，請下方加點</p>';
 
   const cats=CATEGORY_ORDER.filter(c=>products.some(pr=>productCategory(pr)===c));
-  const catBtns=cats.map(c=>`<button type="button" class="${editAddCategory===c?'active':''}" onclick="editAddCategory='${c}';renderEditBody()">${c}</button>`).join('');
-  const list=products.filter(pr=>productCategory(pr)===editAddCategory);
+  if(!editAddCategory||!cats.includes(editAddCategory))editAddCategory=cats[0]||'';
+  const catBtns=cats.map(c=>`<button type="button" class="edit-cat-btn ${editAddCategory===c?'active':''}" data-edit-cat="${esc(c)}">${esc(c)}</button>`).join('');
+  const list=products.filter(pr=>!editAddCategory||productCategory(pr)===editAddCategory);
   const prodBtns=list.map(pr=>{
     const price=Number(pr.price)||0;
     const name=productDisplayName(pr);
-    return `<button type="button" onclick="editAddProduct('${esc(String(pr.id))}')">${esc(name)}<br><small>${money(price)}</small></button>`;
-  }).join('')||'<span style="color:#897866;font-size:12px">此分類無品項</span>';
+    return `<button type="button" class="edit-prod-btn" data-edit-prod="${esc(String(pr.id))}"><span>${esc(name)}</span><small>${money(price)}</small></button>`;
+  }).join('')||'<span style="color:#897866;font-size:12px">此分類無品項（共 '+products.length+' 個商品已載入）</span>';
 
   const spiceOpts=spice.map(s=>`<option value="${s}" ${editAddSpice===s?'selected':''}>${s}</option>`).join('');
-  const sauceOpts=['','醬多','醬少','不醬'].map(s=>`<option value="${s}" ${editAddSauce===s?'selected':''}>${s||'醬料'}</option>`).join('');
-  const pepperOpts=['','胡椒多','胡椒少','不胡椒'].map(s=>`<option value="${s}" ${editAddPepper===s?'selected':''}>${s||'胡椒'}</option>`).join('');
+  const sauceOpts=[['','醬料'],['醬多','醬多'],['醬少','醬少'],['不醬','不醬']].map(([v,l])=>`<option value="${v}" ${editAddSauce===v?'selected':''}>${l}</option>`).join('');
+  const pepperOpts=[['','胡椒'],['胡椒多','胡椒多'],['胡椒少','胡椒少'],['不胡椒','不胡椒']].map(([v,l])=>`<option value="${v}" ${editAddPepper===v?'selected':''}>${l}</option>`).join('');
 
   body.innerHTML=`
     <div style="font-weight:900;margin-bottom:6px">目前品項</div>
@@ -383,14 +389,36 @@ function renderEditBody(){
     <div class="edit-add-panel">
       <h4>➕ 加點品項</h4>
       <div class="edit-add-opts">
-        <select onchange="editAddSpice=this.value">${spiceOpts}</select>
-        <select onchange="editAddSauce=this.value">${sauceOpts}</select>
-        <select onchange="editAddPepper=this.value">${pepperOpts}</select>
+        <select id="edit-add-spice">${spiceOpts}</select>
+        <select id="edit-add-sauce">${sauceOpts}</select>
+        <select id="edit-add-pepper">${pepperOpts}</select>
       </div>
       <div class="edit-add-cats">${catBtns}</div>
       <div class="edit-add-products">${prodBtns}</div>
     </div>
-    <p style="font-size:12px;color:#897866;margin:10px 0 0">可加點、改辣度／數量或移除；儲存後會同步到廚房。</p>`;
+    <p style="font-size:12px;color:#897866;margin:10px 0 0">點下方商品即可加點；可改辣度／數量或移除。儲存後同步廚房。</p>`;
+
+  body.querySelectorAll('[data-edit-spice]').forEach(el=>{
+    el.onchange=()=>{const i=+el.getAttribute('data-edit-spice');if(editingItems[i])editingItems[i].spice_level=el.value;};
+  });
+  body.querySelectorAll('[data-edit-qty]').forEach(el=>{
+    el.onchange=()=>editQty(+el.getAttribute('data-edit-qty'),el.value);
+  });
+  body.querySelectorAll('[data-edit-remove]').forEach(el=>{
+    el.onclick=()=>editRemove(+el.getAttribute('data-edit-remove'));
+  });
+  body.querySelectorAll('.edit-cat-btn').forEach(el=>{
+    el.onclick=()=>{editAddCategory=el.getAttribute('data-edit-cat')||'';renderEditBody();};
+  });
+  body.querySelectorAll('.edit-prod-btn').forEach(el=>{
+    el.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();editAddProduct(el.getAttribute('data-edit-prod'));};
+  });
+  const sp=document.getElementById('edit-add-spice');
+  const sa=document.getElementById('edit-add-sauce');
+  const pe=document.getElementById('edit-add-pepper');
+  if(sp)sp.onchange=()=>{editAddSpice=sp.value;};
+  if(sa)sa.onchange=()=>{editAddSauce=sa.value;};
+  if(pe)pe.onchange=()=>{editAddPepper=pe.value;};
 }
 function editQty(idx,val){
   const n=Math.max(1,Math.min(99,Number(val)||1));

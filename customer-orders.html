@@ -3694,8 +3694,7 @@ html.customer-orders-standalone #sub-view{display:block!important}
             const [{data:{session}},{data:{user},error}]=await Promise.all([_supabase.auth.getSession(),_supabase.auth.getUser()]);if(!session){renderCustomerAdminLogin();return;}
             if(error||!customerOwnerRole(user)){await _supabase.auth.signOut();renderCustomerAdminLogin('此帳號尚未被授權為店家管理帳號。');return;}
             customerAdminQuery={type:'today'};
-            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="margin:0">訂單工作台</h3><div class="customer-admin-toolbar" style="margin:0"><button onclick="enableCustomerOrderPush()">啟用訂單通知</button>
-<button type="button" id="customer-notify-toggle-btn" onclick="toggleCustomerOrderNotifyPref()">關閉訂單通知</button>
+            content.innerHTML=`<div class="customer-order-wrap"><div class="customer-order-group"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="margin:0">訂單工作台</h3><div class="customer-admin-toolbar" style="margin:0"><button type="button" id="customer-notify-toggle-btn" class="customer-notify-toggle" onclick="toggleCustomerOrderNotifyPref()">🔔 通知開</button>
 </div></div><div id="customer-push-status" class="customer-order-muted" style="margin-top:8px"></div></div>
             <section class="customer-admin-search"><h4>查詢歷史訂單</h4><div class="customer-admin-search-grid"><label class="customer-admin-search-field">手機號碼<input id="customer-admin-search-phone" type="tel" inputmode="numeric" maxlength="10" placeholder="輸入手機號碼"></label><div class="customer-admin-search-field customer-date-field"><span>開始日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-start-button" onclick="openCustomerAdminDateRangePicker('start')"><span id="customer-admin-search-start-display">📅 選擇開始日期</span><span>⌄</span></button><input id="customer-admin-search-start" type="hidden" value=""></div><div class="customer-admin-search-field customer-date-field"><span>結束日期</span><button type="button" class="customer-pickup-open customer-admin-date-open" id="customer-admin-search-end-button" onclick="openCustomerAdminDateRangePicker('end')"><span id="customer-admin-search-end-display">📅 選擇結束日期</span><span>⌄</span></button><input id="customer-admin-search-end" type="hidden" value=""></div></div><div id="customer-admin-search-message" class="customer-admin-search-message" role="alert" aria-live="polite" hidden></div><div class="customer-admin-toolbar"><button class="primary" onclick="searchCustomerAdminOrders()">查詢訂單</button><button onclick="showCustomerAdminToday()">回到今日訂單</button></div></section>
             <div class="customer-admin-toolbar" id="customer-admin-status-toolbar"><button type="button" data-customer-filter="all" onclick="setCustomerAdminFilter('all')">全部</button><button type="button" data-customer-filter="new" onclick="setCustomerAdminFilter('new')">待確認</button><button type="button" data-customer-filter="confirmed" onclick="setCustomerAdminFilter('confirmed')">已確認</button><button type="button" data-customer-filter="preparing" onclick="setCustomerAdminFilter('preparing')">製作中</button><button type="button" data-customer-filter="completed" onclick="setCustomerAdminFilter('completed')">已完成</button><button type="button" data-customer-filter="cancelled" onclick="setCustomerAdminFilter('cancelled')">已取消</button><button type="button" onclick="renderCustomerMenuManagement()">餐點管理</button></div><div id="customer-admin-order-list">載入今日訂單中…</div></div>`;
@@ -4059,20 +4058,45 @@ function isCustomerOrderNotifyEnabled(){
 }
 function toggleCustomerOrderNotifyPref(){
   const next=!isCustomerOrderNotifyEnabled();
-  localStorage.setItem(CUSTOMER_NOTIFY_PREF_KEY, next?'1':'0');
+  if(!next){
+    localStorage.setItem(CUSTOMER_NOTIFY_PREF_KEY,'0');
+    syncCustomerNotifyToggleUi();
+    const st=document.getElementById('customer-push-status');
+    if(st) st.textContent='已關閉訂單通知（此裝置不會跳出新訂單提醒）';
+    return;
+  }
+  // 開啟：偏好 + 請求權限 + 盡量註冊 Web Push（與原啟用訂單通知相同）
+  localStorage.setItem(CUSTOMER_NOTIFY_PREF_KEY,'1');
   syncCustomerNotifyToggleUi();
   const st=document.getElementById('customer-push-status');
-  if(st){
-    if(!next) st.textContent='已關閉訂單通知（此裝置不會跳出新訂單提醒）';
-    else if(('Notification'in window)&&Notification.permission==='granted') st.textContent='✓ 此裝置已啟用訂單通知';
-    else st.textContent='通知已開啟偏好，請再按「啟用訂單通知」允許瀏覽器權限';
-  }
+  if(st) st.textContent='正在啟用訂單通知…';
+  Promise.resolve()
+    .then(async()=>{
+      try{
+        if(typeof enableCustomerOrderPush==='function'){
+          await enableCustomerOrderPush();
+        }else if('Notification'in window){
+          const perm=await Notification.requestPermission();
+          if(perm==='granted'){
+            try{new Notification('馬鈴吉碳烤｜通知已開啟',{body:'有新訂單時會推播提醒',tag:'customer-notify-on'});}catch(e){}
+          }
+        }
+      }catch(e){
+        console.warn(e);
+        if(st) st.textContent='通知偏好已開啟：'+(e.message||e);
+      }
+      syncCustomerNotifyToggleUi();
+      if(st&&isCustomerOrderNotifyEnabled()){
+        const enabled=('Notification'in window)&&Notification.permission==='granted';
+        if(enabled) st.textContent='✓ 此裝置已啟用訂單通知';
+      }
+    });
 }
 function syncCustomerNotifyToggleUi(){
   const btn=document.getElementById('customer-notify-toggle-btn');
   if(!btn)return;
   const on=isCustomerOrderNotifyEnabled();
-  btn.textContent=on?'關閉訂單通知':'開啟訂單通知';
+  btn.textContent=on?'🔔 通知開':'🔕 通知關';
 }
 function customerOrderNotifyAllowed(){
   return isCustomerOrderNotifyEnabled() && ('Notification'in window) && Notification.permission==='granted';
