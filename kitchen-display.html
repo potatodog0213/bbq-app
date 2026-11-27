@@ -263,7 +263,7 @@ async function refresh(){
   const end=new Date(start);end.setDate(end.getDate()+1);
   const [p,c]=await Promise.all([
     sb.from('pos_orders').select('*').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true}),
-    sb.from('customer_orders').select('id,customer_name,pickup_time,items,total_amount,note,status,created_at,daily_sequence,order_number').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true})
+    sb.from('customer_orders').select('id,customer_name,customer_phone,line_display_name,pickup_time,items,total_amount,note,status,created_at,daily_sequence,order_number').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true})
   ]);
   if(p.error)console.error('POS 訂單讀取失敗',p.error);
   if(c.error)console.error('客人線上訂單讀取失敗',c.error);
@@ -329,7 +329,7 @@ function ticket(o){
     '<div class="ticket-body">'+
       '<div class="ticket-time">'+new Date(o.created_at).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+(isCustomer&&o.pickup_time?'　取餐 '+new Date(o.pickup_time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}):'')+'</div>'+
       '<div class="ticket-items">'+(itemHtml||'（無餐點明細）')+'</div>'+
-      (isCustomer?'<div class="ticket-time">客人：'+esc(o.customer_name||'未提供')+'</div>':'')+
+      (isCustomer?'<div class="ticket-time">客人：'+esc(o.customer_name||o.line_display_name||'未提供')+(o.customer_phone?'　'+esc(o.customer_phone):'')+'</div>':'')+
       (o.note?'<div class="ticket-note">備註：'+esc(o.note)+'</div>':'')+
     '</div>'+
     '<div class="ticket-actions">'+
