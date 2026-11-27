@@ -305,6 +305,25 @@ const labels={onsite:'現場 POS',ubereats:'UberEats',foodpanda:'foodpanda',cust
 let live=null,pos=[],customer=[],activeChannel='onsite';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>'$'+(Number(n)||0).toLocaleString('zh-TW');
+const META_RE=/\[\[MALINJI_ORDER_META:([\s\S]*?)\]\]/g;
+function parseOrderMeta(note){
+  const raw=String(note??'');
+  let meta=null;
+  const cleaned=raw.replace(META_RE,(_,json)=>{
+    try{meta=JSON.parse(json);}catch(e){}
+    return '';
+  }).replace(/\s+/g,' ').trim();
+  return {meta, cleaned};
+}
+function formatPickup(iso){
+  if(!iso)return '';
+  try{
+    const d=new Date(iso);
+    if(isNaN(d.getTime()))return '';
+    return d.toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+  }catch(e){return '';}
+}
+
 
 function showLogin(msg=''){document.getElementById('login').style.display='block';document.getElementById('error').textContent=msg}
 async function signIn(){const {error}=await sb.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});if(error){showLogin(error.message);return}boot()}
@@ -383,7 +402,20 @@ function ticket(o){
       '<div class="ticket-time">'+new Date(o.created_at).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+(isCustomer&&o.pickup_time?'　取餐 '+new Date(o.pickup_time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}):'')+'</div>'+
       '<div class="ticket-items">'+(itemHtml||'（無餐點明細）')+'</div>'+
       (isCustomer?'<div class="ticket-time">客人：'+esc(o.customer_name||o.line_display_name||'未提供')+(o.customer_phone?'　'+esc(o.customer_phone):'')+'</div>':'')+
-      (o.note?'<div class="ticket-note">備註：'+esc(o.note)+'</div>':'')+
+      (function(){
+      const {meta,cleaned}=parseOrderMeta(o.note);
+      const bits=[];
+      if(meta&&meta.proposed_pickup_time){
+        bits.push('店家提議取餐 '+formatPickup(meta.proposed_pickup_time));
+        if(meta.customer_response===null||meta.customer_response===undefined)bits.push('等待客人回覆');
+        else if(meta.customer_response===true||meta.customer_response==='accepted')bits.push('客人已接受新時間');
+        else if(meta.customer_response===false||meta.customer_response==='rejected')bits.push('客人未接受新時間');
+      }
+      if(meta&&meta.needs_reschedule)bits.push('需重新協調時間');
+      if(cleaned)bits.push(cleaned);
+      if(!bits.length)return '';
+      return '<div class="ticket-note">'+bits.map(b=>'備註：'+esc(b)).join('<br>')+'</div>';
+    })()+
     '</div>'+
     '<div class="ticket-actions">'+
       ((isCustomer?state==='confirmed':(state==='new'||state==='confirmed'))?(isCustomer?'<button class="start" onclick="updateCustomer(\''+o.id+'\',\'preparing\')">開始製作</button>':'<button class="start" onclick="updatePos(\''+o.id+'\',\'preparing\')">開始製作</button>'):'')+
