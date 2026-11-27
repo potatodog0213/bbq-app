@@ -263,7 +263,7 @@ async function refresh(){
   const end=new Date(start);end.setDate(end.getDate()+1);
   const [p,c]=await Promise.all([
     sb.from('pos_orders').select('*').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true}),
-    sb.from('customer_orders').select('id,customer_name,customer_phone,line_display_name,pickup_time,items,total_amount,note,status,created_at,daily_sequence,order_number').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true})
+    sb.from('customer_orders').select('id,customer_name,customer_phone,line_display_name,pickup_time,items,total_amount,note,status,created_at,daily_sequence').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true})
   ]);
   if(p.error)console.error('POS 訂單讀取失敗',p.error);
   if(c.error)console.error('客人線上訂單讀取失敗',c.error);
@@ -302,8 +302,8 @@ function renderTickets(){
   const active=all.filter(o=>!['completed','cancelled'].includes(o.status) && o._channel===activeChannel);
   // 最新在前 → 搭配 direction:rtl 後顯示在最右邊
   active.sort((a,b)=>{
-    const na=Number(a.order_no||a.daily_sequence||a.order_number)||0;
-    const nb=Number(b.order_no||b.daily_sequence||b.order_number)||0;
+    const na=Number(a.order_no||a.daily_sequence)||0;
+    const nb=Number(b.order_no||b.daily_sequence)||0;
     if(na&&nb&&na!==nb)return na-nb;
     return new Date(a.created_at)-new Date(b.created_at);
   });
@@ -315,7 +315,7 @@ function renderTickets(){
 
 function ticket(o){
   const isCustomer=o._source==='customer',state=o.status;
-  const number=isCustomer?(o.daily_sequence||o.order_number||String(o.id).slice(0,6)):o.order_no;
+  const number=isCustomer?(o.daily_sequence||String(o.id).slice(0,6)):o.order_no;
   const items=Array.isArray(o.items)?o.items:[];
   const statusLabel={new:'待處理',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'}[state]||state;
   const spiceOrder=['不辣','小辣','中辣','大辣',null];
