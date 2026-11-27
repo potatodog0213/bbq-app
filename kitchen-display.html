@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>馬鈴吉碳烤｜廚房出單螢幕</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--cream:#f8eddb;--green:#09bf6a;--pink:#d60f63;--ink:#392d23}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden}
+body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+
+.login{max-width:400px;margin:10vh auto;background:#252b32;padding:25px;border-radius:18px}
+.login input{width:100%;padding:12px;margin:8px 0;border-radius:9px;border:0}
+.login button{width:100%;padding:12px;border:0;border-radius:9px;font-weight:900;cursor:pointer}
+
+/* 整體：左側主內容 + 右側種類選單 */
+.kitchen-layout{
+  height:100dvh;min-height:0;padding:0;
+  display:grid;
+  grid-template-columns:1fr 148px;
+  overflow:hidden;
+}
+
+/* 右側 4 種類選單 */
+.channel-menu{
+  background:#1e242b;
+  border-left:1px solid #39434d;
+  display:flex;
+  flex-direction:column;
+  padding:10px 8px;
+  gap:8px;
+  min-height:0;
+  overflow:hidden;
+}
+.channel-btn{
+  flex:1 1 0;
+  min-height:0;
+  border:1px solid #3a4552;
+  border-radius:14px;
+  background:#252b32;
+  color:#c8d0d8;
+  font:inherit;
+  font-size:15px;
+  font-weight:950;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:10px 6px;
+  transition:background .15s,border-color .15s,color .15s,transform .12s;
+  text-align:center;
+  line-height:1.25;
+}
+.channel-btn:hover{background:#2e3640;border-color:#53606d}
+.channel-btn.active{
+  transform:scale(1.02);
+  box-shadow:0 4px 14px #0005;
+}
+.channel-btn[data-channel=onsite].active{background:#f8eddb;color:#493727;border-color:#e0c9a8}
+.channel-btn[data-channel=ubereats].active{background:#09bf6a;color:#fff;border-color:#09bf6a}
+.channel-btn[data-channel=foodpanda].active{background:#d60f63;color:#fff;border-color:#d60f63}
+.channel-btn[data-channel=customer].active{background:#e8d9c6;color:#493727;border-color:#d4c0a4}
+.channel-btn .ch-count{
+  font-size:22px;
+  font-weight:950;
+  line-height:1;
+}
+.channel-btn .ch-label{font-size:13px;opacity:.92}
+
+/* 左側主區域：水平訂單列表 */
+.main-area{
+  min-width:0;min-height:0;height:100%;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  padding:12px;
+}
+.list-header{
+  flex:0 0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:10px;padding:0 4px;
+}
+.list-header h1{
+  margin:0;font-size:18px;font-weight:950;color:#e8eef3;
+}
+.list-header .live-tag{
+  font-size:12px;font-weight:800;color:#9da7b0;
+  background:#2a323b;padding:5px 10px;border-radius:8px;
+}
+.header-actions{display:flex;align-items:center;gap:10px}
+.fs-btn{
+  border:1px solid #53606d;background:#2a323b;color:#e8eef3;
+  border-radius:9px;padding:7px 12px;font:inherit;font-size:13px;font-weight:850;
+  cursor:pointer;transition:background .15s,border-color .15s;
+}
+.fs-btn:hover{background:#3a4552;border-color:#6a7888}
+.fs-btn.is-fs{background:#f8eddb;color:#493727;border-color:#e0c9a8}
+
+
+/* 水平卡片列：最新在最右邊 */
+.ticket-rail{
+  flex:1 1 auto;
+  min-height:0;min-width:0;
+  display:flex;
+  flex-direction:row;
+  direction:rtl;
+  align-items:stretch;
+  gap:12px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  overscroll-behavior:contain;
+  scrollbar-color:#65717d #1a1f25;
+  scrollbar-width:thin;
+  padding-bottom:4px;
+}
+
+/* 單一訂單卡片：整張跟螢幕一樣高 */
+.ticket{
+  direction:ltr;
+  flex:0 0 clamp(300px, 28vw, 420px);
+  width:clamp(300px, 28vw, 420px);
+  height:100%;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#343c45;
+  border:1px solid #53606d;
+  border-radius:14px;
+  padding:14px;
+  box-shadow:0 5px 16px #0003;
+}
+.ticket.done{opacity:.48}
+
+.ticket-top{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  gap:10px;flex:0 0 auto;font-weight:950;font-size:17px;
+}
+.ticket-time{font-size:12px;color:#c2cbd3;margin:7px 0;flex:0 0 auto}
+.ticket-body{
+  flex:1 1 auto;min-height:0;
+  overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-color:#7a8793 #343c45;scrollbar-width:thin;
+  padding-right:4px;
+}
+.ticket-items{font-size:16px;line-height:1.55;font-weight:800}
+.ticket-spice-group{margin:9px 0}
+.ticket-spice-title{
+  font-size:14px;font-weight:950;background:#4b5661;color:#fff;
+  padding:7px 9px;border-radius:7px;margin-bottom:6px;position:sticky;top:0;
+}
+.ticket-item{padding:7px 2px;border-bottom:1px solid #46515d}
+.ticket-item-name{font-weight:900}
+.ticket-item-options{font-size:13px;color:#d8e0e6;padding-left:13px;line-height:1.65}
+.ticket-note{background:#4a3c2d;padding:9px;border-radius:8px;margin-top:9px;color:#ffe2b8}
+
+.ticket-actions{
+  display:flex;flex-wrap:wrap;gap:8px;
+  margin-top:11px;padding-top:10px;
+  border-top:1px solid #53606d;
+  flex:0 0 auto;
+}
+.ticket-actions button{
+  min-height:45px;flex:1 1 auto;border:0;border-radius:10px;
+  padding:10px 13px;font-size:14px;font-weight:950;letter-spacing:.02em;
+  cursor:pointer;box-shadow:0 3px 8px #0003;
+  transition:transform .15s,filter .15s,box-shadow .15s;
+}
+.ticket-actions button:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 6px 12px #0004}
+.ticket-actions button:active{transform:translateY(0)}
+.start{background:#f2c879;color:#49351f}
+.finish{background:#83d6a6;color:#17452b}
+.cancel{background:#f39a9a;color:#632727}
+.confirm{background:#e8d9c6;color:#493727}
+.tag{font-size:11px;background:#4b5661;padding:5px 8px;border-radius:7px;white-space:nowrap}
+
+.empty{
+  color:#9da7b0;text-align:center;padding:40px 20px;
+  direction:ltr;align-self:center;min-width:100%;
+  font-size:16px;font-weight:700;
+}
+
+@media(max-width:900px){
+  .kitchen-layout{grid-template-columns:1fr 120px}
+  .channel-btn{font-size:13px;padding:8px 4px}
+  .channel-btn .ch-count{font-size:18px}
+  .channel-btn .ch-label{font-size:12px}
+  .ticket{flex-basis:280px;width:280px;padding:12px}
+}
+@media(max-width:600px){
+  .kitchen-layout{grid-template-columns:1fr 96px}
+  .channel-menu{padding:6px 4px;gap:6px}
+  .channel-btn{border-radius:10px}
+  .ticket{flex-basis:260px;width:260px}
+  .ticket-actions button{min-height:42px;font-size:13px}
+}
+</style>
+</head>
+<body>
+<div id="login" class="login" style="display:none">
+  <h2>店家登入</h2>
+  <input id="email" type="email" placeholder="Email">
+  <input id="password" type="password" placeholder="密碼">
+  <button onclick="signIn()">登入</button>
+  <p id="error"></p>
+</div>
+
+<div id="screen" style="display:none">
+  <main class="kitchen-layout">
+    <!-- 左側：目前選中通路的訂單（水平由右往左） -->
+    <section class="main-area">
+      <div class="list-header">
+        <h1 id="active-title">現場 POS</h1>
+        <div class="header-actions">
+          <span class="live-tag">即時同步</span>
+          <button type="button" class="fs-btn" id="fs-btn" onclick="toggleFullscreen()" title="全螢幕">⛶ 全螢幕</button>
+        </div>
+      </div>
+      <div class="ticket-rail" id="ticket-rail">
+        <div class="empty">目前沒有待處理訂單</div>
+      </div>
+    </section>
+
+    <!-- 最右側：4 種類選單 -->
+    <aside class="channel-menu" aria-label="訂單種類">
+      <button type="button" class="channel-btn" data-channel="customer" onclick="setActiveChannel('customer')">
+        <span class="ch-count" id="count-customer">0</span>
+        <span class="ch-label">客人線上</span>
+      </button>
+      <button type="button" class="channel-btn" data-channel="foodpanda" onclick="setActiveChannel('foodpanda')">
+        <span class="ch-count" id="count-foodpanda">0</span>
+        <span class="ch-label">foodpanda</span>
+      </button>
+      <button type="button" class="channel-btn" data-channel="ubereats" onclick="setActiveChannel('ubereats')">
+        <span class="ch-count" id="count-ubereats">0</span>
+        <span class="ch-label">UberEats</span>
+      </button>
+      <button type="button" class="channel-btn active" data-channel="onsite" onclick="setActiveChannel('onsite')">
+        <span class="ch-count" id="count-onsite">0</span>
+        <span class="ch-label">現場 POS</span>
+      </button>
+    </aside>
+  </main>
+</div>
+
+<script>
+const SUPABASE_KEY='sb_publishable_T6IA7G9XaIvuGN-fOMX7Xw_FlPoi0OP';
+const sb=window.supabase.createClient('https://gyonwgjafukzlmnosykt.supabase.co',SUPABASE_KEY);
+const labels={onsite:'現場 POS',ubereats:'UberEats',foodpanda:'foodpanda',customer:'客人線上訂單'};
+let live=null,pos=[],customer=[],activeChannel='onsite';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$'+(Number(n)||0).toLocaleString('zh-TW');
+
+function showLogin(msg=''){document.getElementById('login').style.display='block';document.getElementById('error').textContent=msg}
+async function signIn(){const {error}=await sb.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});if(error){showLogin(error.message);return}boot()}
+async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){showLogin();return}const {data:{user}}=await sb.auth.getUser();if(user?.app_metadata?.role!=='store_owner'){await sb.auth.signOut();showLogin('此帳號未授權');return}document.getElementById('login').style.display='none';document.getElementById('screen').style.display='block';await refresh();subscribe()}
+
+async function refresh(){
+  const start=new Date();start.setHours(0,0,0,0);
+  const end=new Date(start);end.setDate(end.getDate()+1);
+  const [p,c]=await Promise.all([
+    sb.from('pos_orders').select('*').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true}),
+    sb.from('customer_orders').select('id,customer_name,pickup_time,items,total_amount,note,status,created_at,daily_sequence,order_number').gte('created_at',start.toISOString()).lt('created_at',end.toISOString()).order('created_at',{ascending:true})
+  ]);
+  if(p.error)console.error('POS 訂單讀取失敗',p.error);
+  if(c.error)console.error('客人線上訂單讀取失敗',c.error);
+  pos=p.data||[];
+  customer=c.data||[];
+  render();
+}
+
+function setActiveChannel(ch){
+  activeChannel=ch;
+  document.querySelectorAll('.channel-btn').forEach(b=>b.classList.toggle('active',b.dataset.channel===ch));
+  document.getElementById('active-title').textContent=labels[ch]||ch;
+  renderTickets();
+}
+
+function render(){
+  const all=[
+    ...pos.map(o=>({...o,_source:'pos',_channel:o.channel})),
+    ...customer.filter(o=>!['completed','cancelled'].includes(o.status)).map(o=>({...o,_source:'customer',_channel:'customer'}))
+  ];
+  const active=all.filter(o=>!['completed','cancelled'].includes(o.status));
+  const counts={onsite:0,ubereats:0,foodpanda:0,customer:0};
+  active.forEach(o=>{if(counts[o._channel]!==undefined)counts[o._channel]++});
+  Object.keys(counts).forEach(ch=>{
+    const el=document.getElementById('count-'+ch);
+    if(el)el.textContent=counts[ch];
+  });
+  renderTickets();
+}
+
+function renderTickets(){
+  const all=[
+    ...pos.map(o=>({...o,_source:'pos',_channel:o.channel})),
+    ...customer.filter(o=>!['completed','cancelled'].includes(o.status)).map(o=>({...o,_source:'customer',_channel:'customer'}))
+  ];
+  const active=all.filter(o=>!['completed','cancelled'].includes(o.status) && o._channel===activeChannel);
+  // 最新在前 → 搭配 direction:rtl 後顯示在最右邊
+  active.sort((a,b)=>{
+    const na=Number(a.order_no||a.daily_sequence||a.order_number)||0;
+    const nb=Number(b.order_no||b.daily_sequence||b.order_number)||0;
+    if(na&&nb&&na!==nb)return na-nb;
+    return new Date(a.created_at)-new Date(b.created_at);
+  });
+  const rail=document.getElementById('ticket-rail');
+  rail.innerHTML=active.length
+    ? active.map(o=>ticket(o)).join('')
+    : '<div class="empty">目前沒有待處理訂單</div>';
+}
+
+function ticket(o){
+  const isCustomer=o._source==='customer',state=o.status;
+  const number=isCustomer?(o.daily_sequence||o.order_number||String(o.id).slice(0,6)):o.order_no;
+  const items=Array.isArray(o.items)?o.items:[];
+  const statusLabel={new:'待處理',confirmed:'已確認',preparing:'製作中',completed:'已完成',cancelled:'已取消'}[state]||state;
+  const spiceOrder=['不辣','小辣','中辣','大辣',null];
+  const itemHtml=spiceOrder.map(spice=>{
+    const rows=items.filter(i=>(['不辣','小辣','中辣','大辣'].includes(i.spice_level)?i.spice_level:null)===spice);
+    if(!rows.length)return '';
+    return '<section class="ticket-spice-group"><div class="ticket-spice-title">🌶️ '+(spice||'未選辣度')+'</div>'+rows.map(i=>(function(i){const opts=[];if(i.sauce_level)opts.push('醬料：'+esc(i.sauce_level));if(i.pepper_level)opts.push('胡椒：'+esc(i.pepper_level));return '<div class="ticket-item"><div class="ticket-item-name">'+esc(i.name||i.product_name||'餐點')+' × '+(Number(i.quantity)||0)+(i.is_gift?' <span style="background:#e4f1df;color:#2d6b3e;font-size:12px;padding:2px 6px;border-radius:5px;font-weight:900">贈品</span>':'')+'</div>'+(opts.length?'<div class="ticket-item-options">'+opts.join('<br>')+'</div>':'')+'</div>';})(i)).join('')+'</section>';
+  }).join('');
+  return '<article class="ticket '+(state==='completed'?'done':'')+'">'+
+    '<div class="ticket-top"><span>'+(isCustomer?'客人線上':'POS')+' #'+esc(number)+'</span><span class="tag">'+statusLabel+'</span></div>'+
+    '<div class="ticket-body">'+
+      '<div class="ticket-time">'+new Date(o.created_at).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+(isCustomer&&o.pickup_time?'　取餐 '+new Date(o.pickup_time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}):'')+'</div>'+
+      '<div class="ticket-items">'+(itemHtml||'（無餐點明細）')+'</div>'+
+      (isCustomer?'<div class="ticket-time">客人：'+esc(o.customer_name||'未提供')+'</div>':'')+
+      (o.note?'<div class="ticket-note">備註：'+esc(o.note)+'</div>':'')+
+    '</div>'+
+    '<div class="ticket-actions">'+
+      (state==='new'?(isCustomer?'<button class="confirm" onclick="updateCustomer(\''+o.id+'\',\'confirmed\')">確認訂單</button>':'<button class="start" onclick="updatePos(\''+o.id+'\',\'preparing\')">開始製作</button>'):'')+
+      (state==='confirmed'?'<button class="start" onclick="updateCustomer(\''+o.id+'\',\'preparing\')">開始製作</button>':'')+
+      (state==='preparing'?'<button class="finish" onclick="'+(isCustomer?'updateCustomer(\''+o.id+'\',\'completed\')':'updatePos(\''+o.id+'\',\'completed\')')+'">完成餐點</button>':'')+
+      (!isCustomer&&state==='new'?'<button class="cancel" onclick="updatePos(\''+o.id+'\',\'cancelled\')">取消</button>':'')+
+    '</div>'+
+  '</article>';
+}
+
+async function updatePos(id,status){
+  const {error}=await sb.from('pos_orders').update({status,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){alert('更新失敗：'+error.message);return}
+  await refresh();
+}
+async function updateCustomer(id,status){
+  const {data,error}=await sb.functions.invoke('customer-orders',{body:{action:'owner-update-status',order_id:id,status}});
+  if(error||!data?.ok){alert(data?.error||'客人訂單狀態更新失敗');return}
+  await refresh();
+}
+function subscribe(){
+  if(live)sb.removeChannel(live);
+  live=sb.channel('malinji-kitchen-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'pos_orders'},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'customer_orders'},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'customer_order_addons'},refresh)
+    .subscribe();
+}
+
+function toggleFullscreen(){
+  const el=document.documentElement;
+  if(!document.fullscreenElement){
+    (el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen).call(el).catch(()=>{});
+  }else{
+    (document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen).call(document);
+  }
+}
+function syncFsBtn(){
+  const btn=document.getElementById('fs-btn');
+  if(!btn)return;
+  const on=!!document.fullscreenElement;
+  btn.classList.toggle('is-fs',on);
+  btn.textContent=on?'⛶ 退出全螢幕':'⛶ 全螢幕';
+}
+document.addEventListener('fullscreenchange',syncFsBtn);
+document.addEventListener('webkitfullscreenchange',syncFsBtn);
+
+boot().catch(e=>{console.error(e);showLogin('載入失敗：'+e.message)});
+
+</script>
+</body>
+</html>
