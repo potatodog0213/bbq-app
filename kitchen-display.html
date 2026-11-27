@@ -328,6 +328,45 @@ function formatPickup(iso){
 
 
 const NOTIFY_KEY='kitchen_order_notify_enabled';
+const KITCHEN_PUSH_PUBLIC_KEY='BDk2KVu03H_HZi41S0DDGx9cLljPfpEfEp6FTvEuYr_KHElfvd1Oyz41sMak_blSSMhipiPlGaY83f7RGC10p_g';
+function kitchenBase64ToUint8Array(base64){
+  const padding='='.repeat((4-base64.length%4)%4);
+  const raw=atob((base64+padding).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+async function ensureKitchenServiceWorker(){
+  if(!('serviceWorker'in navigator))throw new Error('此瀏覽器不支援 Service Worker');
+  // 與 customer-orders 相同：註冊站台根目錄的 service-worker.js
+  const reg=await navigator.serviceWorker.register('./service-worker.js');
+  await navigator.serviceWorker.ready;
+  return reg;
+}
+async function enableKitchenWebPush(){
+  if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){
+    throw new Error('此瀏覽器不支援 Web Push');
+  }
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted')throw new Error('尚未允許通知權限');
+  const registration=await ensureKitchenServiceWorker();
+  const subscription=await registration.pushManager.subscribe({
+    userVisibleOnly:true,
+    applicationServerKey:kitchenBase64ToUint8Array(KITCHEN_PUSH_PUBLIC_KEY)
+  });
+  const json=subscription.toJSON();
+  const {data:{user},error:userErr}=await sb.auth.getUser();
+  if(userErr||!user)throw new Error('請先登入店家帳號再啟用推播');
+  // 與 customer-orders 共用訂閱表，後端推播可送到此裝置
+  const {error}=await sb.from('customer_push_subscriptions').upsert({
+    owner_id:user.id,
+    endpoint:json.endpoint,
+    p256dh:json.keys.p256dh,
+    auth:json.keys.auth,
+    updated_at:new Date().toISOString()
+  },{onConflict:'endpoint'});
+  if(error)throw error;
+  return true;
+}
+
 let orderNotifyEnabled=localStorage.getItem(NOTIFY_KEY)!=='0';
 let knownOrderKeys=new Set();
 let notifyReady=false;
@@ -345,31 +384,26 @@ function toggleOrderNotify(){
     syncNotifyBtn();
     return;
   }
-  // 開啟：請求瀏覽器通知權限（與 customer-orders 相同的 Notification 推播）
-  const turnOn=()=>{
-    orderNotifyEnabled=true;
-    localStorage.setItem(NOTIFY_KEY,'1');
-    syncNotifyBtn();
-    playNotifyBeep();
-    if('Notification'in window&&Notification.permission==='granted'){
-      try{new Notification('馬鈴吉廚房｜通知已開啟',{body:'有新訂單時會在此裝置推播提醒',tag:'kitchen-notify-on'});}catch(e){}
-    }
-  };
-  if(!('Notification'in window)){
-    alert('此瀏覽器不支援通知，仍會播放提示音。');
-    turnOn();
-    return;
-  }
-  if(Notification.permission==='granted'){turnOn();return;}
-  if(Notification.permission==='denied'){
-    alert('通知權限已被封鎖。請到 Safari／瀏覽器設定允許此網站通知。開啟後仍會播放提示音。');
-    turnOn();
-    return;
-  }
-  Notification.requestPermission().then(function(p){
-    if(p!=='granted')alert('未允許通知時，仍會在畫面開啟時播放提示音。');
-    turnOn();
-  }).catch(function(){turnOn();});
+  const btn=document.getElementById('notify-btn');
+  if(btn){btn.textContent='啟用中…';btn.disabled=true;}
+  enableKitchenWebPush()
+    .then(function(){
+      orderNotifyEnabled=true;
+      localStorage.setItem(NOTIFY_KEY,'1');
+      playNotifyBeep();
+      try{new Notification('馬鈴吉廚房｜推播已開啟',{body:'有新訂單時會推播到此裝置',tag:'kitchen-push-on'});}catch(e){}
+    })
+    .catch(function(e){
+      console.warn(e);
+      // 仍允許本機提示音 + 前景 Notification（若已授權）
+      orderNotifyEnabled=true;
+      localStorage.setItem(NOTIFY_KEY,'1');
+      alert('Web Push 未完全啟用：'+(e&&e.message?e.message:e)+'\n已改為本機提示（畫面開啟時仍會提醒）。');
+    })
+    .finally(function(){
+      if(btn)btn.disabled=false;
+      syncNotifyBtn();
+    });
 }
 function orderKey(o){
   return (o._source||'')+':'+(o.id||'')+':'+(o.status||'');
@@ -412,7 +446,11 @@ function notifyNewOrders(list){
 
 function showLogin(msg=''){document.getElementById('login').style.display='block';document.getElementById('error').textContent=msg}
 async function signIn(){const {error}=await sb.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});if(error){showLogin(error.message);return}boot()}
-async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){showLogin();return}const {data:{user}}=await sb.auth.getUser();if(user?.app_metadata?.role!=='store_owner'){await sb.auth.signOut();showLogin('此帳號未授權');return}document.getElementById('login').style.display='none';document.getElementById('screen').style.display='block';await refresh();subscribe()}
+async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){showLogin();return}const {data:{user}}=await sb.auth.getUser();if(user?.app_metadata?.role!=='store_owner'){await sb.auth.signOut();showLogin('此帳號未授權');return}document.getElementById('login').style.display='none';document.getElementById('screen').style.display='block';await refresh();subscribe();
+  syncNotifyBtn();
+  if(orderNotifyEnabled){
+    ensureKitchenServiceWorker().catch(function(e){console.warn('SW',e);});
+  }}
 
 async function refresh(){
   const start=new Date();start.setHours(0,0,0,0);
