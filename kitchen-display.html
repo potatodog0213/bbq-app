@@ -605,38 +605,44 @@ function syncFsBtn(){
   if(!btn)return;
   const standalone=isStandaloneApp();
   const screen=document.getElementById('screen');
-  const on=standalone
-    ? !!screen?.classList.contains('kitchen-standalone-fs')
-    : !!(document.fullscreenElement||document.webkitFullscreenElement);
+  const on=!!screen?.classList.contains('kitchen-standalone-fs') ||
+    !!(document.fullscreenElement||document.webkitFullscreenElement);
   btn.classList.toggle('is-fs',on);
   btn.textContent=on?'⛶ 退出全螢幕':'⛶ 全螢幕';
   btn.title=on?'退出全螢幕':'進入全螢幕';
 }
 async function toggleFullscreen(){
   const screen=document.getElementById('screen');
-  // iPhone 從 Safari「加入主畫面」開啟時，系統本身已使用獨立視窗，
-  // 不支援 Fullscreen API；改用頁面固定定位切換，仍可再次點擊退出。
-  if(isStandaloneApp()){
-    screen.classList.toggle('kitchen-standalone-fs');
+  const hasNativeFullscreen=!!(document.fullscreenElement||document.webkitFullscreenElement);
+
+  // CSS 替代全螢幕必須優先解除，否則可能一直停留在固定定位狀態。
+  if(screen.classList.contains('kitchen-standalone-fs')){
+    screen.classList.remove('kitchen-standalone-fs');
     syncFsBtn();
     return;
   }
+
+  // iPhone「加入主畫面」模式沒有 Fullscreen API，使用頁面固定定位切換。
+  if(isStandaloneApp()){
+    screen.classList.add('kitchen-standalone-fs');
+    syncFsBtn();
+    return;
+  }
+
   try{
-    if(document.fullscreenElement||document.webkitFullscreenElement){
-      if(document.exitFullscreen)await document.exitFullscreen();
-      else if(document.webkitExitFullscreen)document.webkitExitFullscreen();
+    if(hasNativeFullscreen){
+      if(document.exitFullscreen) await document.exitFullscreen();
+      else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else screen.classList.remove('kitchen-standalone-fs');
     }else{
       const root=document.documentElement;
-      if(root.requestFullscreen)await root.requestFullscreen();
-      else if(root.webkitRequestFullscreen)root.webkitRequestFullscreen();
-      else{
-        // 一般 iPhone Safari 也提供可切換的頁面全螢幕替代方式，不再直接報錯。
-        screen.classList.toggle('kitchen-standalone-fs');
-      }
+      if(root.requestFullscreen) await root.requestFullscreen();
+      else if(root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+      else screen.classList.add('kitchen-standalone-fs');
     }
   }catch(error){
-    // API 被瀏覽器拒絕時，退回頁面全螢幕顯示，避免按鈕失效。
-    screen.classList.toggle('kitchen-standalone-fs');
+    // 瀏覽器拒絕原生 API 時改用 CSS 模式；下次點擊會確實移除它。
+    screen.classList.add('kitchen-standalone-fs');
   }
   syncFsBtn();
 }
