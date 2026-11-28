@@ -34,6 +34,7 @@ body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFo
 .malinji-login-foot{margin:18px 0 0;text-align:center;color:#aa927b;font-size:11px;letter-spacing:.06em}
 
 .ticket-rail,.ticket{touch-action:pan-y}
+.ticket-rail{touch-action:none;cursor:grab}
 .ticket-rail.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
 
 
@@ -588,49 +589,26 @@ function subscribe(){
     .subscribe();
 }
 
-function isStandaloneApp(){
-  return (window.navigator.standalone===true) || window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches;
-}
-function canUseFullscreenApi(){
-  const el=document.documentElement;
-  return !!(el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen);
-}
-function toggleFullscreen(){
-  if(isStandaloneApp()){
-    // Safari「加入主畫面」後已是獨立全畫面，系統不提供 Fullscreen API
-    const btn=document.getElementById('fs-btn');
-    if(btn){btn.textContent='已是主畫面全螢幕';btn.disabled=true;}
-    return;
-  }
-  const el=document.documentElement;
-  const req=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
-  const exit=document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen;
-  if(!req){
-    alert('此瀏覽器不支援全螢幕。請用 Safari「分享 → 加入主畫面」，從主畫面圖示開啟即可接近全螢幕。');
-    return;
-  }
-  if(document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement){
-    if(exit){const p=exit.call(document);if(p&&p.then)p.then(syncFsBtn).catch(function(){});else setTimeout(syncFsBtn,100);}
-  }else{
-    const p=req.call(el);
-    if(p&&p.then)p.then(syncFsBtn).catch(function(){
-      alert('無法進入全螢幕。iPhone/iPad 請改用「加入主畫面」開啟。');
-    });
-    else setTimeout(syncFsBtn,100);
-  }
-}
 function syncFsBtn(){
   const btn=document.getElementById('fs-btn');
   if(!btn)return;
-  if(isStandaloneApp()){
-    btn.textContent='主畫面模式';
-    btn.classList.add('is-fs');
-    btn.title='已從主畫面開啟，本身即為全螢幕顯示';
-    return;
-  }
-  const on=!!(document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement);
-  btn.classList.toggle('is-fs',on);
+  const on=!!(document.fullscreenElement||document.webkitFullscreenElement);
   btn.textContent=on?'⛶ 退出全螢幕':'⛶ 全螢幕';
+  btn.title=on?'退出全螢幕':'進入全螢幕';
+}
+async function toggleFullscreen(){
+  try{
+    if(document.fullscreenElement||document.webkitFullscreenElement){
+      if(document.exitFullscreen)await document.exitFullscreen();
+      else if(document.webkitExitFullscreen)document.webkitExitFullscreen();
+    }else{
+      const root=document.documentElement;
+      if(root.requestFullscreen)await root.requestFullscreen();
+      else if(root.webkitRequestFullscreen)root.webkitRequestFullscreen();
+      else{alert('此瀏覽器不支援全螢幕功能');return;}
+    }
+  }catch(error){alert('無法切換全螢幕：'+(error?.message||error));}
+  syncFsBtn();
 }
 document.addEventListener('fullscreenchange',syncFsBtn);
 document.addEventListener('webkitfullscreenchange',syncFsBtn);
@@ -641,18 +619,19 @@ setTimeout(syncFsBtn,300);
 (function enableTicketRailDrag(){
   const rail=document.getElementById('ticket-rail');
   if(!rail)return;
-  let startX=0,startScroll=0,pointerId=null,dragged=false,downTarget=null;
+  let startX=0,startScroll=0,pointerId=null,dragged=false;
   rail.addEventListener('pointerdown',e=>{
     if(e.pointerType==='mouse'&&e.button!==0)return;
     if(!e.target.closest('.ticket'))return;
-    pointerId=e.pointerId;startX=e.clientX;startScroll=rail.scrollLeft;dragged=false;downTarget=e.target;
+    pointerId=e.pointerId;startX=e.clientX;startScroll=rail.scrollLeft;dragged=false;
+    rail.classList.add('is-dragging');
     try{rail.setPointerCapture(pointerId);}catch(_){ }
   });
   rail.addEventListener('pointermove',e=>{
     if(pointerId===null||e.pointerId!==pointerId)return;
     const dx=e.clientX-startX;
-    if(Math.abs(dx)>5){dragged=true;rail.classList.add('is-dragging');}
-    if(dragged){rail.scrollLeft=startScroll-dx;e.preventDefault();}
+    if(Math.abs(dx)>3)dragged=true;
+    if(dragged){rail.scrollLeft=startScroll+dx;e.preventDefault();}
   },{passive:false});
   const finish=e=>{
     if(pointerId===null||(e&&e.pointerId!==pointerId))return;
@@ -660,7 +639,7 @@ setTimeout(syncFsBtn,300);
     try{rail.releasePointerCapture(pointerId);}catch(_){ }
     pointerId=null;rail.classList.remove('is-dragging');
   };
-  rail.addEventListener('pointerup',finish);rail.addEventListener('pointercancel',finish);
+  rail.addEventListener('pointerup',finish);rail.addEventListener('pointercancel',finish);rail.addEventListener('lostpointercapture',finish);
   rail.addEventListener('click',e=>{if(rail.dataset.suppressClick==='1'){e.preventDefault();e.stopPropagation();delete rail.dataset.suppressClick;}},true);
 })();
 
