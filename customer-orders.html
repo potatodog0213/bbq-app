@@ -1194,17 +1194,22 @@ html.customer-orders-standalone #sub-view{display:block!important}
 
 @media(max-width:620px){.customer-analytics-head{padding:17px;border-radius:16px}.customer-analytics-head h3{font-size:20px}.customer-analytics-back{width:100%;justify-content:center}.customer-analytics-filter{grid-template-columns:1fr 1fr;padding:13px}.customer-analytics-apply{grid-column:1/-1;width:100%}.customer-analytics-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.customer-analytics-kpi{padding:13px}.customer-analytics-kpi strong{font-size:21px}.customer-analytics-panel{padding:14px}.customer-analytics-chart{gap:6px}.customer-analytics-bar-row{grid-template-columns:78px 1fr 34px;gap:7px}.customer-analytics-table{font-size:12px}.customer-analytics-table th,.customer-analytics-table td{padding:8px 5px}}
 
-.customer-admin-card{background:#fff;border:1px solid #eadbc7;border-radius:13px;padding:14px;margin:10px 0}.customer-admin-card h3{margin:0 0 8px;color:#704a32}.customer-admin-meta{font-size:13px;line-height:1.8;color:#725e4c}.customer-admin-items{white-space:pre-line;background:#fffaf3;border-radius:9px;padding:9px;margin:8px 0;font-size:14px}.customer-admin-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.customer-admin-actions button,.customer-admin-toolbar button{border:1px solid #d9c4aa;background:#fff8ef;color:#79563c;border-radius:9px;padding:8px 11px;font-weight:750}.customer-admin-login{box-sizing:border-box;width:min(440px,calc(100% - 32px));margin:clamp(32px,9vh,90px) auto;background:linear-gradient(145deg,#fffdf9,#fff7ec);border:1px solid #e7d5bd;border-radius:22px;padding:30px;box-shadow:0 22px 60px rgba(74,48,25,.14);color:#392d23}
-.customer-admin-login .admin-login-brand{display:flex;align-items:center;gap:13px;margin-bottom:24px}
-.customer-admin-login .admin-login-mark{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#8a6340,#493522);color:#fff;font-size:27px;box-shadow:0 7px 16px #5c432e30}
-.customer-admin-login .admin-login-brand h3{margin:0;color:#392d23;font-size:22px;font-weight:950;letter-spacing:.04em}
-.customer-admin-login .admin-login-brand p{margin:4px 0 0;color:#92765f;font-size:12px;font-weight:750;letter-spacing:.12em}
-.customer-admin-login label{display:block;margin:13px 0 5px;color:#6d5139;font-size:13px;font-weight:850}
-.customer-admin-login input{width:100%;box-sizing:border-box;margin:0 0 4px;padding:13px 14px;border:1px solid #dfcdb8;border-radius:11px;background:#fff;color:#392d23;font:inherit;outline:none;transition:border-color .18s,box-shadow .18s}
-.customer-admin-login input:focus{border-color:#9b7650;box-shadow:0 0 0 3px #d9c3a455}
-.customer-admin-login .customer-order-submit{width:100%;margin-top:17px;padding:14px;border:0;border-radius:11px;background:linear-gradient(110deg,#67482f,#392d23);color:#fff;font:inherit;font-weight:950;letter-spacing:.08em;cursor:pointer;box-shadow:0 6px 14px #392d2325}
-.customer-admin-login .customer-order-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
-@media(max-width:560px){.customer-admin-login{padding:24px 20px;border-radius:18px}}.customer-order-muted{color:#92765f;font-size:13px;line-height:1.7}
+.customer-admin-card{background:#fff;border:1px solid #eadbc7;border-radius:13px;padding:14px;margin:10px 0}.customer-admin-card h3{margin:0 0 8px;color:#704a32}.customer-admin-meta{font-size:13px;line-height:1.8;color:#725e4c}.customer-admin-items{white-space:pre-line;background:#fffaf3;border-radius:9px;padding:9px;margin:8px 0;font-size:14px}.customer-admin-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.customer-admin-actions button,.customer-admin-toolbar button{border:1px solid #d9c4aa;background:#fff8ef;color:#79563c;border-radius:9px;padding:8px 11px;font-weight:750}/* Shared milk-tea login appearance */
+body:has(.customer-admin-login){background:#f4eadb!important}
+
+.login,.customer-admin-login{box-sizing:border-box;width:min(420px,calc(100% - 32px));margin:clamp(36px,12vh,110px) auto;background:linear-gradient(145deg,#fffaf2 0%,#f2e3cf 100%);padding:32px;border:1px solid #e3cdb1;border-radius:22px;box-shadow:0 22px 60px rgba(91,62,38,.16);color:#392d23}
+.login .login-brand,.customer-admin-login .admin-login-brand{display:flex;align-items:center;gap:14px;margin-bottom:25px}
+.login .login-mark,.customer-admin-login .admin-login-mark{width:54px;height:54px;flex:0 0 54px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#b8895b,#80583b);color:#fff;font-size:28px;box-shadow:0 7px 16px rgba(91,62,38,.2)}
+.login .login-brand h2,.customer-admin-login .admin-login-brand h3{margin:0;color:#392d23;font-size:22px;font-weight:950;letter-spacing:.04em}
+.login .login-brand p,.customer-admin-login .admin-login-brand p{margin:5px 0 0;color:#92765f;font-size:11px;font-weight:800;letter-spacing:.14em}
+.login label,.customer-admin-login label{display:block;margin:13px 0 6px;color:#6d5139;font-size:13px;font-weight:850}
+.login input,.customer-admin-login input{box-sizing:border-box;width:100%;margin:0 0 4px;padding:13px 14px;border:1px solid #dfcdb8;border-radius:11px;background:#fffdf9;color:#392d23;font:inherit;outline:none;transition:border-color .18s,box-shadow .18s}
+.login input:focus,.customer-admin-login input:focus{border-color:#a77d55;box-shadow:0 0 0 3px #d9c3a455}
+.login button,.customer-admin-login .customer-order-submit{width:100%;margin-top:17px;padding:14px;border:0;border-radius:11px;background:linear-gradient(110deg,#8c6544,#63452f);color:#fff;font:inherit;font-size:15px;font-weight:950;letter-spacing:.08em;cursor:pointer;box-shadow:0 6px 14px rgba(91,62,38,.2)}
+.login button:hover,.customer-admin-login .customer-order-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.login #login-error,.login #error{color:#a33b2b;font-size:13px;font-weight:750}
+@media(max-width:480px){.login,.customer-admin-login{padding:25px 21px;border-radius:18px}}
+.customer-order-muted{color:#92765f;font-size:13px;line-height:1.7}
 @media(max-width:560px){.customer-order-form{grid-template-columns:1fr}.customer-order-field.full{grid-column:auto}.customer-order-brand h1{font-size:22px}}
 
 /* 客人線上點餐：快速點餐式商品卡片 */
@@ -1588,7 +1593,6 @@ html.customer-orders-standalone #sub-view{display:block!important}
         <div id="sub-view" class="page-view">
             <div class="top-bar">
                 <div class="top-left-group">
-                    <button class="back-btn" onclick="goHome()">← 返回主選單</button>
                     <h2 id="page-title" style="margin:0; font-size: 18px; color:var(--text-main);"></h2>
                 </div>
                 <div id="top-action-container"></div>
