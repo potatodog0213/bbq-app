@@ -34,8 +34,7 @@ body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFo
 .malinji-login-foot{margin:18px 0 0;text-align:center;color:#aa927b;font-size:11px;letter-spacing:.06em}
 
 .ticket-rail,.ticket{touch-action:pan-y}
-/* 手機交給瀏覽器原生水平觸控捲動，避免部分 Android/MIUI 的 Pointer Capture 限制 */
-.ticket-rail{touch-action:pan-x pan-y;cursor:grab}
+.ticket-rail{touch-action:none;cursor:grab}
 .ticket-rail.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
 
 
@@ -620,11 +619,9 @@ setTimeout(syncFsBtn,300);
 (function enableTicketRailDrag(){
   const rail=document.getElementById('ticket-rail');
   if(!rail)return;
-  // 觸控裝置使用瀏覽器原生水平捲動（Android MIUI/舊版 Chrome 相容性較佳）；
-  // 僅保留滑鼠拖曳，避免觸控 Pointer Capture 令部分手機每次只移動少量距離。
   let startX=0,startScroll=0,pointerId=null,dragged=false;
   rail.addEventListener('pointerdown',e=>{
-    if(e.pointerType!=='mouse'||e.button!==0)return;
+    if(e.pointerType==='mouse'&&e.button!==0)return;
     if(!e.target.closest('.ticket'))return;
     pointerId=e.pointerId;startX=e.clientX;startScroll=rail.scrollLeft;dragged=false;
     rail.classList.add('is-dragging');
