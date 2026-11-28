@@ -34,7 +34,8 @@ body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFo
 .malinji-login-foot{margin:18px 0 0;text-align:center;color:#aa927b;font-size:11px;letter-spacing:.06em}
 
 .ticket-rail,.ticket{touch-action:pan-y}
-.ticket-rail{touch-action:none;cursor:grab}
+/* 手機交給瀏覽器原生水平觸控捲動，避免部分 Android/MIUI 的 Pointer Capture 限制 */
+.ticket-rail{touch-action:pan-x pan-y;cursor:grab}
 .ticket-rail.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
 
 
@@ -121,6 +122,9 @@ body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFo
 }
 .fs-btn:hover{background:#3a4552;border-color:#6a7888}
 .fs-btn.is-fs{background:#f8eddb;color:#493727;border-color:#e0c9a8}
+/* iPhone「加入主畫面」模式沒有 Fullscreen API，以固定視窗切換顯示狀態 */
+#screen.kitchen-standalone-fs{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;z-index:1000;overflow:hidden;background:#171b20}
+#screen.kitchen-standalone-fs .kitchen-layout{width:100%;height:100%;height:100dvh}
 
 
 /* 水平卡片列：最新在最右邊 */
@@ -589,14 +593,34 @@ function subscribe(){
     .subscribe();
 }
 
+function isStandaloneApp(){
+  return window.navigator.standalone===true ||
+    (window.matchMedia && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches
+    ));
+}
 function syncFsBtn(){
   const btn=document.getElementById('fs-btn');
   if(!btn)return;
-  const on=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  const standalone=isStandaloneApp();
+  const screen=document.getElementById('screen');
+  const on=standalone
+    ? !!screen?.classList.contains('kitchen-standalone-fs')
+    : !!(document.fullscreenElement||document.webkitFullscreenElement);
+  btn.classList.toggle('is-fs',on);
   btn.textContent=on?'⛶ 退出全螢幕':'⛶ 全螢幕';
   btn.title=on?'退出全螢幕':'進入全螢幕';
 }
 async function toggleFullscreen(){
+  const screen=document.getElementById('screen');
+  // iPhone 從 Safari「加入主畫面」開啟時，系統本身已使用獨立視窗，
+  // 不支援 Fullscreen API；改用頁面固定定位切換，仍可再次點擊退出。
+  if(isStandaloneApp()){
+    screen.classList.toggle('kitchen-standalone-fs');
+    syncFsBtn();
+    return;
+  }
   try{
     if(document.fullscreenElement||document.webkitFullscreenElement){
       if(document.exitFullscreen)await document.exitFullscreen();
@@ -605,23 +629,32 @@ async function toggleFullscreen(){
       const root=document.documentElement;
       if(root.requestFullscreen)await root.requestFullscreen();
       else if(root.webkitRequestFullscreen)root.webkitRequestFullscreen();
-      else{alert('此瀏覽器不支援全螢幕功能');return;}
+      else{
+        // 一般 iPhone Safari 也提供可切換的頁面全螢幕替代方式，不再直接報錯。
+        screen.classList.toggle('kitchen-standalone-fs');
+      }
     }
-  }catch(error){alert('無法切換全螢幕：'+(error?.message||error));}
+  }catch(error){
+    // API 被瀏覽器拒絕時，退回頁面全螢幕顯示，避免按鈕失效。
+    screen.classList.toggle('kitchen-standalone-fs');
+  }
   syncFsBtn();
 }
 document.addEventListener('fullscreenchange',syncFsBtn);
 document.addEventListener('webkitfullscreenchange',syncFsBtn);
 document.addEventListener('DOMContentLoaded',syncFsBtn);
+window.addEventListener('pageshow',syncFsBtn);
 setTimeout(syncFsBtn,300);
 
 // 可直接按住訂單卡片拖曳整排卡片；只有實際拖動時才攔截點擊，卡片按鈕照常使用。
 (function enableTicketRailDrag(){
   const rail=document.getElementById('ticket-rail');
   if(!rail)return;
+  // 觸控裝置使用瀏覽器原生水平捲動（Android MIUI/舊版 Chrome 相容性較佳）；
+  // 僅保留滑鼠拖曳，避免觸控 Pointer Capture 令部分手機每次只移動少量距離。
   let startX=0,startScroll=0,pointerId=null,dragged=false;
   rail.addEventListener('pointerdown',e=>{
-    if(e.pointerType==='mouse'&&e.button!==0)return;
+    if(e.pointerType!=='mouse'||e.button!==0)return;
     if(!e.target.closest('.ticket'))return;
     pointerId=e.pointerId;startX=e.clientX;startScroll=rail.scrollLeft;dragged=false;
     rail.classList.add('is-dragging');
