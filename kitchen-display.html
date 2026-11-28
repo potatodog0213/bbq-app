@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="廚房出單">
-<meta name="theme-color" content="#f4eadb">
+<meta name="theme-color" content="#171b20">
 <title>馬鈴吉碳烤｜廚房出單螢幕</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -16,21 +16,27 @@
 html,body{width:100%;height:100%;margin:0;overflow:hidden}
 body{background:#171b20;color:#f7f3ed;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 
-/* Shared milk-tea login appearance */
-.login,.customer-admin-login{box-sizing:border-box;width:min(420px,calc(100% - 32px));margin:clamp(36px,12vh,110px) auto;background:linear-gradient(145deg,#fffaf2 0%,#f2e3cf 100%);padding:32px;border:1px solid #e3cdb1;border-radius:22px;box-shadow:0 22px 60px rgba(91,62,38,.16);color:#392d23}
-.login .login-brand,.customer-admin-login .admin-login-brand{display:flex;align-items:center;gap:14px;margin-bottom:25px}
-.login .login-mark,.customer-admin-login .admin-login-mark{width:54px;height:54px;flex:0 0 54px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#b8895b,#80583b);color:#fff;font-size:28px;box-shadow:0 7px 16px rgba(91,62,38,.2)}
-.login .login-brand h2,.customer-admin-login .admin-login-brand h3{margin:0;color:#392d23;font-size:22px;font-weight:950;letter-spacing:.04em}
-.login .login-brand p,.customer-admin-login .admin-login-brand p{margin:5px 0 0;color:#92765f;font-size:11px;font-weight:800;letter-spacing:.14em}
-.login label,.customer-admin-login label{display:block;margin:13px 0 6px;color:#6d5139;font-size:13px;font-weight:850}
-.login input,.customer-admin-login input{box-sizing:border-box;width:100%;margin:0 0 4px;padding:13px 14px;border:1px solid #dfcdb8;border-radius:11px;background:#fffdf9;color:#392d23;font:inherit;outline:none;transition:border-color .18s,box-shadow .18s}
-.login input:focus,.customer-admin-login input:focus{border-color:#a77d55;box-shadow:0 0 0 3px #d9c3a455}
-.login button,.customer-admin-login .customer-order-submit{width:100%;margin-top:17px;padding:14px;border:0;border-radius:11px;background:linear-gradient(110deg,#8c6544,#63452f);color:#fff;font:inherit;font-size:15px;font-weight:950;letter-spacing:.08em;cursor:pointer;box-shadow:0 6px 14px rgba(91,62,38,.2)}
-.login button:hover,.customer-admin-login .customer-order-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
-.login #login-error,.login #error{color:#a33b2b;font-size:13px;font-weight:750}
-@media(max-width:480px){.login,.customer-admin-login{padding:25px 21px;border-radius:18px}}
-/* 登入時使用奶茶色頁面底色；登入後保留廚房深色操作介面 */
-body:has(#login[style*="display: block"]){background:#f4eadb;color:#392d23}
+.login{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(ellipse at 50% 0%,#fffaf2 0%,#f3e6d5 70%,#ead8c1 100%)}
+
+/* 三頁共用店家登入視覺 */
+.malinji-login-card{width:min(420px,calc(100vw - 36px));padding:34px 30px 28px;background:linear-gradient(155deg,#fffdf9 0%,#fff7ed 100%);border:1px solid #e7d4bc;border-radius:24px;box-shadow:0 24px 70px rgba(69,45,25,.16);color:#392d23}
+.malinji-login-brand{display:flex;align-items:center;gap:12px;margin-bottom:25px}
+.malinji-login-mark{width:48px;height:48px;display:grid;place-items:center;flex:0 0 48px;border-radius:15px;background:linear-gradient(145deg,#f2dfc6,#e5c7a4);font-size:25px;box-shadow:inset 0 1px 0 #fff9}
+.malinji-login-brand strong{display:block;font-size:17px;letter-spacing:.04em;color:#493727}
+.malinji-login-brand small{display:block;margin-top:4px;font-size:10px;letter-spacing:.18em;color:#9b8066;font-weight:850}
+.malinji-login-card h2,.malinji-login-card h3{margin:0 0 7px;color:#493727;font-size:25px;font-weight:950;letter-spacing:.03em}
+.malinji-login-hint{margin:0 0 23px;color:#92765f;font-size:13px;line-height:1.7}
+.malinji-login-card label{display:block;margin:14px 0 7px;color:#72563f;font-size:12px;font-weight:900;letter-spacing:.04em}
+.malinji-login-card input{display:block;width:100%;min-height:48px;margin:0;padding:12px 14px;border:1px solid #e4d2bd;border-radius:12px;background:#fff;color:#392d23;font:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+.malinji-login-card input:focus{border-color:#b88a61;box-shadow:0 0 0 3px rgba(184,138,97,.14)}
+.malinji-login-card button{width:100%;min-height:49px;margin-top:22px;border:0;border-radius:12px;background:linear-gradient(135deg,#765239,#503725);color:#fff;font:inherit;font-weight:950;letter-spacing:.08em;cursor:pointer;box-shadow:0 7px 16px rgba(80,55,37,.18)}
+.malinji-login-error{min-height:18px;margin:12px 0 0;color:#b34d3e;font-size:12px;line-height:1.6}
+.malinji-login-foot{margin:18px 0 0;text-align:center;color:#aa927b;font-size:11px;letter-spacing:.06em}
+
+.ticket-rail,.ticket{touch-action:pan-y}
+.ticket-rail.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
+
+
 /* 整體：左側主內容 + 右側種類選單 */
 .kitchen-layout{
   height:100dvh;min-height:0;padding:0;
@@ -252,11 +258,13 @@ body:has(#login[style*="display: block"]){background:#f4eadb;color:#392d23}
 </head>
 <body>
 <div id="login" class="login" style="display:none">
-  <div class="login-brand"><div class="login-mark" aria-hidden="true">🍢</div><div><h2>店家登入</h2><p>MA LING JI · KITCHEN DISPLAY</p></div></div>
-  <label for="email">Email</label><input id="email" type="email" autocomplete="username" placeholder="請輸入店家 Email">
-  <label for="password">密碼</label><input id="password" type="password" autocomplete="current-password" placeholder="請輸入密碼">
-  <button onclick="signIn()">登入廚房系統</button>
-  <p id="error"></p>
+  <section class="malinji-login-card">
+    <div class="malinji-login-brand"><span class="malinji-login-mark">🍢</span><span><strong>馬鈴吉碳烤</strong><small>MALINJI · STORE SYSTEM</small></span></div>
+    <h2>店家登入</h2><p class="malinji-login-hint">登入後即可查看廚房訂單與製作進度。</p>
+    <label for="email">店家 Email</label><input id="email" type="email" autocomplete="username" placeholder="請輸入登入 Email">
+    <label for="password">密碼</label><input id="password" type="password" autocomplete="current-password" placeholder="請輸入密碼">
+    <button onclick="signIn()">登入系統</button><p id="error" class="malinji-login-error"></p><p class="malinji-login-foot">店務管理系統・安全登入</p>
+  </section>
 </div>
 
 <div id="screen" style="display:none">
@@ -455,7 +463,7 @@ function notifyNewOrders(list){
   }
 }
 
-function showLogin(msg=''){document.getElementById('login').style.display='block';document.getElementById('error').textContent=msg}
+function showLogin(msg=''){document.getElementById('login').style.display='flex';document.getElementById('error').textContent=msg}
 async function signIn(){const {error}=await sb.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});if(error){showLogin(error.message);return}boot()}
 async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){showLogin();return}const {data:{user}}=await sb.auth.getUser();if(user?.app_metadata?.role!=='store_owner'){await sb.auth.signOut();showLogin('此帳號未授權');return}document.getElementById('login').style.display='none';document.getElementById('screen').style.display='block';await refresh();subscribe();
   syncNotifyBtn();
@@ -627,6 +635,33 @@ document.addEventListener('fullscreenchange',syncFsBtn);
 document.addEventListener('webkitfullscreenchange',syncFsBtn);
 document.addEventListener('DOMContentLoaded',syncFsBtn);
 setTimeout(syncFsBtn,300);
+
+// 可直接按住訂單卡片拖曳整排卡片；只有實際拖動時才攔截點擊，卡片按鈕照常使用。
+(function enableTicketRailDrag(){
+  const rail=document.getElementById('ticket-rail');
+  if(!rail)return;
+  let startX=0,startScroll=0,pointerId=null,dragged=false,captureTarget=null;
+  rail.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    if(!e.target.closest('.ticket'))return;
+    pointerId=e.pointerId;startX=e.clientX;startScroll=rail.scrollLeft;dragged=false;captureTarget=e.target;
+    try{captureTarget.setPointerCapture(pointerId);}catch(_){ }
+  });
+  rail.addEventListener('pointermove',e=>{
+    if(pointerId===null||e.pointerId!==pointerId)return;
+    const dx=e.clientX-startX;
+    if(Math.abs(dx)>5){dragged=true;rail.classList.add('is-dragging');}
+    if(dragged){rail.scrollLeft=startScroll+dx;e.preventDefault();}
+  },{passive:false});
+  const finish=e=>{
+    if(pointerId===null||(e&&e.pointerId!==pointerId))return;
+    if(dragged){rail.dataset.suppressClick='1';setTimeout(()=>{delete rail.dataset.suppressClick;},0);}
+    try{captureTarget?.releasePointerCapture(pointerId);}catch(_){ }
+    captureTarget=null;pointerId=null;rail.classList.remove('is-dragging');
+  };
+  rail.addEventListener('pointerup',finish);rail.addEventListener('pointercancel',finish);
+  rail.addEventListener('click',e=>{if(rail.dataset.suppressClick==='1'){e.preventDefault();e.stopPropagation();delete rail.dataset.suppressClick;}},true);
+})();
 
 boot().catch(e=>{console.error(e);showLogin('載入失敗：'+e.message)});
 
