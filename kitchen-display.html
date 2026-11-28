@@ -609,13 +609,14 @@ function toggleFullscreen(){
     alert('此瀏覽器不支援全螢幕。請用 Safari「分享 → 加入主畫面」，從主畫面圖示開啟即可接近全螢幕。');
     return;
   }
-  if(document.fullscreenElement||document.webkitFullscreenElement){
-    if(exit)exit.call(document);
+  if(document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement){
+    if(exit){const p=exit.call(document);if(p&&p.then)p.then(syncFsBtn).catch(function(){});else setTimeout(syncFsBtn,100);}
   }else{
     const p=req.call(el);
-    if(p&&p.catch)p.catch(function(){
+    if(p&&p.then)p.then(syncFsBtn).catch(function(){
       alert('無法進入全螢幕。iPhone/iPad 請改用「加入主畫面」開啟。');
     });
+    else setTimeout(syncFsBtn,100);
   }
 }
 function syncFsBtn(){
@@ -627,7 +628,7 @@ function syncFsBtn(){
     btn.title='已從主畫面開啟，本身即為全螢幕顯示';
     return;
   }
-  const on=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  const on=!!(document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement);
   btn.classList.toggle('is-fs',on);
   btn.textContent=on?'⛶ 退出全螢幕':'⛶ 全螢幕';
 }
@@ -640,24 +641,24 @@ setTimeout(syncFsBtn,300);
 (function enableTicketRailDrag(){
   const rail=document.getElementById('ticket-rail');
   if(!rail)return;
-  let startX=0,startScroll=0,pointerId=null,dragged=false,captureTarget=null;
+  let startX=0,startScroll=0,pointerId=null,dragged=false,downTarget=null;
   rail.addEventListener('pointerdown',e=>{
     if(e.pointerType==='mouse'&&e.button!==0)return;
     if(!e.target.closest('.ticket'))return;
-    pointerId=e.pointerId;startX=e.clientX;startScroll=rail.scrollLeft;dragged=false;captureTarget=e.target;
-    try{captureTarget.setPointerCapture(pointerId);}catch(_){ }
+    pointerId=e.pointerId;startX=e.clientX;startScroll=rail.scrollLeft;dragged=false;downTarget=e.target;
+    try{rail.setPointerCapture(pointerId);}catch(_){ }
   });
   rail.addEventListener('pointermove',e=>{
     if(pointerId===null||e.pointerId!==pointerId)return;
     const dx=e.clientX-startX;
     if(Math.abs(dx)>5){dragged=true;rail.classList.add('is-dragging');}
-    if(dragged){rail.scrollLeft=startScroll+dx;e.preventDefault();}
+    if(dragged){rail.scrollLeft=startScroll-dx;e.preventDefault();}
   },{passive:false});
   const finish=e=>{
     if(pointerId===null||(e&&e.pointerId!==pointerId))return;
     if(dragged){rail.dataset.suppressClick='1';setTimeout(()=>{delete rail.dataset.suppressClick;},0);}
-    try{captureTarget?.releasePointerCapture(pointerId);}catch(_){ }
-    captureTarget=null;pointerId=null;rail.classList.remove('is-dragging');
+    try{rail.releasePointerCapture(pointerId);}catch(_){ }
+    pointerId=null;rail.classList.remove('is-dragging');
   };
   rail.addEventListener('pointerup',finish);rail.addEventListener('pointercancel',finish);
   rail.addEventListener('click',e=>{if(rail.dataset.suppressClick==='1'){e.preventDefault();e.stopPropagation();delete rail.dataset.suppressClick;}},true);
